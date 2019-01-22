@@ -41,11 +41,24 @@
     function CDrawingDocContent(Parent, DrawingDocument, X, Y, XLimit, YLimit) {
 		CDocumentContent.call(this, Parent, DrawingDocument, X, Y, XLimit, YLimit, false, false, true);
         this.FullRecalc = new CDocumentRecalculateState();
+        this.AllFields = [];
     }
 
 	CDrawingDocContent.prototype = Object.create(CDocumentContent.prototype);
 	CDrawingDocContent.prototype.constructor = CDrawingDocContent;
 
+    CDrawingDocContent.prototype.CalculateAllFields = function () {
+        var aParagraphs = this.Content;
+        this.AllFields.length = 0;
+        for(var i = 0; i < aParagraphs.length; ++i){
+            var aContent = aParagraphs[i].Content;
+            for(var j = 0; j < aContent.length; ++j){
+                if(aContent[j] instanceof AscCommonWord.CPresentationField){
+                    this.AllFields.push(aContent[j]);
+                }
+            }
+        }
+    };
     CDrawingDocContent.prototype.GetSummaryHeight = function(){
         var fSummHeight = 0;
         var nColumnsCount = this.Get_ColumnsCount();
@@ -73,6 +86,21 @@
         }
         return fSummHeight;
     };
+
+    CDrawingDocContent.prototype.GetSummaryHeight_ =function () {
+        var dHeight = 0.0;
+        for(var i = 0; i < this.Content.length; ++i){
+            var oElement = this.Content[i];
+            if(oElement.GetType() === type_Paragraph){
+                for(var j = 0; j < oElement.Lines.length; ++j){
+                    var oLine = oElement.Lines[j];
+                    dHeight += (oLine.Bottom - oLine.Top - oLine.Metrics.Descent);
+                }
+            }
+        }
+        return dHeight;
+    };
+
     CDrawingDocContent.prototype.Get_ColumnsCount = function(){
         var nColumnCount = 1;
         if(this.Parent.getBodyPr){
@@ -127,6 +155,7 @@
 
 
     CDrawingDocContent.prototype.RecalculateContent = function(fWidth, fHeight, nStartPage){
+        this.CalculateAllFields();
         if(this.Get_ColumnsCount() === 1){
             CDocumentContent.prototype.RecalculateContent.call(this, fWidth, fHeight, nStartPage);
         }

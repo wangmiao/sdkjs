@@ -34,8 +34,11 @@
 
 (function (window, builder) {
 	function checkFormat(value) {
-		//TODO Date не обрабатывается. в будущем нужно реализовать.
-		return new AscCommonExcel.cString(value + '');
+		if (value.getTime){
+			return new AscCommonExcel.cNumber(new cDate(value.getTime()).getExcelDate());
+		} else {
+			return new AscCommonExcel.cString(value + '');
+		}
 	}
 
 	/**
@@ -192,6 +195,24 @@
 			return this.GetSheets();
 		}
 	});
+
+	/**
+	 * Set locale for document.
+	 * @memberof Api
+	 * @param {number} LCID
+	 */
+	Api.prototype.SetLocale = function(LCID) {
+		this.asc_setLocale(LCID);
+	};
+	
+	/**
+	 * Returns current locale id.
+	 * @memberof Api
+	 * @returns {number}
+	 */
+	Api.prototype.GetLocale = function() {
+		return this.asc_getLocale();
+	};
 
 	/**
 	 * Get the object that represents the active sheet.
@@ -689,6 +710,38 @@
 	});
 
 	/**
+	 * Add Hyperlink
+	 * @memberof ApiWorksheet
+	 * @param {Anchor} Anchor
+	 * @param {Address} Address
+	 * @param {ScreenTip} ScreenTip
+	 * @param {TextToDisplay} TextToDisplay
+	 * */
+	ApiWorksheet.prototype.SetHyperlink = function (Anchor, Address, ScreenTip, TextToDisplay)	{
+		var range = new ApiRange(this.worksheet.getRange2(Anchor));
+		var p = /^(?:http:\/\/|https:\/\/)/;
+		if (range && range.range.isOneCell() && Address) {
+			this.worksheet.selectionRange.assign2(range.range.bbox);
+			var  Hyperlink = new Asc.asc_CHyperlink();
+			if (ScreenTip) {
+				Hyperlink.asc_setText(ScreenTip);
+			} else {
+				Hyperlink.asc_setText(Address);
+			}
+			if (TextToDisplay) {
+				Hyperlink.asc_setTooltip(TextToDisplay);
+			}
+			if (Address.match(p) || Address.search(/mailto:/i) !== -1) {
+				Hyperlink.asc_setHyperlinkUrl(Address);
+			} else {
+				Hyperlink.asc_setRange(Address);
+				Hyperlink.asc_setSheet(this.Name);
+			}
+			this.worksheet.workbook.oApi.wb.insertHyperlink(Hyperlink);
+		}
+	};
+
+	/**
 	 * Create a chart of the set type from the selected data range of the current sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
@@ -708,7 +761,7 @@
 	 */
 	ApiWorksheet.prototype.AddChart =
 		function (sDataRange, bInRows, sType, nStyleIndex, nExtX, nExtY, nFromCol, nColOffset,  nFromRow, nRowOffset) {
-			var settings = new AscCommon.asc_ChartSettings();
+			var settings = new Asc.asc_ChartSettings();
 			switch (sType) {
 				case "bar" :
 				{
@@ -1115,7 +1168,14 @@
 	 * @param {string} value - The general value for the cell or cell range in string format.
 	 */
 	ApiRange.prototype.SetValue = function (value) {
-		this.range.setValue(checkFormat(value).getValue());
+		value = checkFormat(value);
+		this.range.setValue(value.toString());
+		if (value.type === AscCommonExcel.cElementType.number) {
+			this.SetNumberFormat(AscCommon.getShortDateFormat());
+		}
+		// ToDo update range in setValue
+		var worksheet = this.range.worksheet;
+		worksheet.workbook.handlers.trigger("cleanCellCache", worksheet.getId(), [this.range.bbox], true);
 	};
 	Object.defineProperty(ApiRange.prototype, "Value", {
 		get: function () {
@@ -1598,6 +1658,24 @@
 		}
 	};
 
+	/**
+	 * Adds a comment to the range.
+	 * @typeofeditors ["CSE"]
+	 * @memberof ApiRange
+	 * @param {string} text - The comment text.
+	 */
+	ApiRange.prototype.AddComment = function (text) {
+		var ws = Asc['editor'].wb.getWorksheet(this.range.getWorksheet().getIndex());
+		if (ws) {
+			var comment = new Asc.asc_CCommentData();
+			comment.sText = text;
+			comment.nCol = this.range.bbox.c1;
+			comment.nRow = this.range.bbox.r1;
+			comment.bDocument = false;
+			ws.cellCommentator.addComment(comment, true);
+		}
+	};
+
 	//------------------------------------------------------------------------------------------------------------------
 	//
 	// ApiDrawing
@@ -1998,6 +2076,8 @@
 	Api.prototype["AddSheet"] = Api.prototype.AddSheet;
 	Api.prototype["GetSheets"] = Api.prototype.GetSheets;
 	Api.prototype["GetActiveSheet"] = Api.prototype.GetActiveSheet;
+	Api.prototype["GetLocale"] = Api.prototype.GetLocale;
+	Api.prototype["SetLocale"] = Api.prototype.SetLocale;
 	Api.prototype["GetSheet"] = Api.prototype.GetSheet;
 	Api.prototype["GetThemesColors"] = Api.prototype.GetThemesColors;
 	Api.prototype["SetThemeColors"] = Api.prototype.SetThemeColors;
@@ -2033,6 +2113,7 @@
 	ApiWorksheet.prototype["GetBottomMargin"] = ApiWorksheet.prototype.GetBottomMargin;		
 	ApiWorksheet.prototype["SetPageOrientation"] = ApiWorksheet.prototype.SetPageOrientation;
 	ApiWorksheet.prototype["GetPageOrientation"] = ApiWorksheet.prototype.GetPageOrientation;
+	ApiWorksheet.prototype["SetHyperlink"] = ApiWorksheet.prototype.SetHyperlink;
 	ApiWorksheet.prototype["AddChart"] = ApiWorksheet.prototype.AddChart;
 	ApiWorksheet.prototype["AddShape"] = ApiWorksheet.prototype.AddShape;
 	ApiWorksheet.prototype["AddImage"] = ApiWorksheet.prototype.AddImage;
@@ -2069,6 +2150,7 @@
 	ApiRange.prototype["Merge"] = ApiRange.prototype.Merge;
 	ApiRange.prototype["UnMerge"] = ApiRange.prototype.UnMerge;
 	ApiRange.prototype["ForEach"] = ApiRange.prototype.ForEach;
+	ApiRange.prototype["AddComment"] = ApiRange.prototype.AddComment;
 
 
 	ApiDrawing.prototype["GetClassType"]               =  ApiDrawing.prototype.GetClassType;

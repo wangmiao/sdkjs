@@ -99,7 +99,7 @@ var c_oAscSelectionDialogType = {
   FormatTableChangeRange: 4
 };
 
-var c_oAscGraphicOption = {
+var c_oAscScrollType = {
   ScrollVertical: 1,
   ScrollHorizontal: 2
 };
@@ -239,9 +239,11 @@ var c_oAscChangeTableStyleInfo = {
 var c_oAscCellEditorState = {
   editEnd: 0,				// Окончание редактирования
   editStart: 1,				// Начало редактирования
-  editEmptyCell: 2,				// Редактирование пустой ячейки (доступны функции и свойства текста)
+  editEmptyCell: 2,			// Редактирование пустой ячейки (доступны функции и свойства текста)
   editText: 3,				// Редактирование текста, числа, даты и др. формата, кроме формулы
-  editFormula: 4				// Редактирование формулы
+  editFormula: 4,			// Редактирование формулы
+  editInFormulaBar: 5,		// Редактирование в строке формул
+  editInCell: 6				// Редактирование в ячейке
 };
 
 // Состояние select-а
@@ -256,6 +258,13 @@ var c_oAscCanChangeColWidth = {
   none: 0,	// not recalc
   numbers: 1,	// only numbers
   all: 2	// numbers + text
+};
+
+// Merge cell type
+var c_oAscMergeType = {
+  none: 0,
+  columns: 1, // Замержены ли колонки (если да, то автоподбор ширины не должен работать)
+  rows: 2     // Замержены ли строки (если да, то автоподбор высоты не должен работать)
 };
 
 var c_oAscPaneState = {
@@ -325,6 +334,7 @@ var c_oAscFormulaRangeBorderColor = [
   var c_oAscLockNameFrozenPane = "frozenPane";
   var c_oAscLockNameTabColor = "tabColor";
   var c_oAscLockAddSheet = "addSheet";
+  var c_oAscLockLayoutOptions = "layoutOptions";
 
 var c_oAscGetDefinedNamesList = {
   Worksheet: 0,
@@ -372,18 +382,26 @@ var c_oAscPopUpSelectorType = {
 	UndoTableAutoExpansion: 0,
 	RedoTableAutoExpansion: 1
   };
-  
+
+  //изменяем Print_Area
+  var c_oAscChangePrintAreaType = {
+      set: 0,
+      clear: 1,
+      add: 2
+  };
+
   var c_kMaxPrintPages = 1500;
 
   //----------------------------------------------------------export----------------------------------------------------
   window['AscCommonExcel'] = window['AscCommonExcel'] || {};
   window['AscCommonExcel'].c_oAscDrawDepOptions = c_oAscDrawDepOptions;
-  window['AscCommonExcel'].c_oAscGraphicOption = c_oAscGraphicOption;
+  window['AscCommonExcel'].c_oAscScrollType = c_oAscScrollType;
   window['AscCommonExcel'].c_oAscLockTypeElem = c_oAscLockTypeElem;
   window['AscCommonExcel'].c_oAscLockTypeElemSubType = c_oAscLockTypeElemSubType;
   window['AscCommonExcel'].c_oAscRecalcIndexTypes = c_oAscRecalcIndexTypes;
   window['AscCommonExcel'].c_oAscCellEditorSelectState = c_oAscCellEditorSelectState;
   window['AscCommonExcel'].c_oAscCanChangeColWidth = c_oAscCanChangeColWidth;
+  window['AscCommonExcel'].c_oAscMergeType = c_oAscMergeType;
   window['AscCommonExcel'].c_oAscPaneState = c_oAscPaneState;
   window['AscCommonExcel'].c_oTargetType = c_oTargetType;
   window['AscCommonExcel'].c_oAscCoAuthoringMeBorderColor = c_oAscCoAuthoringMeBorderColor;
@@ -396,6 +414,7 @@ var c_oAscPopUpSelectorType = {
   window['AscCommonExcel'].c_oAscLockNameFrozenPane = c_oAscLockNameFrozenPane;
   window['AscCommonExcel'].c_oAscLockNameTabColor = c_oAscLockNameTabColor;
   window['AscCommonExcel'].c_oAscLockAddSheet = c_oAscLockAddSheet;
+  window['AscCommonExcel'].c_oAscLockLayoutOptions = c_oAscLockLayoutOptions;
   window['AscCommonExcel'].c_kMaxPrintPages = c_kMaxPrintPages;
   window['AscCommonExcel'].filteringMode = true;
 
@@ -505,6 +524,8 @@ var c_oAscPopUpSelectorType = {
   prot['editEmptyCell'] = prot.editEmptyCell;
   prot['editText'] = prot.editText;
   prot['editFormula'] = prot.editFormula;
+  prot['editInFormulaBar'] = prot.editInFormulaBar;
+  prot['editInCell'] = prot.editInCell;
   window['Asc']['c_oAscChangeSelectionFormatTable'] = window['Asc'].c_oAscChangeSelectionFormatTable = c_oAscChangeSelectionFormatTable;
   prot = c_oAscChangeSelectionFormatTable;
   prot['all'] = prot.all;
@@ -528,6 +549,7 @@ var c_oAscPopUpSelectorType = {
   prot['DynamicFilter'] = prot.DynamicFilter;
   prot['Top10'] = prot.Top10;
   prot['Filters'] = prot.Filters;
+  prot['None'] = prot.None;
   window['Asc']['c_oAscFindLookIn'] = window['Asc'].c_oAscFindLookIn = c_oAscFindLookIn;
   prot = c_oAscFindLookIn;
   prot['Formulas'] = prot.Formulas;
@@ -571,4 +593,10 @@ var c_oAscPopUpSelectorType = {
   prot = c_oAscAutoCorrectOptions;
   prot['UndoTableAutoExpansion'] = prot.UndoTableAutoExpansion;
   prot['RedoTableAutoExpansion'] = prot.RedoTableAutoExpansion;
+  window['Asc']['c_oAscChangePrintAreaType'] = window['Asc'].c_oAscChangePrintAreaType = c_oAscChangePrintAreaType;
+  prot = c_oAscChangePrintAreaType;
+  prot['set'] = prot.set;
+  prot['clear'] = prot.clear;
+  prot['add'] = prot.add;
+
 })(window);

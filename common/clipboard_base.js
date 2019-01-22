@@ -98,6 +98,7 @@
 		this.DivOnCopyText = "";
 
 		this.bSaveFormat = false; //для вставки, допустим, из плагина необходимо чтобы при добавлении текста в шейп сохранялось форматирование
+		this.bCut = false;
 	}
 
 	CClipboardBase.prototype =
@@ -142,6 +143,8 @@
 			if (!this.Api.asc_IsFocus(true))
 				return;
 
+			this.bCut = true;
+
 			this.ClosureParams._e = e;
 			if (this.IsNeedDivOnCopy)
 			{
@@ -154,6 +157,7 @@
 			}
 
 			this.Api.asc_SelectionCut();
+			this.bCut = false;
 
 			if (!this.IsNeedDivOnCopy)
 			{
@@ -202,6 +206,9 @@
 				var _clipboard = (e && e.clipboardData) ? e.clipboardData : window.clipboardData;
 				if (!_clipboard || !_clipboard.getData)
 					return false;
+
+				//TODO TEST!!!!!!
+				window['AscCommon'].g_clipboardBase.rtf = this.ClosureParams.getData("text/rtf");
 
 				var _text_format = this.ClosureParams.getData("text/plain");
 				var _internal = this.ClosureParams.getData("text/x-custom");
@@ -270,7 +277,14 @@
                                 }
                             };
 
-                            reader.readAsDataURL(blob);
+                            try
+							{
+                                reader.readAsDataURL(blob);
+                            }
+                            catch(err)
+							{
+                                g_clipboardBase.PasteImagesCounter++;
+							}
                         }
                         else
                         {
@@ -683,19 +697,21 @@
 		{
 			var ElemToSelect = this.CommonDiv;
 
-			ElemToSelect.style.display                 = AscBrowser.isSafari ? "block" : "none";
+			if (ElemToSelect)
+			{
+                ElemToSelect.style.display       = AscBrowser.isSafari ? "block" : "none";
+                ElemToSelect.style.MozUserSelect = "none";
+			}
 			document.body.style.MozUserSelect          = "none";
 			document.body.style["-khtml-user-select"]  = "none";
 			document.body.style["-o-user-select"]      = "none";
 			document.body.style["user-select"]         = "none";
 			document.body.style["-webkit-user-select"] = "none";
-
 			document.body.style["background-color"] = this.ClosureParams.backgroundcolorBody;
-
-			ElemToSelect.style.MozUserSelect = "none";
-			document.body.style.overflow     = this.ClosureParams.overflowBody;
+			document.body.style.overflow = this.ClosureParams.overflowBody;
 
 			this.CopyFlag = false;
+			this.bCut = false;
 			this.EndFocus();
 		},
 
@@ -888,9 +904,11 @@
 			{
 				//　копирования не было
 				this.LastCopyBinary = null;
+				this.bCut = true;
 				this.Api.asc_CheckCopy(this, AscCommon.c_oAscClipboardDataFormat.Text | AscCommon.c_oAscClipboardDataFormat.Html | AscCommon.c_oAscClipboardDataFormat.Internal);
 
 				this.Api.asc_SelectionCut();
+				this.bCut = false;
 			}
 			return _ret;
 		},
@@ -1066,6 +1084,9 @@
 		{
 			if(!this.Api || !this.Api.asc_specialPasteShowButton || this.doNotShowButton)
 			{
+				if(this.doNotShowButton) {
+					this.showButtonIdParagraph = null;
+				}
 				return;
 			}
 

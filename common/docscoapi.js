@@ -834,11 +834,11 @@
     }
   };
 
-  DocsCoApi.prototype._reSaveChanges = function() {
-    this.saveChanges(this.arrayChanges, this.currentIndex);
+  DocsCoApi.prototype._reSaveChanges = function(reSaveType) {
+    this.saveChanges(this.arrayChanges, this.currentIndex, undefined, undefined, reSaveType);
   };
 
-  DocsCoApi.prototype.saveChanges = function(arrayChanges, currentIndex, deleteIndex, excelAdditionalInfo) {
+  DocsCoApi.prototype.saveChanges = function(arrayChanges, currentIndex, deleteIndex, excelAdditionalInfo, reSave) {
     if (null === currentIndex) {
       this.deleteIndex = deleteIndex;
       if (null != this.deleteIndex && -1 !== this.deleteIndex) {
@@ -864,7 +864,7 @@
     var t = this;
     this.saveCallbackErrorTimeOutId = window.setTimeout(function() {
       t.saveCallbackErrorTimeOutId = null;
-      t._reSaveChanges();
+      t._reSaveChanges(1);
     }, this.errorTimeOutSave);
 
     // Выставляем состояние сохранения
@@ -874,7 +874,7 @@
       'startSaveChanges': (startIndex === 0), 'endSaveChanges': (endIndex === arrayChanges.length),
       'isCoAuthoring': this.isCoAuthoring, 'isExcel': this._isExcel, 'deleteIndex': this.deleteIndex,
       'excelAdditionalInfo': this.excelAdditionalInfo ? JSON.stringify(this.excelAdditionalInfo) : null,
-        'unlock': this.canUnlockDocument, 'releaseLocks': this.canReleaseLocks});
+        'unlock': this.canUnlockDocument, 'releaseLocks': this.canReleaseLocks, 'reSave': reSave});
   };
 
   DocsCoApi.prototype.unLockDocument = function(isSave, deleteIndex) {
@@ -967,7 +967,7 @@
   };
 
   DocsCoApi.prototype._send = function(data, useEncryption) {
-    if (!useEncryption && data && data["type"] == "saveChanges" && AscCommon.EncryptionWorker)
+    if (!useEncryption && data && data["type"] == "saveChanges" && AscCommon.EncryptionWorker && AscCommon.EncryptionWorker.isInit())
       return AscCommon.EncryptionWorker.sendChanges(this, data, AscCommon.EncryptionMessageType.Encrypt);
 
     if (data !== null && typeof data === "object") {
@@ -1132,15 +1132,14 @@
   };
 
   DocsCoApi.prototype._onSaveChanges = function(data, useEncryption) {
-    if (!useEncryption && AscCommon.EncryptionWorker)
-      return AscCommon.EncryptionWorker.sendChanges(this, data, AscCommon.EncryptionMessageType.Decrypt);
-
     if (!this.check_state()) {
       if (!this.get_isAuth()) {
         this._authOtherChanges.push(data);
       }
       return;
     }
+    if (!useEncryption && AscCommon.EncryptionWorker && AscCommon.EncryptionWorker.isInit())
+      return AscCommon.EncryptionWorker.sendChanges(this, data, AscCommon.EncryptionMessageType.Decrypt);
     if (data["locks"]) {
       var bSendEnd = false;
       for (var block in data["locks"]) {
@@ -1446,9 +1445,10 @@
       this._applyPrebuffered();
 
       if (this._isReSaveAfterAuth) {
+        this._isReSaveAfterAuth = false;
         var callbackAskSaveChanges = function(e) {
           if (false === e["saveLock"]) {
-            t._reSaveChanges();
+            t._reSaveChanges(2);
           } else {
             setTimeout(function() {
               t.askSaveChanges(callbackAskSaveChanges);
@@ -1731,6 +1731,7 @@
 			// Очищаем предыдущий таймер
 			if (null !== this.saveCallbackErrorTimeOutId) {
 				clearTimeout(this.saveCallbackErrorTimeOutId);
+				this.saveCallbackErrorTimeOutId = null;
 			}
 		}
 		this._state = ConnectionState.Reconnect;

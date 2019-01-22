@@ -4449,7 +4449,7 @@ CMathContent.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
             }
             else
             {
-                if(PRS.MathFirstItem == true && false == Item.Is_EmptyRange(PRS.Line, PRS.Range))
+                if(PRS.MathFirstItem == true && false == Item.IsEmptyRange(PRS.Line, PRS.Range))
                 {
                     PRS.MathFirstItem = false;
                 }
@@ -4671,22 +4671,22 @@ CMathContent.prototype.IsEmptyRange = function(_CurLine, _CurRange)
 };
 CMathContent.prototype.Displace_BreakOperator = function(isForward, bBrkBefore, CountOperators)
 {
-    var Pos = this.CurPos;
+	var Pos = this.CurPos;
 
-    if(this.Content[Pos].Type == para_Math_Run)
-    {
-        var bApplyBreak = this.Content[Pos].Displace_BreakOperator(isForward, bBrkBefore, CountOperators);
-        var NewPos = bBrkBefore ? Pos + 1 : Pos - 1;
+	if (this.Content[Pos].Type == para_Math_Run)
+	{
+		var bApplyBreak = this.Content[Pos].Displace_BreakOperator(isForward, bBrkBefore, CountOperators);
+		var NewPos      = bBrkBefore ? Pos + 1 : Pos - 1;
 
-        if(bApplyBreak == false && (this.Content[NewPos].Type == para_Math_Run || this.Content[NewPos].kind == MATH_BOX))
-        {
-            this.Content[NewPos].Displace_BreakOperator(isForward, bBrkBefore, CountOperators);
-        }
-    }
-    else
-    {
-        this.Content[Pos].Displace_BreakOperator(isForward, bBrkBefore, CountOperators);
-    }
+		if (this.Content[NewPos] && bApplyBreak == false && (this.Content[NewPos].Type == para_Math_Run || this.Content[NewPos].kind == MATH_BOX))
+		{
+			this.Content[NewPos].Displace_BreakOperator(isForward, bBrkBefore, CountOperators);
+		}
+	}
+	else
+	{
+		this.Content[Pos].Displace_BreakOperator(isForward, bBrkBefore, CountOperators);
+	}
 };
 CMathContent.prototype.Recalculate_Range_Width = function(PRSC, _CurLine, _CurRange)
 {
@@ -4961,7 +4961,7 @@ CMathContent.prototype.Get_AlignBrk = function(_CurLine, bBrkBefore)
 
         var bCheckNextBox = bEndRun == true && bNextBox == true && bBrkBefore == true;
 
-        var bRunEmptyRange = this.Content[EndPos].Type == para_Math_Run && this.Content[EndPos].Is_EmptyRange(_CurLine - 1, RangesCount - 1),
+        var bRunEmptyRange = this.Content[EndPos].Type == para_Math_Run && this.Content[EndPos].IsEmptyRange(_CurLine - 1, RangesCount - 1),
             bPrevBox = EndPos > 0 && this.Content[EndPos - 1].kind == MATH_BOX;
 
         var bCheckPrevNextBox = bRunEmptyRange == true && bPrevBox == true && bBrkBefore == false;
@@ -4990,7 +4990,7 @@ CMathContent.prototype.IsStartLine = function(Line)
 {
     return Line == this.StartLine;
 };
-CMathContent.prototype.Get_SelectionDirection = function()
+CMathContent.prototype.GetSelectDirection = function()
 {
     if (true !== this.Selection.Use)
         return 0;
@@ -5000,7 +5000,7 @@ CMathContent.prototype.Get_SelectionDirection = function()
     else if (this.Selection.StartPos > this.Selection.EndPos)
         return -1;
 
-    return this.Content[this.Selection.StartPos].Get_SelectionDirection();
+    return this.Content[this.Selection.StartPos].GetSelectDirection();
 };
 CMathContent.prototype.MoveCursorToStartPos = function()
 {

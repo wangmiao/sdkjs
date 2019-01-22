@@ -38,20 +38,25 @@
  */
 
 AscDFH.changesFactory[AscDFH.historyitem_Num_LvlOverrideChange] = CChangesNumLvlOverrideChange;
+AscDFH.changesFactory[AscDFH.historyitem_Num_AbstractNum]       = CChangesNumAbstractNum;
 
 //----------------------------------------------------------------------------------------------------------------------
 // Карта зависимости изменений
 //----------------------------------------------------------------------------------------------------------------------
-AscDFH.changesRelationMap[AscDFH.historyitem_Num_LvlOverrideChange]    = [
+AscDFH.changesRelationMap[AscDFH.historyitem_Num_LvlOverrideChange] = [
 	AscDFH.historyitem_Num_LvlOverrideChange
+];
+
+AscDFH.changesRelationMap[AscDFH.historyitem_Num_AbstractNum] = [
+	AscDFH.historyitem_Num_AbstractNum
 ];
 //----------------------------------------------------------------------------------------------------------------------
 
 /**
  *
  * @param Class {CNum}
- * @param Old {CLvlOverride}
- * @param New {CLvlOverride}
+ * @param Old {?CLvlOverride}
+ * @param New {?CLvlOverride}
  * @param nLvl {number} 0..8
  * @constructor
  * @extends {AscDFH.CChangesBaseProperty}
@@ -68,31 +73,64 @@ CChangesNumLvlOverrideChange.prototype.Type = AscDFH.historyitem_Num_LvlOverride
 CChangesNumLvlOverrideChange.prototype.WriteToBinary = function(oWriter)
 {
 	// Long         : Lvl index
+	// Long         : Flags
 	// CLvlOverride : New
 	// CLvlOverride : Old
 
 	oWriter.WriteLong(this.Lvl);
-	this.New.WriteToBinary(oWriter);
-	this.Old.WriteToBinary(oWriter);
+
+	var nFlags = 0;
+
+	if (undefined === this.New)
+		nFlags |= 1;
+
+	if (undefined === this.Old)
+		nFlags |= 2;
+
+	oWriter.WriteLong(nFlags);
+
+	if (undefined !== this.New && this.New.WriteToBinary)
+		this.New.WriteToBinary(oWriter);
+
+	if (undefined !== this.Old && this.Old.WriteToBinary)
+		this.Old.WriteToBinary(oWriter);
 };
 CChangesNumLvlOverrideChange.prototype.ReadFromBinary = function(oReader)
 {
 	// Long         : Lvl index
+	// Long         : Flags
 	// CLvlOverride : New
 	// CLvlOverride : Old
 
-	this.New = new CLvlOverride();
-	this.Old = new CLvlOverride();
-
 	this.Lvl = oReader.GetLong();
-	this.New.ReadFromBinary(oReader);
-	this.Old.ReadFromBinary(oReader);
+
+	var nFlags = oReader.GetLong();
+
+	if (nFlags & 1)
+	{
+		this.New = undefined;
+	}
+	else
+	{
+		this.New = new CLvlOverride();
+		this.New.ReadFromBinary(oReader);
+	}
+
+	if (nFlags & 2)
+	{
+		this.Old = undefined;
+	}
+	else
+	{
+		this.Old = new CLvlOverride();
+		this.Old.ReadFromBinary(oReader);
+	}
 };
 CChangesNumLvlOverrideChange.prototype.private_SetValue = function(Value)
 {
 	var oNum = this.Class;
 	oNum.LvlOverride[this.Lvl] = Value;
-	oAbstractNum.RecalculateRelatedParagraphs(this.Lvl);
+	oNum.RecalculateRelatedParagraphs(this.Lvl);
 };
 CChangesNumLvlOverrideChange.prototype.Load = function(Color)
 {
@@ -115,4 +153,20 @@ CChangesNumLvlOverrideChange.prototype.Merge = function(oChange)
 		return false;
 
 	return true;
+};
+
+/**
+ * @constructor
+ * @extends {AscDFH.CChangesBaseStringProperty}
+ */
+function CChangesNumAbstractNum(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseStringProperty.call(this, Class, Old, New, Color);
+}
+CChangesNumAbstractNum.prototype = Object.create(AscDFH.CChangesBaseStringProperty.prototype);
+CChangesNumAbstractNum.prototype.constructor = CChangesNumAbstractNum;
+CChangesNumAbstractNum.prototype.Type = AscDFH.historyitem_Num_AbstractNum;
+CChangesNumAbstractNum.prototype.private_SetValue = function(Value)
+{
+	this.Class.AbstractNumId = Value;
 };

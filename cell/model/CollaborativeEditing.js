@@ -38,7 +38,6 @@
 		 * -----------------------------------------------------------------------------
 		 */
 		var asc_applyFunction	= AscCommonExcel.applyFunction;
-		var asc_Range			= Asc.Range;
 
 		var c_oAscLockTypes = AscCommon.c_oAscLockTypes;
 
@@ -277,7 +276,7 @@
 			return true;
 		};
 
-		CCollaborativeEditing.prototype.sendChanges = function (IsUserSave) {
+		CCollaborativeEditing.prototype.sendChanges = function (IsUserSave, isAfterAskSave) {
 			// Когда не совместное редактирование чистить ничего не нужно, но отправлять нужно.
 			var bIsCollaborative = this.getCollaborativeEditing();
 
@@ -331,7 +330,7 @@
 			}
 
 			// Отправляем на сервер изменения
-			this.handlers.trigger("sendChanges", this.getRecalcIndexSave(this.m_oRecalcIndexColumns), this.getRecalcIndexSave(this.m_oRecalcIndexRows));
+			this.handlers.trigger("sendChanges", this.getRecalcIndexSave(this.m_oRecalcIndexColumns), this.getRecalcIndexSave(this.m_oRecalcIndexRows), isAfterAskSave);
 
 			if (bIsCollaborative) {
 				// Пересчитываем lock-и от чужих пользователей
@@ -362,6 +361,9 @@
 //                if(bUnlockDefName){
                     this.handlers.trigger("unlockDefName");
 //                }
+
+				this.handlers.trigger("updateAllLayoutsLock");
+				this.handlers.trigger("asc_onLockPrintArea");
 
 				if (0 === this.m_nUseType)
 					this.m_nUseType = 1;
@@ -453,7 +455,7 @@
 							return arrayElements[i];
 					} else if (element["type"] === c_oAscLockTypeElem.Range) {
 						// Не учитываем lock от Insert
-						if (c_oAscLockTypeElemSubType.InsertRows === oUnlockElement["subType"] || c_oAscLockTypeElemSubType.InsertColumns === oUnlockElement["subType"])
+						if (c_oAscLockTypes.kLockTypeMine === type || c_oAscLockTypeElemSubType.InsertRows === oUnlockElement["subType"] || c_oAscLockTypeElemSubType.InsertColumns === oUnlockElement["subType"])
 							continue;
 						rangeTmp1 = oUnlockElement["rangeOrObjectId"];
 						rangeTmp2 = element["rangeOrObjectId"];
@@ -523,7 +525,7 @@
 					if (null === c1 || null === c2 || null === r1 || null === r2)
 						continue;
 
-					oRangeOrObjectId = new asc_Range(c1, r1, c2, r2);
+					oRangeOrObjectId = new Asc.Range(c1, r1, c2, r2);
 				}
 
 				result.push(oRangeOrObjectId);

@@ -1848,7 +1848,7 @@ function CBinaryFileWriter()
             }
 
 
-            var defTab = pPr.DefaultTabSize;
+            var defTab = pPr.DefaultTab;
             if (defTab !== undefined && defTab != null)
             {
                 oThis._WriteInt1(1, defTab * 36000);
@@ -1881,6 +1881,7 @@ function CBinaryFileWriter()
             var spacing = pPr.Spacing;
             if (spacing !== undefined && spacing != null)
             {
+                var _value;
                 switch (spacing.LineRule)
                 {
                     case Asc.linerule_Auto:
@@ -1893,7 +1894,14 @@ function CBinaryFileWriter()
                     case Asc.linerule_Exact:
                         oThis.StartRecord(0);
                         oThis.WriteUChar(g_nodeAttributeStart);
-                        oThis._WriteInt1(1, (spacing.Line / 0.00352777778) >> 0);
+                        _value = ((spacing.Line / 0.00352777778) >> 0);
+                        if(_value < 0){
+                            _value = 0;
+                        }
+                        if(_value > 158400){
+                            _value = 158400;
+                        }
+                        oThis._WriteInt1(1, _value);
                         oThis.WriteUChar(g_nodeAttributeEnd);
                         oThis.EndRecord();
                         break;
@@ -1901,20 +1909,34 @@ function CBinaryFileWriter()
                         break;
                 }
 
-                if (spacing.After !== undefined)
+                if (spacing.After !== undefined && spacing.After !== null)
                 {
                     oThis.StartRecord(1);
                     oThis.WriteUChar(g_nodeAttributeStart);
-                    oThis._WriteInt1(1, (spacing.After / 0.00352777778) >> 0);
+                    _value = ((spacing.After / 0.00352777778) >> 0);
+                    if(_value < 0){
+                        _value = 0;
+                    }
+                    if(_value > 158400){
+                        _value = 158400;
+                    }
+                    oThis._WriteInt1(1, _value);
                     oThis.WriteUChar(g_nodeAttributeEnd);
                     oThis.EndRecord();
                 }
 
-                if (spacing.Before !== undefined)
+                if (spacing.Before !== undefined && spacing.Before !== null)
                 {
                     oThis.StartRecord(2);
                     oThis.WriteUChar(g_nodeAttributeStart);
-                    oThis._WriteInt1(1, (spacing.Before / 0.00352777778) >> 0);
+                    _value = ((spacing.Before / 0.00352777778) >> 0);
+                    if(_value < 0){
+                        _value = 0;
+                    }
+                    if(_value > 158400){
+                        _value = 158400;
+                    }
+                    oThis._WriteInt1(1, _value);
                     oThis.WriteUChar(g_nodeAttributeEnd);
                     oThis.EndRecord();
                 }
@@ -2125,10 +2147,23 @@ function CBinaryFileWriter()
                 oThis.WriteRecord2(5, rPr.RFonts.CS, oThis.WriteTextFontTypeface);
         }
 
+
         if (hlinkObj != null && hlinkObj !== undefined)
         {
             oThis.WriteRecord1(7, hlinkObj, oThis.WriteHyperlink);
         }
+
+        if (rPr.HighlightColor)
+        {
+            oThis.WriteRecord1(12, rPr.HighlightColor, oThis.WriteHighlightColor);
+        }
+    }
+
+    this.WriteHighlightColor = function (HighlightColor) {
+
+        oThis.WriteUChar(g_nodeAttributeStart);
+        oThis.WriteUChar(g_nodeAttributeEnd);
+        oThis.WriteRecord1(0, HighlightColor, oThis.WriteUniColor);
     }
 
     this.WriteHyperlink = function(hlink)
@@ -2534,7 +2569,10 @@ function CBinaryFileWriter()
 						if(imageUrl){
 							_src = imageUrl;
 						}
-					}
+                    }
+                    if(window["native"] && window["native"]["GetImageTmpPath"]){
+                        _src = window["native"]["GetImageTmpPath"](_src);
+                    }
                 }
 
                 oThis.StartRecord(0);
@@ -2753,15 +2791,6 @@ function CBinaryFileWriter()
 
         var _par_content = paragraph.Content;
 
-        if(paragraph.f_id != undefined || paragraph.f_type != undefined || paragraph.f_text!= undefined)
-        {
-            oThis.StartRecord(0); // subtype
-            oThis.WriteParagraphField(paragraph.f_id, paragraph.f_type, paragraph.f_text);
-            oThis.EndRecord();
-
-            _count++;
-        }
-
         var _content_len = _par_content.length;
         for (var i = 0; i < _content_len; i++)
         {
@@ -2814,7 +2843,14 @@ function CBinaryFileWriter()
                         }
                     }
 
-                    if ("" != _run_text)
+                    if(_elem instanceof AscCommonWord.CPresentationField)
+                    {
+                        oThis.StartRecord(0); // subtype
+                        oThis.WriteParagraphField(_elem.Guid, _elem.FieldType, _run_text, _elem.Pr, _elem.pPr);
+                        oThis.EndRecord();
+                        _count++;
+                    }
+                    else if ("" != _run_text)
                     {
                         oThis.StartRecord(0); // subtype
                         oThis.WriteTextRun(_elem.Pr, _run_text, null);
@@ -2976,7 +3012,7 @@ function CBinaryFileWriter()
         oThis.EndRecord();
     };
 
-    this.WriteParagraphField = function (id, type, text)
+    this.WriteParagraphField = function (id, type, text, rPr, pPr)
     {
         oThis.StartRecord(AscFormat.PARRUN_TYPE_FLD);
 
@@ -2987,6 +3023,24 @@ function CBinaryFileWriter()
         oThis.WriteUChar(g_nodeAttributeEnd);
 
         // rPr & pPr
+        if (rPr !== undefined && rPr != null)
+        {
+            oThis.StartRecord(0);
+            oThis.WriteRunProperties(rPr, null);
+            oThis.EndRecord();
+        }
+        if (pPr !== undefined && pPr != null)
+        {
+            var tPr = new AscFormat.CTextParagraphPr();
+            tPr.bullet = pPr.Bullet;
+            tPr.lvl = pPr.Lvl;
+            tPr.pPr = pPr;
+            tPr.rPr = pPr.DefaultRunPr;
+            if (tPr.rPr == null)
+                tPr.rPr = new CTextPr();
+
+            oThis.WriteRecord1(1, tPr, oThis.WriteTextParagraphPr);
+        }
 
         oThis.EndRecord();
     };
@@ -3668,9 +3722,16 @@ function CBinaryFileWriter()
         }
     }
 
-    this.WriteGroupShape = function(group)
+    this.WriteGroupShape = function(group, type)
     {
-        oThis.StartRecord(4);
+        if(AscFormat.isRealNumber(type))
+        {
+            oThis.StartRecord(type);
+        }
+        else
+        {
+            oThis.StartRecord(4);
+        }
 
         group.spPr.WriteXfrm = group.spPr.xfrm;
         if(group.nvGrpSpPr)
@@ -5078,6 +5139,11 @@ function CBinaryFileWriter()
                 case AscDFH.historyitem_type_GroupShape:
                 {
                     this.WriteGroup(grObject, Document, oMapCommentId, oNumIdMap, copyParams, saveParams);
+                    break;
+                }
+                case AscDFH.historyitem_type_LockedCanvas:
+                {
+                    this.BinaryFileWriter.WriteGroupShape(grObject, 9);
                     break;
                 }
 				case AscDFH.historyitem_type_ChartSpace:

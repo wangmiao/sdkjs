@@ -221,7 +221,8 @@ function (window, undefined) {
 
 	asc_CCommentData.prototype.asc_putQuoteText = function(val) {};
 	asc_CCommentData.prototype.asc_getQuoteText = function() {
-		return this.bDocument ? null : AscCommon.g_oCellAddressUtils.getCellId(this.nRow, this.nCol);
+		return this.bDocument ? null : (new Asc.Range(this.nCol, this.nRow, this.nCol, this.nRow)).getName(
+			AscCommonExcel.g_R1C1Mode ? AscCommonExcel.referenceType.A : AscCommonExcel.referenceType.R);
 	};
 
 	asc_CCommentData.prototype.asc_putRow = function(val) { this.nRow = val; };
@@ -377,64 +378,53 @@ CCellCommentator.prototype.isLockedComment = function(oComment, callbackFunc) {
 	}
 };
 
-	CCellCommentator.prototype.moveRangeComments = function (rangeFrom, rangeTo, copy) {
-		if (rangeFrom && rangeTo) {
-			var colOffset = rangeTo.c1 - rangeFrom.c1;
-			var rowOffset = rangeTo.r1 - rangeFrom.r1;
+	CCellCommentator.prototype.getCommentsRange = function (range) {
+		var res = [];
+		var aComments = this.model.aComments;
+		for (var i = 0; i < aComments.length; ++i) {
+			var comment = aComments[i];
+			if (range.contains(comment.nCol, comment.nRow)) {
+				res.push(comment.clone());
+			}
+		}
+		return res;
+	};
+
+	CCellCommentator.prototype.moveRangeComments = function (from, to, copy) {
+		if (from && to) {
+			var colOffset = to.c1 - from.c1;
+			var rowOffset = to.r1 - from.r1;
 
 			this.model.workbook.handlers.trigger("asc_onHideComment");
-			var removeComment, aComments = this.model.aComments;
 
-			for (var i = 0; i < aComments.length; i++) {
-				var comment = aComments[i];
-				if (rangeFrom.contains(comment.nCol, comment.nRow)) {
-					if (copy) {
-						var newComment = comment.clone();
-						newComment.nCol += colOffset;
-						newComment.nRow += rowOffset;
-						removeComment = this.getComment(newComment.nCol, newComment.nRow);
-						if (removeComment) {
-							this._removeComment(removeComment, false, false);
-						}
-						newComment.setId();
-						this.addComment(newComment, true);
-					} else {
-						var from = comment.clone();
-						comment.nCol += colOffset;
-						comment.nRow += rowOffset;
-						removeComment = this.getComment(comment.nCol, comment.nRow);
-						if (removeComment) {
-							this._removeComment(removeComment, false, false);
-						}
-						this.model.workbook.handlers.trigger("asc_onChangeCommentData", comment.asc_getId(), comment);
+			var comments = this.getCommentsRange(from);
+			if (!copy) {
+				this._deleteCommentsRange(comments);
+			}
+			this.deleteCommentsRange(to);
 
-						History.Create_NewPoint();
-						History.Add(AscCommonExcel.g_oUndoRedoComment, AscCH.historyitem_Comment_Change, this.model.getId(),
-							null, new AscCommonExcel.UndoRedoData_FromTo(from, comment.clone()));
-						this.updateAreaComment(comment);
-					}
+			for (var i = 0; i < comments.length; ++i) {
+				var newComment = comments[i];
+				newComment.nCol += colOffset;
+				newComment.nRow += rowOffset;
+				if (copy) {
+					newComment.setId();
 				}
+				this.addComment(newComment, true);
 			}
 		}
 	};
 
-CCellCommentator.prototype.deleteCommentsRange = function(range) {
-	if ( range ) {
-		var aCommentId = [], i;
-		var aComments = this.model.aComments;
-		for (i = 0; i < aComments.length; ++i) {
-			var comment = aComments[i];
-			if (range.contains(comment.nCol, comment.nRow)) {
-				aCommentId.push(comment.asc_getId());
-			}
-		}
+	CCellCommentator.prototype.deleteCommentsRange = function (range) {
+		this._deleteCommentsRange(this.getCommentsRange(range));
+	};
+	CCellCommentator.prototype._deleteCommentsRange = function (comments) {
 		History.StartTransaction();
-		for (i = 0; i < aCommentId.length; i++) {
-			this.removeComment(aCommentId[i]);
+		for (var i = 0; i < comments.length; ++i) {
+			this.removeComment(comments[i].asc_getId());
 		}
 		History.EndTransaction();
-	}
-};
+	};
 
 	CCellCommentator.prototype.getCommentByXY = function (x, y) {
 		var findCol = this.worksheet._findColUnderCursor(x, true);
@@ -444,7 +434,8 @@ CCellCommentator.prototype.deleteCommentsRange = function(range) {
 
 	CCellCommentator.prototype.drawCommentCells = function () {
 
-		if (!(this.canEdit() || this.worksheet.handlers.trigger('isRestrictionComments')) || this.hiddenComments()) {
+		if (!(this.canEdit() || this.worksheet.handlers.trigger('isRestrictionComments')) || this.hiddenComments() ||
+			window["NATIVE_EDITOR_ENJINE"]) {
 			return;
 		}
 
@@ -687,40 +678,31 @@ CCellCommentator.prototype.cleanLastSelection = function() {
 		coords.nRow = comment.nRow;
 
 		var mergedRange = this.model.getMergedByCell(comment.nRow, comment.nCol);
-		/*coords.nLeft = (mergedRange ? mergedRange.c2 : comment.nCol) + 1;
-		 if ( !this.worksheet.cols[coords.nLeft] ) {
-		 this.worksheet.expandColsOnScroll(true);
-		 this.worksheet.handlers.trigger("reinitializeScrollX");
-		 }
-
-		 coords.nTop = mergedRange ? mergedRange.r1 : comment.nRow;
-		 coords.nLeftOffset = 0;
-		 coords.nTopOffset = 0;*/
-
+		
 		var pos;
 		var left = mergedRange ? mergedRange.c2 : comment.nCol;
-		var x = this.worksheet.getCellLeft(left, 0) + this.worksheet.getColumnWidth(left, 0) + Asc.round(14 * zoom);
+		var x = this.worksheet._getColLeft(left + 1) + Asc.round(14 * zoom);
 		pos = this.worksheet._findColUnderCursor(x, true);
 		coords.nLeft = pos ? pos.col : 0;
 		coords.dLeftMM = this.pxToMm(Asc.round(x / zoom));
-		coords.nLeftOffset = Asc.round((x - this.worksheet.getCellLeft(coords.nLeft, 0)) / zoom);
+		coords.nLeftOffset = Asc.round((x - this.worksheet._getColLeft(coords.nLeft)) / zoom);
 
 		var top = mergedRange ? mergedRange.r1 : comment.nRow;
-		var y = this.worksheet.getCellTop(top, 0) - Asc.round(11 * zoom);
+		var y = this.worksheet._getRowTop(top) - Asc.round(11 * zoom);
 		pos = this.worksheet._findRowUnderCursor(y, true);
 		coords.nTop = pos ? pos.row : 0;
 		coords.dTopMM = this.pxToMm(Asc.round(y / zoom));
-		coords.nTopOffset = Asc.round((y - this.worksheet.getCellTop(coords.nTop, 0)) / zoom);
+		coords.nTopOffset = Asc.round((y - this.worksheet._getRowTop(coords.nTop)) / zoom);
 
 		x += Asc.round(dWidthPX * zoom);
 		pos = this.worksheet._findColUnderCursor(x, true);
 		coords.nRight = pos ? pos.col : 0;
-		coords.nRightOffset = Asc.round((x - this.worksheet.getCellLeft(coords.nRight, 0)) / zoom);
+		coords.nRightOffset = Asc.round((x - this.worksheet._getColLeft(coords.nRight)) / zoom);
 
 		y += Asc.round(dHeightPX * zoom);
 		pos = this.worksheet._findRowUnderCursor(y, true);
 		coords.nBottom = pos ? pos.row : 0;
-		coords.nBottomOffset = Asc.round((y - this.worksheet.getCellTop(coords.nBottom, 0)) / zoom);
+		coords.nBottomOffset = Asc.round((y - this.worksheet._getRowTop(coords.nBottom)) / zoom);
 
 		History.Add(AscCommonExcel.g_oUndoRedoComment, AscCH.historyitem_Comment_Coords, this.model.getId(), null,
 			new AscCommonExcel.UndoRedoData_FromTo(lastCoords, coords.clone()));
@@ -750,11 +732,11 @@ CCellCommentator.prototype.cleanLastSelection = function() {
 			}
 		}
 
-		pos.dReverseLeftPX = this.worksheet.getCellLeft(left, 0) - this.worksheet.getCellLeft(fvc, 0) +
+		pos.dReverseLeftPX = this.worksheet._getColLeft(left) - this.worksheet._getColLeft(fvc) +
 			headerCellsOffset.left + frozenOffset.offsetX;
 		pos.dLeftPX = pos.dReverseLeftPX + this.worksheet.getColumnWidth(left, 0);
-		pos.dTopPX = this.worksheet.getCellTop(top, 0) + ((this.worksheet.getRowHeight(top, 0) / 2) | 0) -
-			this.worksheet.getCellTop(fvr, 0) + headerCellsOffset.top + frozenOffset.offsetY;
+		pos.dTopPX = this.worksheet._getRowTop(top) + ((this.worksheet._getRowHeight(top) / 2) | 0) -
+			this.worksheet._getRowTop(fvr) + headerCellsOffset.top + frozenOffset.offsetY;
 
 		if (AscCommon.AscBrowser.isRetina) {
 			pos.dLeftPX = AscCommon.AscBrowser.convertToRetinaValue(pos.dLeftPX);
@@ -830,12 +812,12 @@ CCellCommentator.prototype.selectComment = function(id, bMove) {
 			if ( (row < fvr) || (row > lvr) ) {
 				offset = row - fvr - Math.round(( lvr - fvr ) / 2);
 				this.worksheet.scrollVertical(offset);
-				this.worksheet.handlers.trigger("reinitializeScrollY");
+				this.worksheet.handlers.trigger("reinitializeScroll", AscCommonExcel.c_oAscScrollType.ScrollVertical);
 			}
 			if ( (col < fvc) || (col > lvc) ) {
 				offset = col - fvc - Math.round(( lvc - fvc ) / 2);
 				this.worksheet.scrollHorizontal(offset);
-				this.worksheet.handlers.trigger("reinitializeScrollX");
+				this.worksheet.handlers.trigger("reinitializeScroll", AscCommonExcel.c_oAscScrollType.ScrollHorizontal);
 			}
 		}
 
@@ -918,7 +900,7 @@ CCellCommentator.prototype.changeComment = function(id, oComment, bChangeCoords,
 			History.Add(AscCommonExcel.g_oUndoRedoComment, AscCH.historyitem_Comment_Change, t.model.getId(), null,
 				new AscCommonExcel.UndoRedoData_FromTo(from, comment.clone()));
 			if (bChangeCoords) {
-				this.updateAreaComment(comment);
+				t.updateAreaComment(comment);
 			}
 		}
 

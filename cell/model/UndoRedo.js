@@ -407,6 +407,10 @@ function (window, undefined) {
 
 		this.PivotTable = 80;
 
+		this.Layout = 90;
+
+		this.ArrayFormula = 95;
+
 		this.Create = function (nType) {
 			switch (nType) {
 				case this.ValueMultiTextElem:
@@ -536,6 +540,10 @@ function (window, undefined) {
 					return new UndoRedoData_DefinedNames();
 				case this.PivotTable:
 					return new UndoRedoData_PivotTable();
+				case this.Layout:
+					return new UndoRedoData_Layout();
+				case this.ArrayFormula:
+					return new UndoRedoData_ArrayFormula();
 			}
 			return null;
 		};
@@ -1144,6 +1152,42 @@ function (window, undefined) {
 		}
 	};
 
+	function UndoRedoData_Layout(from, to) {
+		this.from = from;
+		this.to = to;
+	}
+
+	UndoRedoData_Layout.prototype.Properties = {
+		from: 0, to: 1
+	};
+	UndoRedoData_Layout.prototype.getType = function () {
+		return UndoRedoDataTypes.Layout;
+	};
+	UndoRedoData_Layout.prototype.getProperties = function () {
+		return this.Properties;
+	};
+	UndoRedoData_Layout.prototype.getProperty = function (nType) {
+		switch (nType) {
+			case this.Properties.from:
+				return this.from;
+				break;
+			case this.Properties.to:
+				return this.to;
+				break;
+		}
+		return null;
+	};
+	UndoRedoData_Layout.prototype.setProperty = function (nType, value) {
+		switch (nType) {
+			case this.Properties.from:
+				this.from = value;
+				break;
+			case this.Properties.to:
+				this.to = value;
+				break;
+		}
+	};
+
 	function UndoRedoData_SheetAdd(insertBefore, name, sheetidfrom, sheetid, tableNames) {
 		this.insertBefore = insertBefore;
 		this.name = name;
@@ -1241,15 +1285,16 @@ function (window, undefined) {
 		}
 	};
 
-	function UndoRedoData_DefinedNames(name, ref, sheetId, isTable) {
+	function UndoRedoData_DefinedNames(name, ref, sheetId, isTable, isXLNM) {
 		this.name = name;
 		this.ref = ref;
 		this.sheetId = sheetId;
 		this.isTable = isTable;
+		this.isXLNM = isXLNM;
 	}
 
 	UndoRedoData_DefinedNames.prototype.Properties = {
-		name: 0, ref: 1, sheetId: 2, isTable: 4
+		name: 0, ref: 1, sheetId: 2, isTable: 4, isXLNM: 5
 	};
 	UndoRedoData_DefinedNames.prototype.getType = function () {
 		return UndoRedoDataTypes.DefinedName;
@@ -1271,6 +1316,9 @@ function (window, undefined) {
 			case this.Properties.isTable:
 				return this.isTable;
 				break;
+			case this.Properties.isXLNM:
+				return this.isXLNM;
+				break;
 		}
 		return null;
 	};
@@ -1287,6 +1335,9 @@ function (window, undefined) {
 				break;
 			case this.Properties.isTable:
 				this.isTable = value;
+				break;
+			case this.Properties.isXLNM:
+				this.isXLNM = value;
 				break;
 		}
 	};
@@ -1335,6 +1386,7 @@ function (window, undefined) {
 		this.nCol = null;
 		this.nRow = null;
 		this.formula = null;
+		this.totalFunction = null;
 	}
 
 	UndoRedoData_AutoFilter.prototype.Properties = {
@@ -1359,7 +1411,8 @@ function (window, undefined) {
 		tablePart: 18,
 		nCol: 19,
 		nRow: 20,
-		formula: 21
+		formula: 21,
+		totalFunction: 22
 	};
 	UndoRedoData_AutoFilter.prototype.getType = function () {
 		return UndoRedoDataTypes.AutoFilter;
@@ -1444,6 +1497,9 @@ function (window, undefined) {
 				break;
 			case this.Properties.formula:
 				return this.formula;
+				break;
+			case this.Properties.totalFunction:
+				return this.totalFunction;
 				break;
 		}
 
@@ -1547,6 +1603,9 @@ function (window, undefined) {
 			case this.Properties.formula:
 				this.formula = value;
 				break;
+			case this.Properties.totalFunction:
+				this.totalFunction = value;
+				break;
 		}
 		return null;
 	};
@@ -1556,6 +1615,47 @@ function (window, undefined) {
 		this.activeCells.r1 = collaborativeEditing.getLockMeRow2(nSheetId, this.activeCells.r1);
 		this.activeCells.r2 = collaborativeEditing.getLockMeRow2(nSheetId, this.activeCells.r2);
 	};
+
+	//***array-formula***
+	function UndoRedoData_ArrayFormula(range, formula) {
+		this.range = range;
+		this.formula = formula;
+	}
+
+	UndoRedoData_ArrayFormula.prototype.Properties = {
+		range: 0,
+		formula: 1
+	};
+	UndoRedoData_ArrayFormula.prototype.getType = function () {
+		return UndoRedoDataTypes.ArrayFormula;
+	};
+	UndoRedoData_ArrayFormula.prototype.getProperties = function () {
+		return this.Properties;
+	};
+	UndoRedoData_ArrayFormula.prototype.getProperty = function (nType) {
+		switch (nType) {
+			case this.Properties.range:
+				return new UndoRedoData_BBox(this.range);
+				break;
+			case this.Properties.formula:
+				return this.formula;
+				break;
+		}
+
+		return null;
+	};
+	UndoRedoData_ArrayFormula.prototype.setProperty = function (nType, value) {
+		switch (nType) {
+			case this.Properties.range:
+				this.range = new Asc.Range(value.c1, value.r1, value.c2, value.r2);
+				break;
+			case this.Properties.formula:
+				this.formula = value;
+				break;
+		}
+		return null;
+	};
+
 
 	function UndoRedoData_SingleProperty(elem) {
 		this.elem = elem;
@@ -1585,6 +1685,7 @@ function (window, undefined) {
 				break;
 		}
 	};
+
 
 	//для применения изменений
 	var UndoRedoClassTypes = new function () {
@@ -1915,11 +2016,8 @@ function (window, undefined) {
 				wb.aCollaborativeChangeElements.push(oLockInfo);
 			}
 			var col = ws._getCol(index);
-			if (bUndo) {
-				col.setWidthProp(Data.oOldVal);
-			} else {
-				col.setWidthProp(Data.oNewVal);
-			}
+			col.setWidthProp(bUndo ? Data.oOldVal : Data.oNewVal);
+			ws.initColumn(col);
 		} else if (AscCH.historyitem_Worksheet_RowProp == Type) {
 			index = Data.index;
 			if (wb.bCollaborativeChanges) {
@@ -1981,7 +2079,7 @@ function (window, undefined) {
 					wb.aCollaborativeChangeElements.push(oLockInfo);
 				}
 			}
-			range = Asc.Range(0, from, gc_nMaxCol0, to);
+			range = new Asc.Range(0, from, gc_nMaxCol0, to);
 			if ((true == bUndo && AscCH.historyitem_Worksheet_AddRows == Type) ||
 				(false == bUndo && AscCH.historyitem_Worksheet_RemoveRows == Type)) {
 				ws.removeRows(from, to);
@@ -2017,7 +2115,7 @@ function (window, undefined) {
 				}
 			}
 
-			range = Asc.Range(from, 0, to, gc_nMaxRow0);
+			range = new Asc.Range(from, 0, to, gc_nMaxRow0);
 			if ((true == bUndo && AscCH.historyitem_Worksheet_AddCols == Type) ||
 				(false == bUndo && AscCH.historyitem_Worksheet_RemoveCols == Type)) {
 				ws.removeCols(from, to);
@@ -2135,8 +2233,8 @@ function (window, undefined) {
 			worksheetView.model.autoFilters.resetTableStyles(bbox);
 		} else if (AscCH.historyitem_Worksheet_MoveRange == Type) {
 			//todo worksheetView.autoFilters._moveAutoFilters(worksheetView ,null, null, g_oUndoRedoAutoFiltersMoveData);
-			from = Asc.Range(Data.from.c1, Data.from.r1, Data.from.c2, Data.from.r2);
-			to = Asc.Range(Data.to.c1, Data.to.r1, Data.to.c2, Data.to.r2);
+			from = new Asc.Range(Data.from.c1, Data.from.r1, Data.from.c2, Data.from.r2);
+			to = new Asc.Range(Data.to.c1, Data.to.r1, Data.to.c2, Data.to.r2);
 			var copyRange = Data.copyRange;
 
 			if (bUndo) {
@@ -2145,7 +2243,7 @@ function (window, undefined) {
 				to = temp;
 			}
 			if (wb.bCollaborativeChanges) {
-				var coBBoxTo = Asc.Range(0, 0, 0, 0), coBBoxFrom = Asc.Range(0, 0, 0, 0);
+				var coBBoxTo = new Asc.Range(0, 0, 0, 0), coBBoxFrom = new Asc.Range(0, 0, 0, 0);
 
 				coBBoxTo.r1 = collaborativeEditing.getLockOtherRow2(nSheetId, to.r1);
 				coBBoxTo.c1 = collaborativeEditing.getLockOtherColumn2(nSheetId, to.c1);
@@ -2604,7 +2702,111 @@ function (window, undefined) {
 		}
 	};
 
-	//----------------------------------------------------------export----------------------------------------------------
+
+	function UndoRedoRedoLayout(wb) {
+		this.wb = wb;
+		this.nType = UndoRedoClassTypes.Add(function () {
+			return AscCommonExcel.g_oUndoRedoLayout;
+		});
+	}
+
+	UndoRedoRedoLayout.prototype.getClassType = function () {
+		return this.nType;
+	};
+	UndoRedoRedoLayout.prototype.Undo = function (Type, Data, nSheetId) {
+		this.UndoRedo(Type, Data, nSheetId, true);
+	};
+	UndoRedoRedoLayout.prototype.Redo = function (Type, Data, nSheetId) {
+		this.UndoRedo(Type, Data, nSheetId, false);
+	};
+	UndoRedoRedoLayout.prototype.UndoRedo = function (Type, Data, nSheetId, bUndo) {
+		var ws = this.wb.getWorksheetById(nSheetId);
+		if (!ws) {
+			return;
+		}
+
+		var pageOptions = ws.PagePrintOptions;
+		var pageSetup = pageOptions.asc_getPageSetup();
+		var pageMargins = pageOptions.asc_getPageMargins();
+		var value = bUndo ? Data.from : Data.to;
+		switch (Type) {
+			case AscCH.historyitem_Layout_Left:
+				pageMargins.asc_setLeft(value);
+				break;
+			case AscCH.historyitem_Layout_Right:
+				pageMargins.asc_setRight(value);
+				break;
+			case AscCH.historyitem_Layout_Top:
+				pageMargins.asc_setTop(value);
+				break;
+			case AscCH.historyitem_Layout_Bottom:
+				pageMargins.asc_setBottom(value);
+				break;
+			case AscCH.historyitem_Layout_Width:
+				pageSetup.asc_setWidth(value);
+				break;
+			case AscCH.historyitem_Layout_Height:
+				pageSetup.asc_setHeight(value);
+				break;
+			case AscCH.historyitem_Layout_FitToWidth:
+				pageSetup.asc_setFitToWidth(value);
+				break;
+			case AscCH.historyitem_Layout_FitToHeight:
+				pageSetup.asc_setFitToHeight(value);
+				break;
+			case AscCH.historyitem_Layout_GridLines:
+				pageOptions.asc_setGridLines(value);
+				break;
+			case AscCH.historyitem_Layout_Headings:
+				pageOptions.asc_setHeadings(value);
+				break;
+			case AscCH.historyitem_Layout_Orientation:
+				pageSetup.asc_setOrientation(value);
+				break;
+		}
+
+		this.wb.oApi._onUpdateLayoutMenu(nSheetId);
+	};
+
+	//***array-formula***
+	function UndoRedoArrayFormula(wb) {
+		this.wb = wb;
+		this.nType = UndoRedoClassTypes.Add(function () {
+			return AscCommonExcel.g_oUndoRedoArrayFormula;
+		});
+	}
+
+	UndoRedoArrayFormula.prototype.getClassType = function () {
+		return this.nType;
+	};
+	UndoRedoArrayFormula.prototype.Undo = function (Type, Data, nSheetId, opt_wb) {
+		this.UndoRedo(Type, Data, nSheetId, true, opt_wb);
+	};
+	UndoRedoArrayFormula.prototype.Redo = function (Type, Data, nSheetId, opt_wb) {
+		this.UndoRedo(Type, Data, nSheetId, false, opt_wb);
+	};
+	UndoRedoArrayFormula.prototype.UndoRedo = function (Type, Data, nSheetId, bUndo, opt_wb) {
+		var ws = this.wb.getWorksheetById(nSheetId);
+		if (null == ws) {
+			return;
+		}
+
+		var bbox = Data.range;
+		var formula = Data.formula;
+		var range = ws.getRange3(bbox.r1, bbox.c1, bbox.r2, bbox.c2);
+		switch (Type) {
+			case AscCH.historyitem_ArrayFromula_AddFormula:
+				if(!bUndo) {
+					range.setValue(formula, null, null, bbox);
+				}
+				break;
+			case AscCH.historyitem_ArrayFromula_DeleteFormula:
+				if(bUndo) {
+					range.setValue(formula, null, null, bbox);
+				}
+				break;
+		}
+	};	//----------------------------------------------------------export----------------------------------------------------
 	window['AscCommonExcel'] = window['AscCommonExcel'] || {};
 	window['AscCommonExcel'].UndoRedoItemSerializable = UndoRedoItemSerializable;
 	window['AscCommonExcel'].UndoRedoDataTypes = UndoRedoDataTypes;
@@ -2620,12 +2822,14 @@ function (window, undefined) {
 	window['AscCommonExcel'].UndoRedoData_BBox = UndoRedoData_BBox;
 	window['AscCommonExcel'].UndoRedoData_SortData = UndoRedoData_SortData;
 	window['AscCommonExcel'].UndoRedoData_PivotTable = UndoRedoData_PivotTable;
+	window['AscCommonExcel'].UndoRedoData_Layout = UndoRedoData_Layout;
 	window['AscCommonExcel'].UndoRedoData_SheetAdd = UndoRedoData_SheetAdd;
 	window['AscCommonExcel'].UndoRedoData_SheetRemove = UndoRedoData_SheetRemove;
 	window['AscCommonExcel'].UndoRedoData_DefinedNames = UndoRedoData_DefinedNames;
 	window['AscCommonExcel'].UndoRedoData_ClrScheme = UndoRedoData_ClrScheme;
 	window['AscCommonExcel'].UndoRedoData_AutoFilter = UndoRedoData_AutoFilter;
 	window['AscCommonExcel'].UndoRedoData_SingleProperty = UndoRedoData_SingleProperty;
+	window['AscCommonExcel'].UndoRedoData_ArrayFormula = UndoRedoData_ArrayFormula;
 	window['AscCommonExcel'].UndoRedoWorkbook = UndoRedoWorkbook;
 	window['AscCommonExcel'].UndoRedoCell = UndoRedoCell;
 	window['AscCommonExcel'].UndoRedoWoorksheet = UndoRedoWoorksheet;
@@ -2635,6 +2839,8 @@ function (window, undefined) {
 	window['AscCommonExcel'].UndoRedoSparklines = UndoRedoSparklines;
 	window['AscCommonExcel'].UndoRedoPivotTables = UndoRedoPivotTables;
 	window['AscCommonExcel'].UndoRedoSharedFormula = UndoRedoSharedFormula;
+	window['AscCommonExcel'].UndoRedoRedoLayout = UndoRedoRedoLayout;
+	window['AscCommonExcel'].UndoRedoArrayFormula = UndoRedoArrayFormula;
 
 	window['AscCommonExcel'].g_oUndoRedoWorkbook = null;
 	window['AscCommonExcel'].g_oUndoRedoCell = null;
@@ -2646,4 +2852,6 @@ function (window, undefined) {
 	window['AscCommonExcel'].g_oUndoRedoSparklines = null;
 	window['AscCommonExcel'].g_oUndoRedoPivotTables = null;
 	window['AscCommonExcel'].g_oUndoRedoSharedFormula = null;
+	window['AscCommonExcel'].g_oUndoRedoLayout = null;
+	window['AscCommonExcel'].g_UndoRedoArrayFormula = null;
 })(window);

@@ -53,6 +53,8 @@ function CDocumentContentElementBase(oParent)
 	this.Next   = null;
 	this.Index  = -1; // перед тем как пользоваться этим параметром нужно у родительского класса вызывать this.Parent.Update_ContentIndexing();
 
+	this.Recalculated = false; // Данный параметр управляет тем, были ли у нас произведены изменения с элементом с момента последнего пересчета
+
 	this.X            = 0;
 	this.Y            = 0;
 	this.XLimit       = 0;
@@ -69,6 +71,30 @@ CDocumentContentElementBase.prototype.Get_Type = function()
 CDocumentContentElementBase.prototype.GetType = function()
 {
 	return type_Unknown;
+};
+/**
+ * Является ли данный элемент параграфом
+ * @returns {boolean}
+ */
+CDocumentContentElementBase.prototype.IsParagraph = function()
+{
+	return (this.GetType() === type_Paragraph);
+};
+/**
+ * Является ли данный элемент таблицей
+ * @returns {boolean}
+ */
+CDocumentContentElementBase.prototype.IsTable = function()
+{
+	return (this.GetType() === type_Table);
+};
+/**
+ * Является ли данный элемент блочным контейнером
+ * @returns {boolean}
+ */
+CDocumentContentElementBase.prototype.IsBlockLevelSdt = function()
+{
+	return (this.GetType() === type_BlockLevelSdt);
 };
 CDocumentContentElementBase.prototype.Is_Inline = function()
 {
@@ -443,6 +469,9 @@ CDocumentContentElementBase.prototype.StartSelectionFromCurPos = function()
 CDocumentContentElementBase.prototype.SetParagraphAlign = function(Align)
 {
 };
+CDocumentContentElementBase.prototype.SetParagraphDefaultTabSize = function(TabSize)
+{
+};
 CDocumentContentElementBase.prototype.SetParagraphSpacing = function(Spacing)
 {
 };
@@ -766,6 +795,22 @@ CDocumentContentElementBase.prototype.GetAbsoluteColumn = function(CurPage)
 {
 	return this.Get_AbsoluteColumn(CurPage);
 };
+/**
+ * Получаем начальный номер страницы данного элемента относительно родительского класса
+ * @returns {number}
+ */
+CDocumentContentElementBase.prototype.GetStartPageRelative = function()
+{
+	return this.PageNum;
+};
+/**
+ * Получаем обсолютный начальный номер страницы данного элемента
+ * @returns {number}
+ */
+CDocumentContentElementBase.prototype.GetStartPageAbsolute = function()
+{
+	return this.private_GetAbsolutePageIndex(0);
+};
 //----------------------------------------------------------------------------------------------------------------------
 CDocumentContentElementBase.prototype.GetPagesCount = function()
 {
@@ -926,6 +971,50 @@ CDocumentContentElementBase.prototype.GetOutlineParagraphs = function(arrOutline
 CDocumentContentElementBase.prototype.GetSimilarNumbering = function(oContinueEngine)
 {
 	return null;
+};
+/**
+ * Переходим к следующей ссылке на сноску
+ * @param isNext {boolean} - направление поиска
+ * @param isCurrent {boolean} - ищем начиная с текущей позиции или с края элемента
+ * @returns {boolean}
+ */
+CDocumentContentElementBase.prototype.GotoFootnoteRef = function(isNext, isCurrent)
+{
+	return false;
+};
+/**
+ * Сообщаем, пересчитан ли данный элемент с момента внесения в него изменений
+ * @param {boolean} isRecalculated
+ */
+CDocumentContentElementBase.prototype.SetIsRecalculated = function(isRecalculated)
+{
+	this.Recalculated = isRecalculated;
+};
+/**
+ * Узнаем рассчитан ли данный параграф
+ * @returns {boolean}
+ */
+CDocumentContentElementBase.prototype.IsRecalculated = function()
+{
+	return this.Recalculated;
+};
+/**
+ * Проверяем выделен ли сейчас какой-либо плейсхолдер, если да, то возвращаем управляющий объект
+ * @returns {?Object}
+ */
+CDocumentContentElementBase.prototype.GetPlaceHolderObject = function()
+{
+	return null;
+};
+/**
+ * Получаем массив все полей в документе (простых и сложных)
+ * @param isUseSelection {boolean} ищем по селекут или вообще все
+ * @param arrFields - массив, который мы заполняем, если не задан, то создается новый и возвращается
+ * @returns {Array}
+ */
+CDocumentContentElementBase.prototype.GetAllFields = function(isUseSelection, arrFields)
+{
+	return arrFields ? arrFields : [];
 };
 
 //--------------------------------------------------------export--------------------------------------------------------

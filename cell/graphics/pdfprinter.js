@@ -39,13 +39,29 @@ var pxInPt = 0.75;
 
 function CPdfPrinter(fontManager)
 {
+    this._ppiX = 96;
+    this._ppiY = 96;
+    this._zoom = 1;
+
+    if (window.Asc && window.Asc.editor)
+    {
+        this._zoom = window.Asc.editor.asc_getZoom();
+        this._ppiX = 96;
+        this._ppiY = 96;
+    }
+
+    vector_koef = 25.4 / (this._ppiX * this._zoom);
+
+    if (AscCommon.AscBrowser.isRetina)
+        vector_koef /= AscCommon.AscBrowser.retinaPixelRatio;
+
     this.DocumentRenderer = new AscCommon.CDocumentRenderer();
     if (!window['IS_NATIVE_EDITOR']) {
 	   this.DocumentRenderer.InitPicker(fontManager);
     }
     this.DocumentRenderer.VectorMemoryForPrint = new AscCommon.CMemory();
 
-    this.font = new window["Asc"].FontProperties("Arial", -1);
+    this.font = AscCommonExcel.g_oDefaultFormat.Font.clone();
     this.Transform = new AscCommon.CMatrix();
     this.InvertTransform = new AscCommon.CMatrix();
 
@@ -81,11 +97,11 @@ CPdfPrinter.prototype =
     },
     getPPIX : function()
     {
-        return 72.0;
+        return this._ppiX;
     },
     getPPIY : function()
     {
-        return 72.0;
+        return this._ppiY;
     },
 
     getUnits : function()
@@ -100,8 +116,7 @@ CPdfPrinter.prototype =
 
     getZoom : function()
     {
-        console.log("error");
-        return 1;
+        return this._zoom;
     },
     changeZoom : function()
     {
@@ -186,9 +201,7 @@ CPdfPrinter.prototype =
 		var _g = val.getG();
 		var _b = val.getB();
 		var _a = val.getA();
-        //this.DocumentRenderer.b_color1(_r, _g, _b, (_a * 255 + 0.5) >> 0);
-        // не менять!!! баг в хромиуме !!! (41ом)
-        this.DocumentRenderer.b_color1(_r, _g, _b, parseInt(_a * 255 + 0.5));
+        this.DocumentRenderer.b_color1(_r, _g, _b, (_a * 255 + 0.5) >> 0);
         return this;
     },
     setFillPattern : function(val)
@@ -205,9 +218,7 @@ CPdfPrinter.prototype =
 		var _g = val.getG();
 		var _b = val.getB();
 		var _a = val.getA();
-        //this.DocumentRenderer.p_color(_r, _g, _b, (_a * 255 + 0.5) >> 0);
-        // не менять!!! баг в хромиуме !!! (41ом)
-        this.DocumentRenderer.p_color(_r, _g, _b, parseInt(_a * 255 + 0.5));
+        this.DocumentRenderer.p_color(_r, _g, _b, (_a * 255 + 0.5) >> 0);
         return this;
     },
     setLineWidth : function(val)
@@ -255,10 +266,6 @@ CPdfPrinter.prototype =
     {
         return this.font.clone();
     },
-    getFontFamily : function()
-    {
-        return this.font.FontFamily.Name;
-    },
     getFontSize : function()
     {
         return this.font.FontSize;
@@ -269,9 +276,23 @@ CPdfPrinter.prototype =
         console.log("error");
         return new FontMetrics();
     },
+    makeFontDoc : function(font)
+    {
+        return {
+            FontFamily :
+                {
+                    Index : -1,
+                    Name  : font.getName()
+                },
+
+            FontSize : font.getSize(),
+            Bold     : font.getBold(),
+            Italic   : font.getItalic()
+        }
+    },
     setFont : function(font)
     {
-        this.DocumentRenderer.SetFont(font);
+        this.SetFont(font);
         return this;
     },
 
@@ -546,7 +567,7 @@ CPdfPrinter.prototype =
 
     SetFont : function(font)
     {
-        return this.DocumentRenderer.SetFont(font);
+        return this.DocumentRenderer.SetFont(this.makeFontDoc(font));
     },
     FillText : function(x,y,text,cropX,cropW)
     {

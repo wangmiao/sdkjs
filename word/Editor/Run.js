@@ -151,6 +151,10 @@ ParaRun.prototype.Get_Id = function()
 {
     return this.Id;
 };
+ParaRun.prototype.GetId = function()
+{
+	return this.Id;
+};
 ParaRun.prototype.Set_ParaMath = function(ParaMath, Parent)
 {
     this.ParaMath = ParaMath;
@@ -1336,20 +1340,35 @@ ParaRun.prototype.ConcatToContent = function(arrNewItems)
 ParaRun.prototype.AddText = function(sString, nPos)
 {
 	var nCharPos = undefined !== nPos && null !== nPos && -1 !== nPos ? nPos : this.Content.length;
-	for (var oIterator = sString.getUnicodeIterator(); oIterator.check(); oIterator.next())
-	{
-		var nCharCode = oIterator.value();
 
-		if (9 === nCharCode) // \t
-			this.AddToContent(nCharPos++, new ParaTab());
-		else if (10 === nCharCode) // \n
-			this.AddToContent(nCharPos++, new ParaNewLine(break_Line));
-		else if (13 === nCharCode) // \r
-			continue;
-		else if (32 === nCharCode) // space
-			this.AddToContent(nCharPos++, new ParaSpace());
-		else
-			this.AddToContent(nCharPos++, new ParaText(nCharCode));
+	if (this.IsMathRun())
+	{
+		for (var oIterator = sString.getUnicodeIterator(); oIterator.check(); oIterator.next())
+		{
+			var nCharCode = oIterator.value();
+
+			var oMathText = new CMathText();
+			oMathText.add(nCharCode);
+			this.AddToContent(nCharPos++, oMathText);
+		}
+	}
+	else
+	{
+		for (var oIterator = sString.getUnicodeIterator(); oIterator.check(); oIterator.next())
+		{
+			var nCharCode = oIterator.value();
+
+			if (9 === nCharCode) // \t
+				this.AddToContent(nCharPos++, new ParaTab());
+			else if (10 === nCharCode) // \n
+				this.AddToContent(nCharPos++, new ParaNewLine(break_Line));
+			else if (13 === nCharCode) // \r
+				continue;
+			else if (32 === nCharCode) // space
+				this.AddToContent(nCharPos++, new ParaSpace());
+			else
+				this.AddToContent(nCharPos++, new ParaText(nCharCode));
+		}
 	}
 };
 /**
@@ -1596,12 +1615,12 @@ ParaRun.prototype.Recalculate_CurPos = function(X, Y, CurrentRun, _CurRange, _Cu
 					{
 						case AscCommon.vertalign_SubScript:
 						{
-							TargetY -= CurTextPr.FontSize * g_dKoef_pt_to_mm * vertalign_Koef_Sub;
+							TargetY -= CurTextPr.FontSize * g_dKoef_pt_to_mm * AscCommon.vaKSub;
 							break;
 						}
 						case AscCommon.vertalign_SuperScript:
 						{
-							TargetY -= CurTextPr.FontSize * g_dKoef_pt_to_mm * vertalign_Koef_Super;
+							TargetY -= CurTextPr.FontSize * g_dKoef_pt_to_mm * AscCommon.vaKSuper;
 							break;
 						}
 					}
@@ -1669,12 +1688,12 @@ ParaRun.prototype.Recalculate_CurPos = function(X, Y, CurrentRun, _CurRange, _Cu
 				{
 					case AscCommon.vertalign_SubScript:
 					{
-						TargetY -= CurTextPr.FontSize * g_dKoef_pt_to_mm * vertalign_Koef_Sub;
+						TargetY -= CurTextPr.FontSize * g_dKoef_pt_to_mm * AscCommon.vaKSub;
 						break;
 					}
 					case AscCommon.vertalign_SuperScript:
 					{
-						TargetY -= CurTextPr.FontSize * g_dKoef_pt_to_mm * vertalign_Koef_Super;
+						TargetY -= CurTextPr.FontSize * g_dKoef_pt_to_mm * AscCommon.vaKSuper;
 						break;
 					}
 				}
@@ -1838,7 +1857,7 @@ ParaRun.prototype.Split2 = function(CurPos, Parent, ParentPos)
 
     // Копируем настройки
     NewRun.Set_Pr(this.Pr.Copy(true));
-    NewRun.Set_ReviewType(this.ReviewType);
+    NewRun.Set_ReviewTypeWithInfo(this.ReviewType, this.ReviewInfo ? this.ReviewInfo.Copy() : undefined);
 
     NewRun.CollPrChangeMine  = this.CollPrChangeMine;
     NewRun.CollPrChangeOther = this.CollPrChangeOther;
@@ -2341,7 +2360,7 @@ ParaRun.prototype.GetSelectedText = function(bAll, bClearText, oPr)
     return Str;
 };
 
-ParaRun.prototype.Get_SelectionDirection = function()
+ParaRun.prototype.GetSelectDirection = function()
 {
     if (true !== this.Selection.Use)
         return 0;
@@ -2926,7 +2945,9 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
                 }
                 case para_Space:
                 {
-                	if (Word && PRS.LastItem && para_Text === PRS.LastItem.Type && !PRS.LastItem.CanBeAtEndOfLine())
+					Item.CheckCondensedWidth(PRS.IsCondensedSpaces());
+
+					if (Word && PRS.LastItem && para_Text === PRS.LastItem.Type && !PRS.LastItem.CanBeAtEndOfLine())
 					{
 						WordLen += Item.Width / TEXTWIDTH_DIVIDER;//SpaceLen += Item.Get_Width();
 						break;
@@ -3643,47 +3664,46 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
     PRS.bForcedBreak        = bForcedBreak;
 
 
-    if(this.Type == para_Math_Run)
-    {
-        if(true === NewRange)
-        {
-            var WidthLine = X - XRange;
+	if (this.Type == para_Math_Run)
+	{
+		if (true === NewRange)
+		{
+			var WidthLine = X - XRange;
 
-            if(this.ParaMath.Is_BrkBinBefore() == false)
-                WidthLine += SpaceLen;
+			if (this.ParaMath.Is_BrkBinBefore() == false)
+				WidthLine += SpaceLen;
 
-            this.ParaMath.UpdateWidthLine(PRS, WidthLine);
-        }
-        else
-        {
-            // для пустого Run, обновляем LineBreakPos на случай, если пустой Run находится между break_operator (мат. объект) и мат объектом
-            if(this.Content.length == 0)
-            {
-                if(PRS.bForcedBreak == true)
-                {
-                    PRS.MoveToLBP = true;
-                    PRS.NewRange = true;
-                    PRS.Set_LineBreakPos(0, PRS.FirstItemOnLine);
-                }
-                else if(this.ParaMath.Is_BrkBinBefore() == false && Word == false && PRS.bBreakBox == true)
-                {
-                    PRS.Set_LineBreakPos(Pos, PRS.FirstItemOnLine);
-                    PRS.X += SpaceLen;
-                    PRS.SpaceLen = 0;
-                }
-            }
+			this.ParaMath.UpdateWidthLine(PRS, WidthLine);
+		}
+		else
+		{
+			// для пустого Run, обновляем LineBreakPos на случай, если пустой Run находится между break_operator (мат. объект) и мат объектом
+			if (this.Content.length == 0)
+			{
+				if (PRS.bForcedBreak == true)
+				{
+					PRS.MoveToLBP = true;
+					PRS.NewRange  = true;
+					PRS.Set_LineBreakPos(0, PRS.FirstItemOnLine);
+				}
+				else if (this.ParaMath.Is_BrkBinBefore() == false && Word == false && PRS.bBreakBox == true)
+				{
+					PRS.Set_LineBreakPos(Pos, PRS.FirstItemOnLine);
+					PRS.X += SpaceLen;
+					PRS.SpaceLen = 0;
+				}
+			}
 
-            // запоминаем конец Run
-            PRS.PosEndRun.Set(PRS.CurPos);
-            PRS.PosEndRun.Update2(this.Content.length, Depth);
+			// запоминаем конец Run
+			PRS.PosEndRun.Set(PRS.CurPos);
+			PRS.PosEndRun.Update2(this.Content.length, Depth);
+		}
+	}
 
-        }
-    }
-
-    if ( Pos >= ContentLen )
-    {
-        RangeEndPos = Pos;
-    }
+	if (Pos >= ContentLen)
+	{
+		RangeEndPos = Pos;
+	}
 
     this.protected_FillRange(CurLine, CurRange, RangeStartPos, RangeEndPos);
 
@@ -4047,7 +4067,7 @@ ParaRun.prototype.Recalculate_Range_Spaces = function(PRSA, _CurLine, _CurRange,
 
 				if (para_FootnoteReference === ItemType)
 				{
-					var oFootnote = Item.Get_Footnote();
+					var oFootnote = Item.GetFootnote();
 					oFootnote.UpdatePositionInfo(this.Paragraph, this, _CurLine, _CurRange, PRSA.X, WidthVisible);
 				}
 
@@ -4535,16 +4555,16 @@ ParaRun.prototype.PrepareRecalculateObject = function()
 			Item.PrepareRecalculateObject();
 	}
 };
-ParaRun.prototype.Is_EmptyRange = function(_CurLine, _CurRange)
+ParaRun.prototype.IsEmptyRange = function(_CurLine, _CurRange)
 {
-    var CurLine  = _CurLine - this.StartLine;
-    var CurRange = ( 0 === CurLine ? _CurRange - this.StartRange : _CurRange );
+	var CurLine  = _CurLine - this.StartLine;
+	var CurRange = ( 0 === CurLine ? _CurRange - this.StartRange : _CurRange );
 
-    var StartPos = this.protected_GetRangeStartPos(CurLine, CurRange);
-    var EndPos   = this.protected_GetRangeEndPos(CurLine, CurRange);
+	var StartPos = this.protected_GetRangeStartPos(CurLine, CurRange);
+	var EndPos   = this.protected_GetRangeEndPos(CurLine, CurRange);
 
-    if ( EndPos <= StartPos )
-        return true;
+	if (EndPos <= StartPos)
+		return true;
 
     return false;
 };
@@ -5006,6 +5026,13 @@ ParaRun.prototype.Draw_HighLights = function(PDSH)
 	}
 
     var HighLight = oCompiledPr.HighLight;
+    if(oCompiledPr.HighlightColor)
+    {
+        var Theme = this.Paragraph.Get_Theme(), ColorMap = this.Paragraph.Get_ColorMap(), RGBA;
+        oCompiledPr.HighlightColor.check(Theme, ColorMap);
+        RGBA = oCompiledPr.HighlightColor.RGBA;
+        HighLight = new CDocumentColor(RGBA.R, RGBA.G, RGBA.B, RGBA.A);
+    }
 
     var SearchMarksCount = this.SearchMarks.length;
 
@@ -5268,12 +5295,12 @@ ParaRun.prototype.Draw_Elements = function(PDSE)
         {
             case AscCommon.vertalign_SubScript:
             {
-                Y -= vertalign_Koef_Sub * CurTextPr.FontSize * g_dKoef_pt_to_mm;
+                Y -= AscCommon.vaKSub * CurTextPr.FontSize * g_dKoef_pt_to_mm;
                 break;
             }
             case AscCommon.vertalign_SuperScript:
             {
-                Y -= vertalign_Koef_Super * CurTextPr.FontSize * g_dKoef_pt_to_mm;
+                Y -= AscCommon.vaKSuper * CurTextPr.FontSize * g_dKoef_pt_to_mm;
                 break;
             }
         }
@@ -5474,13 +5501,13 @@ ParaRun.prototype.Draw_Lines = function(PDSL)
 		}
         case AscCommon.vertalign_SubScript  :
 		{
-			StrikeoutY += -CurTextPr.FontSize * fontCoeff * vertalign_Koef_Size * g_dKoef_pt_to_mm * 0.27 - vertalign_Koef_Sub * CurTextPr.FontSize  * fontCoeff * g_dKoef_pt_to_mm;
-			UnderlineY -= vertalign_Koef_Sub * CurTextPr.FontSize  * fontCoeff * g_dKoef_pt_to_mm;
+			StrikeoutY += -CurTextPr.FontSize * fontCoeff * AscCommon.vaKSize * g_dKoef_pt_to_mm * 0.27 - AscCommon.vaKSub * CurTextPr.FontSize  * fontCoeff * g_dKoef_pt_to_mm;
+			UnderlineY -= AscCommon.vaKSub * CurTextPr.FontSize  * fontCoeff * g_dKoef_pt_to_mm;
 			break;
 		}
         case AscCommon.vertalign_SuperScript:
 		{
-			StrikeoutY += -CurTextPr.FontSize * fontCoeff * vertalign_Koef_Size * g_dKoef_pt_to_mm * 0.27 - vertalign_Koef_Super * CurTextPr.FontSize * fontCoeff * g_dKoef_pt_to_mm;
+			StrikeoutY += -CurTextPr.FontSize * fontCoeff * AscCommon.vaKSize * g_dKoef_pt_to_mm * 0.27 - AscCommon.vaKSuper * CurTextPr.FontSize * fontCoeff * g_dKoef_pt_to_mm;
 			break;
 		}
     }
@@ -5615,12 +5642,15 @@ ParaRun.prototype.Draw_Lines = function(PDSL)
 
                 if ( para_Drawing != ItemType || Item.Is_Inline() )
                 {
-                    if (true === bRemReview)
-                        aStrikeout.Add(StrikeoutY, StrikeoutY, X, X + ItemWidthVisible, LineW, ReviewColor.r, ReviewColor.g, ReviewColor.b);
-                    else if (true === CurTextPr.DStrikeout)
-                        aDStrikeout.Add( StrikeoutY, StrikeoutY, X, X + ItemWidthVisible, LineW, CurColor.r, CurColor.g, CurColor.b, undefined, CurTextPr );
-                    else if ( true === CurTextPr.Strikeout )
-                        aStrikeout.Add( StrikeoutY, StrikeoutY, X, X + ItemWidthVisible, LineW, CurColor.r, CurColor.g, CurColor.b, undefined, CurTextPr );
+                	if (para_Drawing !== ItemType)
+					{
+						if (true === bRemReview)
+							aStrikeout.Add(StrikeoutY, StrikeoutY, X, X + ItemWidthVisible, LineW, ReviewColor.r, ReviewColor.g, ReviewColor.b);
+						else if (true === CurTextPr.DStrikeout)
+							aDStrikeout.Add(StrikeoutY, StrikeoutY, X, X + ItemWidthVisible, LineW, CurColor.r, CurColor.g, CurColor.b, undefined, CurTextPr);
+						else if (true === CurTextPr.Strikeout)
+							aStrikeout.Add(StrikeoutY, StrikeoutY, X, X + ItemWidthVisible, LineW, CurColor.r, CurColor.g, CurColor.b, undefined, CurTextPr);
+					}
 
                     if (true === bAddReview)
                         aUnderline.Add(UnderlineY, UnderlineY, X, X + ItemWidthVisible, LineW, ReviewColor.r, ReviewColor.g, ReviewColor.b);
@@ -6069,7 +6099,7 @@ ParaRun.prototype.Get_LeftPos = function(SearchPos, ContentPos, Depth, UseConten
 			isHiddenCF   = SearchPos.IsHiddenComplexField();
 		}
 
-		if (CurPos >= 0 && (isFieldCode || isHiddenCF))
+		if (CurPos >= 0 && (isFieldCode || isHiddenCF || Item.IsDiacriticalSymbol()))
 			continue;
 
 		if (CurPos < 0 || (!(para_Drawing === Item.Type && false === Item.Is_Inline() && false === SearchPos.IsCheckAnchors()) && !(para_FootnoteReference === Item.Type && true === Item.IsCustomMarkFollows())))
@@ -6126,6 +6156,9 @@ ParaRun.prototype.Get_RightPos = function(SearchPos, ContentPos, Depth, UseConte
 
 		if (CurPos > Count)
 			break;
+
+		if (this.Content[CurPos] && this.Content[CurPos].IsDiacriticalSymbol())
+			continue;
 
 		// Минимальное значение CurPos = 1, т.к. мы начинаем со значния >= 0 и добавляем 1
 		var Item     = this.private_CheckInstrText(this.Content[CurPos - 1]);
@@ -7061,19 +7094,23 @@ ParaRun.prototype.IsInHyperlinkInTOC = function()
 	return false;
 };
 
-// В данной функции мы жестко меняем настройки на те, которые пришли (т.е. полностью удаляем старые)
 ParaRun.prototype.Set_Pr = function(TextPr)
 {
-    var OldValue = this.Pr;
-    this.Pr = TextPr;
-
-	History.Add(new CChangesRunTextPr(this, OldValue, TextPr, this.private_IsCollPrChangeMine()));
-    this.Recalc_CompiledPr(true);
-
-    this.private_UpdateSpellChecking();
-    this.private_UpdateTrackRevisionOnChangeTextPr(true);
+	return this.SetPr(TextPr);
 };
+/**
+ * Жестко меняем настройки на заданные
+ * @param {CTextPr} oTextPr
+ */
+ParaRun.prototype.SetPr = function(oTextPr)
+{
+	History.Add(new CChangesRunTextPr(this, this.Pr, oTextPr, this.private_IsCollPrChangeMine()));
+	this.Pr = oTextPr;
+	this.Recalc_CompiledPr(true);
 
+	this.private_UpdateSpellChecking();
+	this.private_UpdateTrackRevisionOnChangeTextPr(true);
+};
 ParaRun.prototype.Apply_TextPr = function(TextPr, IncFontSize, ApplyToAll)
 {
     var bReview = false;
@@ -7689,7 +7726,11 @@ ParaRun.prototype.Reject_PrChange = function()
 {
     if (true === this.Have_PrChange())
     {
+		if (this.GetParaEnd())
+			this.Paragraph.TextPr.SetPr(this.Pr.PrChange);
+
         this.Set_Pr(this.Pr.PrChange);
+
         this.Remove_PrChange();
     }
 };
@@ -8426,7 +8467,7 @@ CParaRunRecalcInfo.prototype.OnAdd = function(nPos)
 	for (var nIndex = 0, nCount = this.MeasurePositions.length; nIndex < nCount; ++nIndex)
 	{
 		if (this.MeasurePositions[nIndex] >= nPos)
-			this.MeasurePositions[nIndex] = nPos;
+			this.MeasurePositions[nIndex]++;
 	}
 
 	this.MeasurePositions.push(nPos);
@@ -8438,7 +8479,7 @@ CParaRunRecalcInfo.prototype.OnAdd = function(nPos)
  */
 CParaRunRecalcInfo.prototype.OnRemove = function(nPos, nCount)
 {
-	for (var nIndex = 0, nCount = this.MeasurePositions.length; nIndex < nCount; ++nIndex)
+	for (var nIndex = 0, nLen = this.MeasurePositions.length; nIndex < nLen; ++nIndex)
 	{
 		if (nPos <= this.MeasurePositions[nIndex] && this.MeasurePositions[nIndex] <= nPos + nCount - 1)
 		{
@@ -9220,7 +9261,7 @@ ParaRun.prototype.UpdLastElementForGaps = function(_CurLine, _CurRange, GapsInfo
 };
 ParaRun.prototype.IsPlaceholder = function()
 {
-    return this.Content.length == 1 && this.Content[0].IsPlaceholder();
+    return this.Content.length == 1 && this.Content[0].IsPlaceholder && this.Content[0].IsPlaceholder();
 };
 ParaRun.prototype.AddMathPlaceholder = function()
 {
@@ -9918,14 +9959,14 @@ ParaRun.prototype.Set_CompositeInput = function(oCompositeInput)
 {
     this.CompositeInput = oCompositeInput;
 };
-ParaRun.prototype.Get_FootnotesList = function(oEngine)
+ParaRun.prototype.GetFootnotesList = function(oEngine)
 {
 	for (var nIndex = 0, nCount = this.Content.length; nIndex < nCount; ++nIndex)
 	{
 		var oItem = this.Content[nIndex];
 		if (para_FootnoteReference === oItem.Type)
 		{
-			oEngine.Add(oItem.Get_Footnote(), oItem, this);
+			oEngine.Add(oItem.GetFootnote(), oItem, this);
 		}
 	}
 };
@@ -10081,6 +10122,11 @@ ParaRun.prototype.GetLineByPosition = function(nPos)
  */
 ParaRun.prototype.PreDelete = function()
 {
+	for (var nIndex = 0, nCount = this.Content.length; nIndex < nCount; ++nIndex)
+	{
+		if (para_Drawing === this.Content[nIndex].Type)
+			this.Content[nIndex].PreDelete();
+	}
 };
 ParaRun.prototype.GetCurrentComplexFields = function(arrComplexFields, isCurrent, isFieldPos)
 {
@@ -10149,6 +10195,46 @@ ParaRun.prototype.RemoveTabsForTOC = function(_isTab)
 	}
 
 	return isTab;
+};
+ParaRun.prototype.GetAllFields = function(isUseSelection, arrFields)
+{
+	var nStartPos = isUseSelection ?
+		(this.Selection.StartPos < this.Selection.EndPos ? this.Selection.StartPos : this.Selection.EndPos)
+		: 0;
+
+	var nEndPos = isUseSelection ?
+		(this.Selection.StartPos < this.Selection.EndPos ? this.Selection.EndPos : this.Selection.StartPos)
+		: this.Content.length;
+
+	for (var nPos = nStartPos; nPos < nEndPos; ++nPos)
+	{
+		var oItem = this.Content[nPos];
+		if (para_FieldChar === oItem.Type)
+		{
+			var oComplexField = oItem.GetComplexField();
+
+			var isNeedAdd = true;
+			for (var nFieldIndex = 0, nFieldsCount = arrFields.length; nFieldIndex < nFieldsCount; ++nFieldIndex)
+			{
+				if (oComplexField === arrFields[nFieldIndex])
+				{
+					isNeedAdd = false;
+					break;
+				}
+			}
+
+			if (isNeedAdd)
+				arrFields.push(oComplexField);
+		}
+		else if (para_Drawing === oItem.Type)
+		{
+			oItem.GetAllFields(false, arrFields);
+		}
+		else if (para_FootnoteReference === oItem.Type)
+		{
+			oItem.GetFootnote().GetAllFields(false, arrFields);
+		}
+	}
 };
 ParaRun.prototype.AddToContent = function(nPos, oItem, isUpdatePositions)
 {
@@ -10579,6 +10665,14 @@ ParaRun.prototype.private_GetSuitableNumberedLvlForAutoCorrect = function(sText)
 	}
 
 	return null;
+};
+ParaRun.prototype.UpdateBookmarks = function(oManager)
+{
+	for (var nIndex = 0, nCount = this.Content.length; nIndex < nCount; ++nIndex)
+	{
+		if (para_Drawing === this.Content[nIndex].Type)
+			this.Content[nIndex].UpdateBookmarks(oManager);
+	}
 };
 
 function CParaRunStartState(Run)

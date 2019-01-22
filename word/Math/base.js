@@ -2386,21 +2386,12 @@ CMathBase.prototype.Recalculate_LineMetrics = function(PRS, ParaPr, _CurLine, _C
         }
     }
 };
-CMathBase.prototype.IsEmptyRange = function(_CurLine, _CurRange)
+CMathBase.prototype.IsEmptyRange = function(nCurLine, nCurRange)
 {
-    var bEmpty = false;
-    var Numb = this.NumBreakContent;
+	if (!this.bOneLine)
+		return this.Content[this.NumBreakContent].IsEmptyRange(nCurLine, nCurRange);
 
-    if(this.bOneLine == false)
-    {
-        bEmpty = this.Content[Numb].IsEmptyRange(_CurLine, _CurRange);
-    }
-
-    return bEmpty;
-};
-CMathBase.prototype.Is_EmptyRange = function(_CurLine, _CurRange)
-{
-    return this.bOneLine == true ? false : this.Content[this.NumBreakContent].Is_EmptyRange(_CurLine, _CurRange);
+	return false;
 };
 CMathBase.prototype.Get_LineBound = function(_CurLine, _CurRange)
 {
@@ -2513,6 +2504,9 @@ CMathBase.prototype.Get_Range_VisibleWidth = function(RangeW, _CurLine, _CurRang
 };
 CMathBase.prototype.Displace_BreakOperator = function(isForward, bBrkBefore, CountOperators)
 {
+	if (!this.Content[this.NumBreakContent])
+		return;
+
     this.Content[this.NumBreakContent].Displace_BreakOperator(isForward, bBrkBefore, CountOperators);
 };
 CMathBase.prototype.Get_AlignBrk = function(_CurLine, bBrkBefore)
@@ -2861,7 +2855,7 @@ CMathBase.prototype.Is_ContentUse = function(MathContent)
 };
 CMathBase.prototype.Is_FromDocument = function()
 {
-	return this.ParaMath.Paragraph && this.ParaMath.Paragraph.bFromDocument;
+	return (this.ParaMath && this.ParaMath.Paragraph && this.ParaMath.Paragraph.bFromDocument);
 };
 CMathBase.prototype.Clear_ContentChanges = function()
 {

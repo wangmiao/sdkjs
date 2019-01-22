@@ -365,7 +365,7 @@ CComplexField.prototype.SetSeparateChar = function(oChar)
 	this.SeparateChar = oChar;
 	this.EndChar      = null;
 };
-CComplexField.prototype.Update = function(isCreateHistoryPoint)
+CComplexField.prototype.Update = function(isCreateHistoryPoint, isNeedRecalculate)
 {
 	this.private_UpdateInstruction();
 
@@ -398,10 +398,49 @@ CComplexField.prototype.Update = function(isCreateHistoryPoint)
 		case fieldtype_PAGECOUNT:
 			this.private_UpdateNUMPAGES();
 			break;
+		case fieldtype_FORMULA:
+			this.private_UpdateFORMULA();
+			break;
 
 	}
 
-	this.LogicDocument.Recalculate();
+	if (false !== isNeedRecalculate)
+		this.LogicDocument.Recalculate();
+};
+CComplexField.prototype.private_UpdateFORMULA = function()
+{
+	this.Instruction.Calculate();
+	if(this.Instruction.ErrStr !== null)
+	{
+		var oSelectedContent = new CSelectedContent();
+		var oPara = new Paragraph(this.LogicDocument.GetDrawingDocument(), this.LogicDocument, false);
+		var oRun  = new ParaRun(oPara, false);
+		oRun.Set_Bold(true);
+		oRun.AddText(this.Instruction.ErrStr);
+		oPara.AddToContent(0, oRun);
+		oSelectedContent.Add(new CSelectedElement(oPara, false));
+		this.LogicDocument.TurnOff_Recalculate();
+		this.LogicDocument.TurnOff_InterfaceEvents();
+		this.LogicDocument.Remove(1, false, false, false);
+		this.LogicDocument.TurnOn_Recalculate(false);
+		this.LogicDocument.TurnOn_InterfaceEvents(false);
+		oRun       = this.BeginChar.GetRun();
+		var oParagraph = oRun.GetParagraph();
+		var oNearPos   = {
+			Paragraph  : oParagraph,
+			ContentPos : oParagraph.Get_ParaContentPos(false, false)
+		};
+		oParagraph.Check_NearestPos(oNearPos);
+		oSelectedContent.DoNotAddEmptyPara = true;
+		oParagraph.Parent.Insert_Content(oSelectedContent, oNearPos);
+	}
+	else
+	{
+		if(this.Instruction.ResultStr !== null)
+		{
+			this.LogicDocument.AddText(this.Instruction.ResultStr);
+		}
+	}
 };
 CComplexField.prototype.private_UpdatePAGE = function()
 {
@@ -477,9 +516,11 @@ CComplexField.prototype.private_UpdateTOC = function()
 				SkipColumnBreak       : true,
 				SkipAnchors           : true,
 				SkipFootnoteReference : true,
-				SkipComplexFields     : true
+				SkipComplexFields     : true,
+				SkipComments          : true
 			});
 			oPara.Style_Add(oStyles.GetDefaultTOC(arrOutline[nIndex].Lvl), false);
+			oPara.SetOutlineLvl(undefined);
 
 
 			var oClearTextPr = new CTextPr();
@@ -527,11 +568,11 @@ CComplexField.prototype.private_UpdateTOC = function()
 			}
 
 			var isAddTabForNumbering = false;
-			if (oSrcParagraph.HaveNumbering())
+			if (oSrcParagraph.HaveNumbering() && oSrcParagraph.GetParent())
 			{
 				var oNumPr     = oSrcParagraph.GetNumPr();
 				var oNumbering = this.LogicDocument.GetNumbering();
-				var oNumInfo   = this.LogicDocument.CalculateNumberingValues(oSrcParagraph, oNumPr);
+				var oNumInfo   = oSrcParagraph.GetParent().CalculateNumberingValues(oSrcParagraph, oNumPr);
 				var sText      = oNumbering.GetText(oNumPr.NumId, oNumPr.Lvl, oNumInfo);
 				var oNumTextPr = oSrcParagraph.GetNumberingCompiledPr();
 
@@ -640,7 +681,8 @@ CComplexField.prototype.private_UpdateTOC = function()
 	};
 	oParagraph.Check_NearestPos(oNearPos);
 
-	oSelectedContent.ForceSplit = true;
+	oSelectedContent.DoNotAddEmptyPara = true;
+
 	oParagraph.Parent.Insert_Content(oSelectedContent, oNearPos);
 };
 CComplexField.prototype.private_UpdatePAGEREF = function()
@@ -748,7 +790,7 @@ CComplexField.prototype.SelectField = function()
 CComplexField.prototype.GetTopDocumentContent = function()
 {
 	if (!this.BeginChar || !this.SeparateChar || !this.EndChar)
-		return;
+		return null;
 
 	var oTopDocument = this.BeginChar.GetTopDocumentContent();
 

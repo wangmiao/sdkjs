@@ -503,16 +503,18 @@ function ResizeTrackShapeImage(originalObject, cardDirection, drawingsController
         };
 
         this.track = function(kd1, kd2, e, x, y){
-            this.bIsTracked = true;
-            if(this.bConnector){
-                this.resizeConnector(kd1, kd2, e, x, y);
-            }
-            else if(!e.CtrlKey){
-                this.resize(kd1, kd2, e.ShiftKey);
-            }
-            else{
-                this.resizeRelativeCenter(kd1, kd2, e.ShiftKey)
-            }
+            AscFormat.ExecuteNoHistory(function () {
+                this.bIsTracked = true;
+                if(this.bConnector){
+                    this.resizeConnector(kd1, kd2, e, x, y);
+                }
+                else if(!e.CtrlKey){
+                    this.resize(kd1, kd2, e.ShiftKey);
+                }
+                else{
+                    this.resizeRelativeCenter(kd1, kd2, e.ShiftKey)
+                }
+            }, this, []);
         };
 
         this.resize = function(kd1, kd2, ShiftKey)
@@ -538,7 +540,7 @@ function ResizeTrackShapeImage(originalObject, cardDirection, drawingsController
                }
            }
 
-            if((ShiftKey === true || window.AscAlwaysSaveAspectOnResizeTrack === true || this.originalObject.getNoChangeAspect()) && this.bAspect === true)
+            if((ShiftKey === true || (window.AscAlwaysSaveAspectOnResizeTrack === true && !this.isLine) || this.originalObject.getNoChangeAspect()) && this.bAspect === true)
             {
                 var _new_aspect = this.aspect*(Math.abs(kd1/ kd2));
 
@@ -1298,11 +1300,14 @@ function ResizeTrackGroup(originalObject, cardDirection, parentTrack)
 
         this.track = function(kd1, kd2, e)
         {
-            this.bIsTracked = true;
-            if(!e.CtrlKey)
-                this.resize(kd1, kd2, e.ShiftKey);
-            else
-                this.resizeRelativeCenter(kd1, kd2, e.ShiftKey)
+            AscFormat.ExecuteNoHistory(function () {
+
+                this.bIsTracked = true;
+                if(!e.CtrlKey)
+                    this.resize(kd1, kd2, e.ShiftKey);
+                else
+                    this.resizeRelativeCenter(kd1, kd2, e.ShiftKey)
+            }, this, [])
         };
 
         this.resize = function(kd1, kd2, ShiftKey)

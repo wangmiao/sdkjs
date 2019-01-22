@@ -317,6 +317,18 @@ Slide.prototype =
     },
 
 
+    handleAllContents: function(fCallback){
+        var sp_tree = this.cSld.spTree;
+        for(var i = 0; i < sp_tree.length; ++i){
+            if (sp_tree[i].handleAllContents){
+                sp_tree[i].handleAllContents(fCallback);
+            }
+        }
+        if(this.notesShape){
+            this.notesShape.handleAllContents(fCallback);
+        }
+    },
+
     Search: function( Str, Props, Engine, Type ){
         var sp_tree = this.cSld.spTree;
         for(var i = 0; i < sp_tree.length; ++i){
@@ -446,10 +458,16 @@ Slide.prototype =
 
                 if(_input_reduced_type == _final_type && _input_reduced_index == _final_index)
                 {
+                    if(info){
+                        info.bBadMatch = !(_type === type && _index === idx);
+                    }
                     return _glyph;
                 }
                 if(_input_reduced_type == AscFormat.phType_title && _input_reduced_type == _final_type)
                 {
+                    if(info){
+                        info.bBadMatch = !(_type === type && _index === idx);
+                    }
                     return _glyph;
                 }
                 if(AscFormat.phType_body === _type)
@@ -483,6 +501,9 @@ Slide.prototype =
 
                     if(_input_reduced_type == _type)
                     {
+                        if(info){
+                            info.bBadMatch = !(_type === type && _index === idx);
+                        }
                         return _glyph;
                     }
                 }
@@ -494,6 +515,9 @@ Slide.prototype =
         }
         if(body_count === 1 && _input_reduced_type === AscFormat.phType_body && bSingleBody)
         {
+            if(info){
+                info.bBadMatch = !(_type === type && _index === idx);
+            }
             return last_body;
         }
 
@@ -540,6 +564,9 @@ Slide.prototype =
 
         if(body_count === 1 && bSingleBody)
         {
+            if(info){
+                info.bBadMatch = !(_type === type && _index === idx);
+            }
             return last_body;
         }
 
@@ -1113,7 +1140,11 @@ Slide.prototype =
             }
             else{
                 this.notesShape = this.notes.getBodyShape();
+                if(this.notesShape && this.notesShape.getObjectType() !== AscDFH.historyitem_type_Shape){
+                    this.notesShape = null;
+                }
             }
+
             if(this.notesShape){
                 this.notes.slide = this;
                 this.notes.graphicObjects.selectObject(this.notesShape, 0);

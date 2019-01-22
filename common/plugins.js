@@ -97,6 +97,13 @@
 		this.guidAsyncMethod = "";
 
 		this.sendsToInterface = {};
+
+		this.sendEncryptionDataCounter = 0;
+
+		this.language = "en-EN";
+
+		if (this.api.isCheckCryptoReporter)
+			this.checkCryptoReporter();
 	}
 
 	CPluginsManager.prototype =
@@ -379,7 +386,7 @@
 
 			if (plugin.variations[runObject.currentVariation].isVisual && runObject.startData.getAttribute("resize") !== true)
 			{
-				this.api.sendEvent("asc_onPluginShow", plugin, runObject.currentVariation, runObject.frameId);
+				this.api.sendEvent("asc_onPluginShow", plugin, runObject.currentVariation, runObject.frameId, "?lang=" + this.language);
 				this.sendsToInterface[plugin.guid] = true;
 			}
 			else
@@ -388,7 +395,7 @@
 				ifr.name           = runObject.frameId;
 				ifr.id             = runObject.frameId;
 				var _add           = plugin.baseUrl == "" ? this.path : plugin.baseUrl;
-				ifr.src            = _add + plugin.variations[runObject.currentVariation].url;
+				ifr.src            = _add + plugin.variations[runObject.currentVariation].url + "?lang=" + this.language;
 				ifr.style.position = AscCommon.AscBrowser.isIE ? 'fixed' : "absolute";
 				ifr.style.top      = '-100px';
 				ifr.style.left     = '0px';
@@ -514,6 +521,35 @@
 						// теперь выше задается
 						break;
 					}
+					case Asc.EPluginDataType.desktop:
+					{
+						if (plugin.variations[runObject.currentVariation].initData == "encryption")
+						{
+							if (this.api.isReporterMode)
+							{
+                                this.sendEncryptionDataCounter++;
+                                if (2 <= this.sendEncryptionDataCounter)
+                                {
+                                    runObject.startData.setAttribute("data", {
+                                        "type": "setPassword",
+                                        "password": this.api.currentPassword,
+                                        "hash": this.api.currentDocumentHash,
+                                        "docinfo": this.api.currentDocumentInfo
+                                    });
+                                }
+                            }
+
+                            // for crypt mode (end waiting all system plugins)
+                            if (this.api.asc_initAdvancedOptions_params)
+                            {
+                            	window["asc_initAdvancedOptions"].apply(window, this.api.asc_initAdvancedOptions_params);
+                                delete this.api.asc_initAdvancedOptions_params;
+                                // already sended in asc_initAdvancedOptions
+                                return;
+                            }
+						}
+						break;
+					}
 				}
 			}
 			else
@@ -542,6 +578,17 @@
 
 			if (undefined == pluginData.getAttribute("data"))
 				pluginData.setAttribute("data", "");
+
+            pluginData.setAttribute("isViewMode", this.api.isViewMode);
+            pluginData.setAttribute("lang", this.language);
+            pluginData.setAttribute("documentId", this.api.documentId);
+            pluginData.setAttribute("documentTitle", this.api.documentTitle);
+
+            if (this.api.User)
+            {
+                pluginData.setAttribute("userId", this.api.User.id);
+                pluginData.setAttribute("userName", this.api.User.userName);
+            }
 		},
 		loadExtensionPlugins : function(_plugins)
 		{
@@ -600,6 +647,27 @@
 				}
 			}
 		},
+
+        onPluginEvent : function(name, data)
+        {
+            for (var guid in this.runnedPluginsMap)
+            {
+                var plugin = this.getPluginByGuid(guid);
+                var runObject = this.runnedPluginsMap[guid];
+
+                if (plugin && plugin.variations[runObject.currentVariation].eventsMap[name])
+                {
+                    var pluginData = new CPluginData();
+                    pluginData.setAttribute("guid", plugin.guid);
+                    pluginData.setAttribute("type", "onEvent");
+                    pluginData.setAttribute("eventName", name);
+                    pluginData.setAttribute("eventData", data);
+                    var _iframe = document.getElementById(runObject.frameId);
+                    if (_iframe)
+                        _iframe.contentWindow.postMessage(pluginData.serialize(), "*");
+                }
+            }
+        },
 
 		onExternalMouseUp : function()
 		{
@@ -703,6 +771,19 @@
             if (!_plugin)
             	return;
             this.init(_plugin.guid, data);
+        },
+        checkCryptoReporter : function()
+        {
+            this.sendEncryptionDataCounter++;
+            if (2 <= this.sendEncryptionDataCounter)
+            {
+                this.sendToEncryption({
+                    "type" : "setPassword",
+                    "password" : this.api.currentPassword,
+                    "hash" : this.api.currentDocumentHash,
+                    "docinfo" : this.api.currentDocumentInfo
+                });
+            }
         }
         /* -------------------------------- */
 	};
@@ -739,7 +820,7 @@
 			var pluginData = new CPluginData();
 			pluginData.setAttribute("guid", guid);
 			pluginData.setAttribute("type", "plugin_init");
-			pluginData.setAttribute("data", "!function(n,e){var i=!1;n.plugin_sendMessage=function(e){n.parent.postMessage(e,\"*\")},n.plugin_onMessage=function(t){if(n.Asc.plugin&&\"string\"==typeof t.data){var s={};try{s=JSON.parse(t.data)}catch(n){s={}}if(s.guid!=n.Asc.plugin.guid)return;var a=s.type;switch(\"init\"==a&&(n.Asc.plugin.info=s),a){case\"init\":n.Asc.plugin.executeCommand=function(e,i){n.Asc.plugin.info.type=e,n.Asc.plugin.info.data=i;var t=\"\";try{t=JSON.stringify(n.Asc.plugin.info)}catch(n){t=JSON.stringify({type:i})}n.plugin_sendMessage(t)},n.Asc.plugin.executeMethod=function(e,i,t){if(!0===n.Asc.plugin.isWaitMethod)return!1;n.Asc.plugin.isWaitMethod=!0,n.Asc.plugin.methodCallback=t,n.Asc.plugin.info.type=\"method\",n.Asc.plugin.info.methodName=e,n.Asc.plugin.info.data=i;var s=\"\";try{s=JSON.stringify(n.Asc.plugin.info)}catch(n){s=JSON.stringify({type:data})}return n.plugin_sendMessage(s),!0},n.Asc.plugin.resizeWindow=function(i,t,s,a,c,u){e==s&&(s=0),e==a&&(a=0),e==c&&(c=0),e==u&&(u=0);var l=JSON.stringify({width:i,height:t,minw:s,minh:a,maxw:c,maxh:u});n.Asc.plugin.info.type=\"resize\",n.Asc.plugin.info.data=l;var o=\"\";try{o=JSON.stringify(n.Asc.plugin.info)}catch(n){o=JSON.stringify({type:l})}n.plugin_sendMessage(o)},n.Asc.plugin.callCommand=function(e,i,t){var s=\"var Asc = {}; Asc.scope = \"+JSON.stringify(n.Asc.scope)+\"; var scope = Asc.scope; (\"+e.toString()+\")();\",a=!0===i?\"close\":\"command\";n.Asc.plugin.info.recalculate=!1!==t,n.Asc.plugin.executeCommand(a,s)},n.Asc.plugin.callModule=function(e,i,t){var s=t,a=new XMLHttpRequest;a.open(\"GET\",e),a.onreadystatechange=function(){if(4==a.readyState&&(200==a.status||0==location.href.indexOf(\"file:\"))){var e=!0===s?\"close\":\"command\";n.Asc.plugin.info.recalculate=!0,n.Asc.plugin.executeCommand(e,a.responseText),i&&i(a.responseText)}},a.send()},n.Asc.plugin.loadModule=function(n,e){var i=new XMLHttpRequest;i.open(\"GET\",n),i.onreadystatechange=function(){4!=i.readyState||200!=i.status&&0!=location.href.indexOf(\"file:\")||e&&e(i.responseText)},i.send()},n.Asc.plugin.init(n.Asc.plugin.info.data);break;case\"button\":var c=parseInt(s.button);n.Asc.plugin.button||-1!=c?n.Asc.plugin.button(c):n.Asc.plugin.executeCommand(\"close\",\"\");break;case\"enableMouseEvent\":i=s.isEnabled,n.Asc.plugin.onEnableMouseEvent&&n.Asc.plugin.onEnableMouseEvent(i);break;case\"onExternalMouseUp\":n.Asc.plugin.onExternalMouseUp&&n.Asc.plugin.onExternalMouseUp();break;case\"onMethodReturn\":if(n.Asc.plugin.isWaitMethod=!1,n.Asc.plugin.methodCallback){var u=n.Asc.plugin.methodCallback;n.Asc.plugin.methodCallback=null,u(s.methodReturnData),u=null}else n.Asc.plugin.onMethodReturn&&n.Asc.plugin.onMethodReturn(s.methodReturnData);break;case\"onCommandCallback\":n.Asc.plugin.onCommandCallback&&n.Asc.plugin.onCommandCallback();break;case\"onExternalPluginMessage\":n.Asc.plugin.onExternalPluginMessage&&s.data&&s.data.type&&n.Asc.plugin.onExternalPluginMessage(s.data)}}},n.onmousemove=function(t){if(i&&n.Asc.plugin&&n.Asc.plugin.executeCommand){var s=e===t.clientX?t.pageX:t.clientX,a=e===t.clientY?t.pageY:t.clientY;n.Asc.plugin.executeCommand(\"onmousemove\",JSON.stringify({x:s,y:a}))}},n.onmouseup=function(t){if(i&&n.Asc.plugin&&n.Asc.plugin.executeCommand){var s=e===t.clientX?t.pageX:t.clientX,a=e===t.clientY?t.pageY:t.clientY;n.Asc.plugin.executeCommand(\"onmouseup\",JSON.stringify({x:s,y:a}))}},n.plugin_sendMessage(JSON.stringify({guid:n.Asc.plugin.guid,type:\"initialize_internal\"}))}(window,void 0);");
+			pluginData.setAttribute("data", "!function(u,o){var l=!1,g=\"\";u.plugin_sendMessage=function(n){u.parent.postMessage(n,\"*\")},u.plugin_onMessage=function(n){if(u.Asc.plugin&&\"string\"==typeof n.data){var e={};try{e=JSON.parse(n.data)}catch(n){e={}}if(e.guid!=u.Asc.plugin.guid)return;var t=e.type;if(\"init\"==t&&(u.Asc.plugin.info=e),u.Asc.plugin.tr||(u.Asc.plugin.tr=function(n){return u.Asc.plugin.translateManager&&u.Asc.plugin.translateManager[n]?u.Asc.plugin.translateManager[n]:n}),u.Asc.plugin.info.lang!=g){g=u.Asc.plugin.info.lang;var a=new XMLHttpRequest;a.open(\"GET\",\"./translations/\"+g+\".json\"),a.onreadystatechange=function(){if(4==a.readyState&&(200==a.status||0==location.href.indexOf(\"file:\")))try{u.Asc.plugin.translateManager=JSON.parse(a.responseText),u.Asc.plugin.onTranslate&&u.Asc.plugin.onTranslate()}catch(n){}},a.send()}switch(t){case\"init\":u.Asc.plugin.executeCommand=function(n,e){u.Asc.plugin.info.type=n,u.Asc.plugin.info.data=e;var t=\"\";try{t=JSON.stringify(u.Asc.plugin.info)}catch(n){t=JSON.stringify({type:e})}u.plugin_sendMessage(t)},u.Asc.plugin.executeMethod=function(n,e,t){if(!0===u.Asc.plugin.isWaitMethod)return o===this.executeMethodStack&&(this.executeMethodStack=[]),this.executeMethodStack.push({name:n,params:e,callback:t}),!1;u.Asc.plugin.isWaitMethod=!0,u.Asc.plugin.methodCallback=t,u.Asc.plugin.info.type=\"method\",u.Asc.plugin.info.methodName=n,u.Asc.plugin.info.data=e;var a=\"\";try{a=JSON.stringify(u.Asc.plugin.info)}catch(n){a=JSON.stringify({type:data})}return u.plugin_sendMessage(a),!0},u.Asc.plugin.resizeWindow=function(n,e,t,a,i,s){o==t&&(t=0),o==a&&(a=0),o==i&&(i=0),o==s&&(s=0);var c=JSON.stringify({width:n,height:e,minw:t,minh:a,maxw:i,maxh:s});u.Asc.plugin.info.type=\"resize\",u.Asc.plugin.info.data=c;var l=\"\";try{l=JSON.stringify(u.Asc.plugin.info)}catch(n){l=JSON.stringify({type:c})}u.plugin_sendMessage(l)},u.Asc.plugin.callCommand=function(n,e,t){var a=\"var Asc = {}; Asc.scope = \"+JSON.stringify(u.Asc.scope)+\"; var scope = Asc.scope; (\"+n.toString()+\")();\",i=!0===e?\"close\":\"command\";u.Asc.plugin.info.recalculate=!1!==t,u.Asc.plugin.executeCommand(i,a)},u.Asc.plugin.callModule=function(n,e,t){var a=t,i=new XMLHttpRequest;i.open(\"GET\",n),i.onreadystatechange=function(){if(4==i.readyState&&(200==i.status||0==location.href.indexOf(\"file:\"))){var n=!0===a?\"close\":\"command\";u.Asc.plugin.info.recalculate=!0,u.Asc.plugin.executeCommand(n,i.responseText),e&&e(i.responseText)}},i.send()},u.Asc.plugin.loadModule=function(n,e){var t=new XMLHttpRequest;t.open(\"GET\",n),t.onreadystatechange=function(){4!=t.readyState||200!=t.status&&0!=location.href.indexOf(\"file:\")||e&&e(t.responseText)},t.send()},u.Asc.plugin.init(u.Asc.plugin.info.data);break;case\"button\":var i=parseInt(e.button);u.Asc.plugin.button||-1!=i?u.Asc.plugin.button(i):u.Asc.plugin.executeCommand(\"close\",\"\");break;case\"enableMouseEvent\":l=e.isEnabled,u.Asc.plugin.onEnableMouseEvent&&u.Asc.plugin.onEnableMouseEvent(l);break;case\"onExternalMouseUp\":u.Asc.plugin.onExternalMouseUp&&u.Asc.plugin.onExternalMouseUp();break;case\"onMethodReturn\":if(u.Asc.plugin.isWaitMethod=!1,u.Asc.plugin.methodCallback){var s=u.Asc.plugin.methodCallback;u.Asc.plugin.methodCallback=null,s(e.methodReturnData),s=null}else u.Asc.plugin.onMethodReturn&&u.Asc.plugin.onMethodReturn(e.methodReturnData);if(u.Asc.plugin.executeMethodStack&&0<u.Asc.plugin.executeMethodStack.length){var c=u.Asc.plugin.executeMethodStack.shift();u.Asc.plugin.executeMethod(c.name,c.params,c.callback)}break;case\"onCommandCallback\":u.Asc.plugin.onCommandCallback&&u.Asc.plugin.onCommandCallback();break;case\"onExternalPluginMessage\":u.Asc.plugin.onExternalPluginMessage&&e.data&&e.data.type&&u.Asc.plugin.onExternalPluginMessage(e.data);case\"onEvent\":u.Asc.plugin[\"event_\"+e.eventName]&&u.Asc.plugin[\"event_\"+e.eventName](e.eventData)}}},u.onmousemove=function(n){if(l&&u.Asc.plugin&&u.Asc.plugin.executeCommand){var e=o===n.clientX?n.pageX:n.clientX,t=o===n.clientY?n.pageY:n.clientY;u.Asc.plugin.executeCommand(\"onmousemove\",JSON.stringify({x:e,y:t}))}},u.onmouseup=function(n){if(l&&u.Asc.plugin&&u.Asc.plugin.executeCommand){var e=o===n.clientX?n.pageX:n.clientX,t=o===n.clientY?n.pageY:n.clientY;u.Asc.plugin.executeCommand(\"onmouseup\",JSON.stringify({x:e,y:t}))}},u.plugin_sendMessage(JSON.stringify({guid:u.Asc.plugin.guid,type:\"initialize_internal\"}))}(window,void 0);");
 			var _iframe = document.getElementById(runObject.frameId);
 			if (_iframe)
 				_iframe.contentWindow.postMessage(pluginData.serialize(), "*");
@@ -854,7 +935,10 @@
 										oApi.wbModel.reassignImageUrls(window.g_asc_plugins.images_rename);
 										delete window.g_asc_plugins.images_rename;
 										window.g_asc_plugins.api.asc_Recalculate();
-
+										var wsView = oApi.wb && oApi.wb.getWorksheet();
+										if (wsView && wsView.objectRender && wsView.objectRender.controller) {
+											wsView.objectRender.controller.recalculate2(undefined);
+										}
 										var pluginData = new CPluginData();
 										pluginData.setAttribute("guid", guid);
 										pluginData.setAttribute("type", "onCommandCallback");
@@ -971,6 +1055,29 @@
 			}, 10);
 
 		});
+
+        if (window.location && window.location.search)
+        {
+            var _langSearch = window.location.search;
+            var _pos1 = _langSearch.indexOf("lang=");
+            var _pos2 = (-1 != _pos1) ? _langSearch.indexOf("&", _pos1) : -1;
+            if (_pos1 >= 0)
+            {
+                _pos1 += 5;
+
+                if (_pos2 < 0)
+                    _pos2 = _langSearch.length;
+
+                var _lang = _langSearch.substr(_pos1, _pos2 - _pos1);
+                if (_lang.length == 2)
+                {
+                    _lang = (_lang.toLowerCase() + "-" + _lang.toUpperCase());
+                }
+
+                if (5 == _lang.length)
+                    window.g_asc_plugins.language = _lang;
+            }
+        }
 
 		if (window["AscDesktopEditor"] && window["UpdateSystemPlugins"])
 			window["UpdateSystemPlugins"]();

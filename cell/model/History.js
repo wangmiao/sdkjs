@@ -150,6 +150,20 @@ function (window, undefined) {
 	window['AscCH'].historyitem_SharedFormula_ChangeFormula = 1;
 	window['AscCH'].historyitem_SharedFormula_ChangeShared = 2;
 
+	window['AscCH'].historyitem_Layout_Left = 1;
+	window['AscCH'].historyitem_Layout_Right = 2;
+	window['AscCH'].historyitem_Layout_Top = 3;
+	window['AscCH'].historyitem_Layout_Bottom = 4;
+	window['AscCH'].historyitem_Layout_Width = 5;
+	window['AscCH'].historyitem_Layout_Height = 6;
+	window['AscCH'].historyitem_Layout_FitToWidth = 7;
+	window['AscCH'].historyitem_Layout_FitToHeight = 8;
+	window['AscCH'].historyitem_Layout_GridLines = 9;
+	window['AscCH'].historyitem_Layout_Headings = 10;
+	window['AscCH'].historyitem_Layout_Orientation = 11;
+	
+	window['AscCH'].historyitem_ArrayFromula_AddFormula = 1;
+	window['AscCH'].historyitem_ArrayFromula_DeleteFormula = 2;
 
 function CHistory()
 {
@@ -362,7 +376,7 @@ CHistory.prototype.RedoExecute = function(Point, oRedoObjectParam)
 	}
 };
 CHistory.prototype.UndoRedoEnd = function (Point, oRedoObjectParam, bUndo) {
-	var wsViews, i, oState = null, bCoaut = false;
+	var wsViews, i, oState = null, bCoaut = false, t = this;
 	if (!bUndo && null == Point) {
 		Point = this.Points[this.Index];
 		AscCommon.CollaborativeEditing.Apply_LinkData();
@@ -378,8 +392,9 @@ CHistory.prototype.UndoRedoEnd = function (Point, oRedoObjectParam, bUndo) {
         }
 	}
 
-	/* возвращаем отрисовку. и перерисовываем ячейки с предварительным пересчетом */
-	this.workbook.dependencyFormulas.unlockRecal();
+	AscCommonExcel.executeInR1C1Mode(false, function () {
+		t.workbook.dependencyFormulas.unlockRecal();
+	});
 
 	if (null != Point) {
 		//синхронизация index и id worksheet
@@ -409,7 +424,7 @@ CHistory.prototype.UndoRedoEnd = function (Point, oRedoObjectParam, bUndo) {
 				oRedoObjectParam.oChangeWorksheetUpdate[i],{lockDraw: true, reinitRanges: true});
 
 		for (i in Point.UpdateRigions)
-			this.workbook.handlers.trigger("cleanCellCache", i, [Point.UpdateRigions[i]], true, oRedoObjectParam.bAddRemoveRowCol);
+			this.workbook.handlers.trigger("cleanCellCache", i, [Point.UpdateRigions[i]]);
 
 		if (oRedoObjectParam.bOnSheetsChanged)
 			this.workbook.handlers.trigger("asc_onSheetsChanged");
@@ -433,7 +448,7 @@ CHistory.prototype.UndoRedoEnd = function (Point, oRedoObjectParam, bUndo) {
             if (Point.SelectionState) {
                 this.workbook.handlers.trigger("setSelectionState", Point.SelectionState);
             } else {
-                this.workbook.handlers.trigger("setSelection", Point.SelectRange.clone(), /*validRange*/false);
+                this.workbook.handlers.trigger("setSelection", Point.SelectRange.clone());
             }
         } else {
             if (null !== oState && oState[0] && oState[0].focus) {
@@ -686,6 +701,9 @@ CHistory.prototype.Create_NewPoint = function()
 
     // Удаляем ненужные точки
     this.Points.length = this.Index + 1;
+
+	window['AscCommon'].g_specialPasteHelper.SpecialPasteButton_Hide();
+	this.workbook.handlers.trigger("toggleAutoCorrectOptions");
 };
 
 // Регистрируем новое изменение:
@@ -742,8 +760,6 @@ CHistory.prototype.Add = function(Class, Type, sheetid, range, Data, LocalChange
 			AscCommon.CollaborativeEditing.Add_NewDC(Class.Class);
 		}
 	}
-	window['AscCommon'].g_specialPasteHelper.SpecialPasteButton_Hide();
-	this.workbook.handlers.trigger("toggleAutoCorrectOptions");
 };
 
 CHistory.prototype._sendCanUndoRedo = function()

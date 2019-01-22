@@ -255,55 +255,6 @@
 	};
 
 	/**
-	 * Creates font properties
-	 * -----------------------------------------------------------------------------
-	 * @constructor
-	 * @param {String} family     Font family
-	 * @param {Number} size       Font size
-	 * @param {Boolean} bold      Font style - bold
-	 * @param {Boolean} italic    Font style - italic
-	 * @param {String} underline  Font style - type of underline
-	 * @param {String} strikeout  Font style - type of strike-out
-	 *
-	 * @memberOf Asc
-	 */
-	function FontProperties(family, size, bold, italic, underline, strikeout) {
-		this.FontFamily = {Name: family, Index: -1, Angle: 0};
-		this.FontSize = size;
-		this.Bold = !!bold;
-		this.Italic = !!italic;
-		this.Underline = underline;
-		this.Strikeout = strikeout;
-
-		return this;
-	}
-
-	/**
-	 * Assigns font preperties from another object
-	 * @param {FontProperties} font
-	 */
-	FontProperties.prototype.copyFrom = function (font) {
-		this.FontFamily.Name = font.FontFamily.Name;
-		this.FontFamily.Index = font.FontFamily.Index;
-		this.FontSize = font.FontSize;
-		this.Bold = font.Bold;
-		this.Italic = font.Italic;
-		this.Underline = font.Underline;
-		this.Strikeout = font.Strikeout;
-	};
-
-	/** @return {FontProperties} */
-	FontProperties.prototype.clone = function () {
-		return new FontProperties(this.FontFamily.Name, this.FontSize, this.Bold, this.Italic, this.Underline, this.Strikeout);
-	};
-
-	FontProperties.prototype.isEqual = function (font) {
-		return font !== undefined && this.FontFamily.Name.toLowerCase() === font.FontFamily.Name.toLowerCase() &&
-			this.FontSize === font.FontSize && this.Bold === font.Bold && this.Italic === font.Italic;
-	};
-
-
-	/**
 	 * Creates text metrics
 	 * -----------------------------------------------------------------------------
 	 * @constructor
@@ -318,13 +269,13 @@
 	 * @memberOf Asc
 	 */
 	function TextMetrics(width, height, lineHeight, baseline, descender, fontSize, widthBB) {
-		this.width = width !== undefined ? width : 0;
-		this.height = height !== undefined ? height : 0;
-		this.lineHeight = lineHeight !== undefined ? lineHeight : 0;
-		this.baseline = baseline !== undefined ? baseline : 0;
-		this.descender = descender !== undefined ? descender : 0;
-		this.fontSize = fontSize !== undefined ? fontSize : 0;
-		this.widthBB = widthBB !== undefined ? widthBB : 0;
+		this.width = width || 0;
+		this.height = height || 0;
+		this.lineHeight = lineHeight || 0;
+		this.baseline = baseline || 0;
+		this.descender = descender || 0;
+		this.fontSize = fontSize || 0;
+		this.widthBB = widthBB || 0;
 
 		return this;
 	}
@@ -455,7 +406,7 @@
 	 * @param {Object} settings  Settings : {
 	 *   canvas : HTMLElement
 	 *   units  : units (0=px, 1=pt, 2=in, 3=mm)
-	 *   font   : FontProperties
+	 *   font   : AscCommonExcel.Font
 	 * }
 	 *
 	 * @memberOf Asc
@@ -509,7 +460,7 @@
 			throw "Can not set graphics in DrawingContext";
 		}
 
-		/** @type FontProperties */
+		/** @type AscCommonExcel.Font */
 		this.font = undefined !== settings.font ? settings.font : null;
 		// Font должен быть передан (он общий для всех DrawingContext, т.к. может возникнуть ситуация как в баге http://bugzilla.onlyoffice.com/show_bug.cgi?id=19784)
 		if (null === this.font) {
@@ -892,12 +843,8 @@
 		return this.font.clone();
 	};
 
-	DrawingContext.prototype.getFontFamily = function () {
-		return this.font.FontFamily.Name;
-	};
-
 	DrawingContext.prototype.getFontSize = function () {
-		return this.font.FontSize;
+		return this.font.getSize();
 	};
 
 	/**
@@ -907,8 +854,12 @@
 	DrawingContext.prototype.getFontMetrics = function (units) {
 		var fm = this.fmgrGraphics[3];
 		var d = Math.abs(fm.m_lDescender);
-		var r = getCvtRatio(0/*px*/, units >= 0 && units <= 3 ? units : this.units, this.ppiX);
-		var r2 = getCvtRatio(1/*pt*/, units >= 0 && units <= 3 ? units : this.units, this.ppiX);
+		var ppiX = 96;
+		if (AscCommon.AscBrowser.isRetina) {
+			ppiX = AscCommon.AscBrowser.convertToRetinaValue(ppiX, true);
+		}
+		var r = getCvtRatio(0/*px*/, units >= 0 && units <= 3 ? units : this.units, ppiX);
+		var r2 = getCvtRatio(1/*pt*/, units >= 0 && units <= 3 ? units : this.units, ppiX);
 		var factor = this.getFontSize() * r / fm.m_lUnits_Per_Em;
 
 		var res = new FontMetrics();
@@ -948,18 +899,18 @@
 	DrawingContext.prototype.setFont = function (font, angle) {
 
 		var r;
-		this.font.copyFrom(font);
+		this.font.assign(font);
 
 		if (window["IS_NATIVE_EDITOR"]) {
-			this.font.FontSize = this.font.FontSize * 2.54 * this.scaleFactor * 96.0 / 72.0;
-			// this.font.FontSize = this.font.FontSize * 2.54 * this.scaleFactor * this.deviceDPI / 72.0;
+			this.font.fs = this.font.getSize() * 2.54 * this.scaleFactor * 96.0 / 72.0;
+			// this.font.fs = this.font.getSize() * 2.54 * this.scaleFactor * this.deviceDPI / 72.0;
 
-			// this.font.FontSize = this.font.FontSize * 2.54 * this.scaleFactor *
+			// this.font.fs = this.font.getSize() * 2.54 * this.scaleFactor *
 			//     this.deviceScale * this.deviceDPI / 96.0 * (96.0 / (this.deviceDPI * this.deviceScale));
 		}
 
-		var italic = true === this.font.Italic;
-		var bold = true === this.font.Bold;
+		var italic = this.font.getItalic();
+		var bold = this.font.getBold();
 		var fontStyle;
 		if (italic && bold) {
 			fontStyle = FontStyle.FontStyleBoldItalic;
@@ -972,7 +923,7 @@
 		}
 
 		if (window["IS_NATIVE_EDITOR"]) {
-			var fontInfo = AscFonts.g_fontApplication.GetFontInfo(this.font.FontFamily.Name, fontStyle, this.LastFontOriginInfo);
+			var fontInfo = AscFonts.g_fontApplication.GetFontInfo(this.font.getName(), fontStyle, this.LastFontOriginInfo);
 			fontInfo = GetLoadInfoForMeasurer(fontInfo, fontStyle);
 
 			var flag = 0;
@@ -990,9 +941,9 @@
 			}
 
 			if (!angle) {
-				window["native"]["PD_LoadFont"](fontInfo.Path, fontInfo.FaceIndex, this.font.FontSize, flag);
+				window["native"]["PD_LoadFont"](fontInfo.Path, fontInfo.FaceIndex, this.font.getSize(), flag);
 			}
-			fontInfo = g_oTextMeasurer.Measurer["LoadFont"](fontInfo.Path, fontInfo.FaceIndex, this.font.FontSize, flag);
+			fontInfo = g_oTextMeasurer.Measurer["LoadFont"](fontInfo.Path, fontInfo.FaceIndex, this.font.getSize(), flag);
 			if (angle) {
 				this.fmgrGraphics[1].init(fontInfo);
 			} else {
@@ -1002,13 +953,13 @@
 			r = true;
 		} else {
 			if (angle) {
-				r = AscFonts.g_fontApplication.LoadFont(this.font.FontFamily.Name, AscCommon.g_font_loader, this.fmgrGraphics[1],
-					this.font.FontSize, fontStyle, this.ppiX, this.ppiY);
+				r = AscFonts.g_fontApplication.LoadFont(this.font.getName(), AscCommon.g_font_loader, this.fmgrGraphics[1],
+					this.font.getSize(), fontStyle, this.ppiX, this.ppiY);
 			} else {
-				r = AscFonts.g_fontApplication.LoadFont(this.font.FontFamily.Name, AscCommon.g_font_loader, this.fmgrGraphics[0],
-					this.font.FontSize, fontStyle, this.ppiX, this.ppiY);
-				AscFonts.g_fontApplication.LoadFont(this.font.FontFamily.Name, AscCommon.g_font_loader, this.fmgrGraphics[3],
-					this.font.FontSize, fontStyle, this.ppiX, this.ppiY);
+				r = AscFonts.g_fontApplication.LoadFont(this.font.getName(), AscCommon.g_font_loader, this.fmgrGraphics[0],
+					this.font.getSize(), fontStyle, this.ppiX, this.ppiY);
+				AscFonts.g_fontApplication.LoadFont(this.font.getName(), AscCommon.g_font_loader, this.fmgrGraphics[3],
+					this.font.getSize(), fontStyle, this.ppiX, this.ppiY);
 			}
 		}
 
@@ -1017,7 +968,7 @@
 		}
 
 		if (r === false) {
-			throw "Can not use " + this.font.FontFamily.Name + " font. (Check whether font file is loaded)";
+			throw "Can not use " + this.font.getName() + " font. (Check whether font file is loaded)";
 		}
 
 		return this;
@@ -1377,7 +1328,7 @@
 	DrawingContext.prototype._calcTextMetrics = function (w, wBB, fm, r) {
 		var factor = this.getFontSize() * r / fm.m_lUnits_Per_Em, l = fm.m_lLineHeight * factor, b = fm.m_lAscender *
 			factor, d = Math.abs(fm.m_lDescender * factor);
-		return new TextMetrics(w, b + d, l, b, d, this.font.FontSize, wBB);
+		return new TextMetrics(w, b + d, l, b, d, this.font.getSize(), wBB);
 	};
 
 
@@ -1390,7 +1341,6 @@
 	window["Asc"].getCvtRatio = getCvtRatio;
 	window["Asc"].colorObjToAscColor = colorObjToAscColor;
 
-	window["Asc"].FontProperties = FontProperties;
 	window["Asc"].TextMetrics = TextMetrics;
 	window["Asc"].FontMetrics = FontMetrics;
 	window["Asc"].DrawingContext = DrawingContext;

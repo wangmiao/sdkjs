@@ -151,10 +151,12 @@ DrawingObjectsController.prototype.updateOverlay = function()
 {
     this.drawingObjects.OnUpdateOverlay();
 };
-DrawingObjectsController.prototype.recalculate = function(bAll, Point)
+DrawingObjectsController.prototype.recalculate = function(bAll, Point, bCheckPoint)
 {
-
-    History.Get_RecalcData(Point);//Только для таблиц
+    if(bCheckPoint !== false)
+    {
+        History.Get_RecalcData(Point);//Только для таблиц
+    }
     if(bAll)
     {
         var drawings = this.getDrawingObjects();
@@ -209,9 +211,9 @@ DrawingObjectsController.prototype.getTheme = function()
     return window["Asc"]["editor"].wbModel.theme;
 };
 
-DrawingObjectsController.prototype.startRecalculate = function()
+DrawingObjectsController.prototype.startRecalculate = function(bCheckPoint)
 {
-    this.recalculate();
+    this.recalculate(undefined, undefined, bCheckPoint);
     this.drawingObjects.showDrawingObjects(true);
     //this.updateSelectionState();
 };
@@ -351,7 +353,7 @@ DrawingObjectsController.prototype.handleOleObjectDoubleClick = function(drawing
 {
     var drawingObjects = this.drawingObjects;
     var oThis = this;
-    this.checkSelectedObjectsAndFireCallback(function(){
+    var fCallback = function(){
         var pluginData = new Asc.CPluginData();
         pluginData.setAttribute("data", oleObject.m_sData);
         pluginData.setAttribute("guid", oleObject.m_sApplicationId);
@@ -363,9 +365,14 @@ DrawingObjectsController.prototype.handleOleObjectDoubleClick = function(drawing
         window["Asc"]["editor"].asc_pluginRun(oleObject.m_sApplicationId, 0, pluginData);
         oThis.clearTrackObjects();
         oThis.clearPreTrackObjects();
-        oThis.changeCurrentState(new AscFormat.NullState(this));
-        this.onMouseUp(e, x, y);
-    }, []);
+        oThis.changeCurrentState(new AscFormat.NullState(oThis));
+        oThis.onMouseUp(e, x, y);
+    };
+    if(!this.canEdit()){
+        fCallback();
+        return;
+    }
+    this.checkSelectedObjectsAndFireCallback(fCallback, []);
 };
 
 DrawingObjectsController.prototype.addChartDrawingObject = function(options)
@@ -558,9 +565,12 @@ DrawingObjectsController.prototype.canIncreaseParagraphLevel = function(bIncreas
     if(content)
     {
         var target_text_object = AscFormat.getTargetTextObject(this);
-        if(target_text_object && target_text_object.getObjectType() === AscDFH.historyitem_type_Shape
-            && (!target_text_object.isPlaceholder() || !target_text_object.getPhType() !== AscFormat.phType_title && target_text_object.getPhType() !== AscFormat.phType_ctrTitle))
+        if(target_text_object && target_text_object.getObjectType() === AscDFH.historyitem_type_Shape)
         {
+            if(target_text_object.isPlaceholder() && (target_text_object.getPhType() === AscFormat.phType_title || target_text_object.getPhType() === AscFormat.phType_ctrTitle))
+            {
+                return false;
+            }
             return content.Can_IncreaseParagraphLevel(bIncrease);
         }
     }
@@ -597,25 +607,7 @@ DrawingObjectsController.prototype.canIncreaseParagraphLevel = function(bIncreas
                     var oRange = new Asc.Range(oCell.col, oCell.row, oCell.col, oCell.row, false);
                     var oVisibleRange = oWorksheet.getVisibleRange();
                     if(!oRange.isIntersect(oVisibleRange)){
-                        var oOffset = oWorksheet._calcFillHandleOffset(oRange);
-                        var _api = window["Asc"]["editor"];
-                        if (_api.wb.MobileTouchManager)
-						{
-						    if(oOffset.col < 0){
-                                --oOffset.col;
-                            }
-                            if(oOffset.col > 0){
-						        ++oOffset.col;
-                            }
-
-                            if(oOffset.row < 0){
-                                --oOffset.row;
-                            }
-                            if(oOffset.row > 0){
-                                ++oOffset.row;
-                            }
-							_api.wb.MobileTouchManager.scrollBy((oOffset.col) * _api.controller.settings.hscrollStep, (oOffset.row)* _api.controller.settings.vscrollStep);
-						}
+                        oWorksheet._scrollToRange(oRange);
                     }
                 }
             }

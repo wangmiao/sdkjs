@@ -407,16 +407,18 @@ CBookmarksManager.prototype.GetNameForHeadingBookmark = function(oParagraph)
 
 	var sText = oParagraph.GetText();
 
-	var nPos = 0;
-	while (nPos < sText.length)
+	var nStartPos = 0;
+	while (nStartPos < sText.length)
 	{
-		var nChar = sText.charCodeAt(nPos);
+		var nChar = sText.charCodeAt(nStartPos);
 		if (0x0020 !== nChar && 0x0009 !== nChar)
 			break;
+
+		nStartPos++;
 	}
 
 	var sName = "";
-	for (var nIndex = nPos, nLen = Math.min(sText.length, nPos + 10); nIndex < nLen; ++nIndex)
+	for (var nIndex = nStartPos, nLen = Math.min(sText.length, nStartPos + 10); nIndex < nLen; ++nIndex)
 	{
 		var nChar = sText.charCodeAt(nIndex);
 		if (0x0020 === nChar || 0x0009 === nChar)
@@ -430,6 +432,37 @@ CBookmarksManager.prototype.GetNameForHeadingBookmark = function(oParagraph)
 
 	return "_" + sName;
 };
+/**
+ * Выделяем содержимое закладки
+ * @param sName
+ * @returns {boolean}
+ * @constructor
+ */
+CBookmarksManager.prototype.SelectBookmark = function(sName)
+{
+	this.Update();
+
+	var oBookmark = this.GetBookmarkByName(sName);
+	if (oBookmark)
+	{
+		var oDocument = this.LogicDocument;
+		oDocument.RemoveSelection();
+
+		oBookmark[0].GoToBookmark();
+		var oStartPos = oDocument.GetContentPosition(false);
+
+		oBookmark[1].GoToBookmark();
+		var oEndPos = oDocument.GetContentPosition(false);
+
+		oDocument.SetSelectionByContentPositions(oStartPos, oEndPos);
+		oDocument.Document_UpdateSelectionState();
+		oDocument.Document_UpdateInterfaceState();
+		return true;
+	}
+
+	return false;
+};
+
 
 //--------------------------------------------------------export----------------------------------------------------
 window['AscCommonWord'] = window['AscCommonWord'] || {};
@@ -444,6 +477,6 @@ CBookmarksManager.prototype['asc_HaveBookmark']          = CBookmarksManager.pro
 CBookmarksManager.prototype['asc_IsHiddenBookmark']      = CBookmarksManager.prototype.IsHiddenBookmark;
 CBookmarksManager.prototype['asc_IsInternalUseBookmark'] = CBookmarksManager.prototype.IsInternalUseBookmark;
 CBookmarksManager.prototype['asc_CheckNewBookmarkName']  = CBookmarksManager.prototype.CheckNewBookmarkName;
-
+CBookmarksManager.prototype['asc_SelectBookmark']        = CBookmarksManager.prototype.SelectBookmark;
 
 

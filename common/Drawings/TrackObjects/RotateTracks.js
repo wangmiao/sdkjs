@@ -496,13 +496,16 @@ function RotateTrackGroup(originalObject)
     this.arrTransforms2 = [];
     var arr_graphic_objects = originalObject.getArrGraphicObjects();
     var group_invert_transform = originalObject.getInvertTransform();
-    for(var i = 0; i < arr_graphic_objects.length; ++i)
+    if(group_invert_transform)
     {
-        var gr_obj_transform_copy = arr_graphic_objects[i].getTransformMatrix().CreateDublicate();
-        global_MatrixTransformer.MultiplyAppend(gr_obj_transform_copy, group_invert_transform);
-        this.arrTransforms2[i] = gr_obj_transform_copy;
-        this.overlayObjects[i] = new OverlayObject(arr_graphic_objects[i].getGeom(), arr_graphic_objects[i].extX, arr_graphic_objects[i].extY,
-            arr_graphic_objects[i].brush,  arr_graphic_objects[i].pen, new CMatrix());
+        for(var i = 0; i < arr_graphic_objects.length; ++i)
+        {
+            var gr_obj_transform_copy = arr_graphic_objects[i].getTransformMatrix().CreateDublicate();
+            global_MatrixTransformer.MultiplyAppend(gr_obj_transform_copy, group_invert_transform);
+            this.arrTransforms2[i] = gr_obj_transform_copy;
+            this.overlayObjects[i] = new OverlayObject(arr_graphic_objects[i].getGeom(), arr_graphic_objects[i].extX, arr_graphic_objects[i].extY,
+                arr_graphic_objects[i].brush,  arr_graphic_objects[i].pen, new CMatrix());
+        }
     }
 
 
@@ -596,12 +599,22 @@ function RotateTrackGroup(originalObject)
         }
     };
 
-    this.trackEnd = function()
+    this.trackEnd = function(bWord)
     {
         if(!this.bIsTracked){
             return;
         }
+        var x = this.originalObject.x;
+        var y = this.originalObject.y;
+        if(bWord){
+            this.originalObject.x = 0;
+            this.originalObject.y = 0;
+        }
         AscFormat.CheckSpPrXfrm3(this.originalObject);
+        if(bWord){
+            this.originalObject.x = x;
+            this.originalObject.y = y;
+        }
         this.originalObject.spPr.xfrm.setRot(this.angle);
     }
 }
@@ -823,11 +836,20 @@ function Chart3dAdjustTrack(oChartSpace, numHandle, startX, startY)
 
         var tx = this.chartSpace.invertTransform.TransformPointX(x, y);
         var ty = this.chartSpace.invertTransform.TransformPointY(x, y);
-        var deltaAng = 0;
+
         var _view3d = oChartSpace.chart.getView3d();
         var StratRotY = _view3d && _view3d.rotY ? _view3d.rotY : 0;
-        deltaAng = -90*(tx - this.startX)/(this.chartSizes.w/2);
+        var deltaAng = -90*(tx - this.startX)/(this.chartSizes.w/2);
         this.view3D.rotY = StratRotY + deltaAng;
+
+        if(_view3d.getRAngAx()){
+            if(this.view3D.rotY < 0){
+                this.view3D.rotY = 0;
+            }
+            if(this.view3D.rotY > 90){
+                this.view3D.rotY = 90;
+            }
+        }
         while(this.view3D.rotY < 0){
             this.view3D.rotY += 360;
         }

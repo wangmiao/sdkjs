@@ -80,12 +80,12 @@
     };
 
     CNotesMaster.prototype.setTheme = function(pr){
-        History.Add(AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_NotesMasterSetNotesTheme, this.Theme, pr));
+        History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_NotesMasterSetNotesTheme, this.Theme, pr));
         this.Theme = pr;
     };
 
     CNotesMaster.prototype.setHF = function(pr){
-        History.Add(AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_NotesMasterSetHF, this.hf, pr));
+        History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_NotesMasterSetHF, this.hf, pr));
         this.hf = pr;
     };
 
@@ -502,7 +502,7 @@
         oTxLstStyle.levels[0] =  new CParaPr();
         oTxLstStyle.levels[0].Ind.Left = 0;
         oTxLstStyle.levels[0].Jc = AscCommon.align_Left;
-        oTxLstStyle.levels[0].DefaultTabSize = 914400/36000;
+        oTxLstStyle.levels[0].DefaultTab = 914400/36000;
 
         oTxLstStyle.levels[0].DefaultRunPr = new AscCommonWord.CTextPr();
         oTxLstStyle.levels[0].DefaultRunPr.FontSize = 12;

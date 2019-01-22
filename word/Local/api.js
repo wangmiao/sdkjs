@@ -79,8 +79,6 @@ Asc['asc_docs_api'].prototype._OfflineAppDocumentEndLoad = function(_url, _data,
 		this.WordControl.m_oLogicDocument.Set_FastCollaborativeEditing(false);
 	}
 
-	this.WordControl.m_oLogicDocument.Set_FastCollaborativeEditing(false);
-
 	DesktopOfflineUpdateLocalName(this);
 
 	window["DesktopAfterOpen"](this);
@@ -101,6 +99,12 @@ window["DesktopOfflineAppDocumentEndLoad"] = function(_url, _data, _len)
 
 Asc['asc_docs_api'].prototype.asc_setAdvancedOptions = function(idOption, option) 
 {
+	if (window.isNativeOpenPassword)
+	{
+        window["AscDesktopEditor"]["NativeViewerOpen"](option.asc_getPassword());
+		return;
+	}
+
 	if (window["Asc"].c_oAscAdvancedOptionsID.TXT === idOption) {
 	    var _param = "";
         _param += ("<m_nCsvTxtEncoding>" + option.asc_getCodePage() + "</m_nCsvTxtEncoding>");
@@ -188,8 +192,11 @@ Asc['asc_docs_api'].prototype.SetDocumentModified = function(bValue)
     }
 };
 
-Asc['asc_docs_api'].prototype.asc_Save = function (isNoUserSave, isSaveAs)
+Asc['asc_docs_api'].prototype.asc_Save = function (isNoUserSave, isSaveAs, isResaveAttack)
 {
+	if (!isResaveAttack && !isSaveAs && !this.asc_isDocumentCanSave())
+		return;
+
     if (true !== isNoUserSave)
         this.IsUserSave = true;
 	
@@ -248,6 +255,8 @@ window["DesktopOfflineAppDocumentEndSave"] = function(error, hash, password)
 		DesktopOfflineUpdateLocalName(editor);
 	else
 		AscCommon.History.UserSavedIndex = editor.LastUserSavedIndex;
+
+    var _lastUserSavedError = editor.LastUserSavedIndex;
 	
 	editor.UpdateInterfaceState();
 	editor.LastUserSavedIndex = undefined;
@@ -269,6 +278,12 @@ window["DesktopOfflineAppDocumentEndSave"] = function(error, hash, password)
 	{
 		if (window.g_asc_plugins && window.g_asc_plugins.isRunnedEncryption())
 		{
+            editor._callbackPluginEndAction = function()
+            {
+            	this._callbackPluginEndAction = null;
+                window["AscDesktopEditor"]["buildCryptedEnd"](true);
+            };
+            window.LastUserSavedIndex = _lastUserSavedError;
 			window.g_asc_plugins.sendToEncryption({"type": "setPasswordByFile", "hash": hash, "password": password});
 		}
 	}

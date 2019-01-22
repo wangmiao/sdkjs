@@ -2037,6 +2037,25 @@ CUniColor.prototype =
             return _ret;
         }
 
+        if(this.Mods && unicolor.Mods)
+        {
+            var aMods = this.Mods.Mods;
+            var aMods2 = unicolor.Mods.Mods;
+            if(aMods.length === aMods2.length)
+            {
+                for (var i = 0; i < aMods.length; ++i)
+                {
+                    if(aMods2[i].name !== aMods[i].name || aMods2[i].val !== aMods[i].val)
+                    {
+                        break;
+                    }
+                }
+                if(i === aMods.length)
+                {
+                    _ret.Mods = this.Mods.createDuplicate();
+                }
+            }
+        }
         switch(this.color.type)
         {
             case c_oAscColor.COLOR_TYPE_NONE:
@@ -2630,7 +2649,11 @@ CSolidFill.prototype =
             return false;
         }
 
-        return this.color.IsIdentical(fill.color);
+        if(this.color)
+        {
+            return this.color.IsIdentical(fill.color);
+        }
+        return (fill.color === null);
 
     },
 
@@ -2650,9 +2673,13 @@ CSolidFill.prototype =
         {
             return null;
         }
-        var _ret = new CSolidFill();
-        _ret.color = this.color.compare(fill.color);
-        return _ret;
+        if(this.color && fill.color)
+        {
+            var _ret = new CSolidFill();
+            _ret.color = this.color.compare(fill.color);
+            return _ret;
+        }
+        return null;
     }
 };
 
@@ -3760,7 +3787,14 @@ CUniFill.prototype =
         {
             if (this.fill.type == c_oAscFill.FILL_TYPE_SOLID)
             {
-                return this.fill.color.RGBA;
+                if(this.fill.color)
+                {
+                    return this.fill.color.RGBA;
+                }
+                else
+                {
+                    return new FormatRGBAColor();
+                }
             }
             if (this.fill.type == c_oAscFill.FILL_TYPE_GRAD)
             {
@@ -10274,7 +10308,7 @@ function CorrectUniColor(asc_color, unicolor, flag)
     }
 
     function builder_CreateChart(nW, nH, sType, aCatNames, aSeriesNames, aSeries, nStyleIndex){
-        var settings = new AscCommon.asc_ChartSettings();
+        var settings = new Asc.asc_ChartSettings();
         switch (sType)
         {
             case "bar" :

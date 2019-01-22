@@ -390,7 +390,7 @@
 		this.value = function(param)
 		{
 			var _map = this.map;
-			if (window["AscDesktopEditor"] && AscCommon.AscBrowser.isRetina)
+			if ((window["AscDesktopEditor"] && !AscCommon.AscBrowser.isMacOs) && AscCommon.AscBrowser.isRetina)
 				_map = this.mapRetina;
 
 			return _map[param] ? _map[param] : param;
@@ -457,7 +457,7 @@
 		}
 		dataContainer.index++;
 		oAdditionalData["saveindex"] = dataContainer.index;
-		fSendCommand(function (incomeObject)
+		fSendCommand(function (incomeObject, done, status)
 		{
 			if (null != incomeObject && "ok" == incomeObject["status"])
 			{
@@ -468,12 +468,12 @@
 				}
 				else if (fCallbackRequest)
 				{
-					fCallbackRequest(incomeObject);
+					fCallbackRequest(incomeObject, status);
 				}
 			}
 			else
 			{
-				fCallbackRequest ? fCallbackRequest(incomeObject) : fCallback(incomeObject);
+				fCallbackRequest ? fCallbackRequest(incomeObject, status) : fCallback(incomeObject, status);
 			}
 		}, oAdditionalData, dataContainer);
 	}
@@ -565,11 +565,7 @@
 						var stream = initStreamFromResponse(httpRequest);
 						if (stream) {
 							oResult.bSerFormat = checkStreamSignature(stream, Signature);
-							if (oResult.bSerFormat) {
-								oResult.data = stream;
-							} else {
-								oResult.data = stream;
-							}
+							oResult.data = stream;
 						} else {
 							bError = true;
 						}
@@ -643,12 +639,7 @@
 
             if (stream) {
                 oResult.bSerFormat = checkStreamSignature(stream, Signature);
- 
-                if (oResult.bSerFormat) {
-                    oResult.data = stream;
-                } else {
-                    oResult.data = stream;
-                }
+				oResult.data = stream;
             } else {
                 bError = true;
             }
@@ -678,11 +669,11 @@
 			url:         sDownloadServiceLocalUrl + '/' + rdata["id"] + '?cmd=' + encodeURIComponent(JSON.stringify(rdata)),
 			data:        dataContainer.part || dataContainer.data,
 			contentType: "application/octet-stream",
-			error:       function ()
+			error:       function (httpRequest, statusText, status)
 						 {
 							 if (fCallback)
 							 {
-								 fCallback(null, true);
+								 fCallback(null, true, status);
 							 }
 						 },
 			success:     function (httpRequest)
@@ -833,11 +824,6 @@
 	function fSortDescending(a, b)
 	{
 		return b - a;
-	}
-
-	function fOnlyUnique(value, index, self)
-	{
-		return self.indexOf(value) === index;
 	}
 
 	function isLeadingSurrogateChar(nCharCode)
@@ -1469,8 +1455,13 @@
 		{
 			oHtmlElement["ondragover"] = function (e)
 			{
-				e.preventDefault();
+                e.preventDefault();
 				e.dataTransfer.dropEffect = CanDropFiles(e) ? 'copy' : 'none';
+				if (e.dataTransfer.dropEffect == "copy")
+				{
+                    var editor = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
+					editor.beginInlineDropTarget(e);
+                }
 				return false;
 			};
 			oHtmlElement["ondrop"] = function (e)
@@ -1478,6 +1469,61 @@
 				e.preventDefault();
 				var files = e.dataTransfer.files;
 				var nError = ValidateUploadImage(files);
+
+                var editor = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
+                editor.endInlineDropTarget(e);
+
+				if (nError == c_oAscServerError.UploadCountFiles)
+				{
+					try
+					{
+                        // test html
+                        var htmlValue = e.dataTransfer.getData("text/html");
+                        if (htmlValue && !AscCommon.AscBrowser.isIE)
+                        {
+                            // text html!
+                            var index = htmlValue.indexOf("StartHTML");
+                            var indexHtml = htmlValue.indexOf("<html");
+                            if (-1 == indexHtml)
+                                indexHtml = htmlValue.indexOf("<HTML");
+                            if (index > 0 && indexHtml > 0 && index < indexHtml)
+                                htmlValue = htmlValue.substr(indexHtml);
+
+                            editor["pluginMethod_PasteHtml"](htmlValue);
+                            return;
+                        }
+                    }
+                    catch(err)
+					{
+					}
+
+					try
+					{
+                        var textValue = e.dataTransfer.getData("text/plain");
+                        if (textValue)
+                        {
+                            editor["pluginMethod_PasteText"](textValue);
+                            return;
+                        }
+                    }
+                    catch(err)
+					{
+					}
+
+                    try
+                    {
+                        var textValue = e.dataTransfer.getData("Text");
+                        if (textValue)
+                        {
+                            editor["pluginMethod_PasteText"](textValue);
+                            return;
+                        }
+                    }
+                    catch(err)
+                    {
+                    }
+				}
+
 				callback(mapAscServerErrorToAscError(nError), files);
 			};
 		}
@@ -1665,13 +1711,17 @@
 
 	function CanDropFiles(event)
 	{
+        var editor = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
+        if (!editor.isEnabledDropTarget())
+        	return false;
+
 		var bRes = false;
 		if (event.dataTransfer.types)
 		{
 			for (var i = 0, length = event.dataTransfer.types.length; i < length; ++i)
 			{
-				var type = event.dataTransfer.types[i];
-				if (type == "Files")
+				var type = event.dataTransfer.types[i].toLowerCase();
+				if (type == "files")
 				{
 					if (event.dataTransfer.items)
 					{
@@ -1698,6 +1748,11 @@
 					else
 						bRes = true;
 					break;
+				}
+				else if (type == "text" || type == "text/plain" || type == "text/html")
+				{
+                    bRes = true;
+                    break;
 				}
 			}
 		}
@@ -1766,10 +1821,14 @@
 		rx_operators          = /^ *[-+*\/^&%<=>:] */,
 		rg                    = new XRegExp("^((?:_xlfn.)?[\\p{L}\\d.]+ *)[-+*/^&%<=>:;\\(\\)]"),
 		rgRange               = /^(\$?[A-Za-z]+\$?\d+:\$?[A-Za-z]+\$?\d+)(?:[-+*\/^&%<=>: ;),]|$)/,
+		rgRangeR1C1           = /^(([Rr]{1}(\[)?(-?\d*)(\])?)([Cc]{1}(\[)?(-?\d*)(\])?):([Rr]{1}(\[)?(-?\d*)(\])?)([Cc]{1}(\[)?(-?\d*)(\])?))([-+*\/^&%<=>: ;),]|$)/,
 		rgCols                = /^(\$?[A-Za-z]+:\$?[A-Za-z]+)(?:[-+*\/^&%<=>: ;),]|$)/,
+		rgColsR1C1            = /^(([Cc]{1}(\[)?(-?\d*)(\])?(:)?)([Cc]?(\[)?(-?\d*)(\])?))([-+*\/^&%<=>: ;),]|$)/,
 		rgRows                = /^(\$?\d+:\$?\d+)(?:[-+*\/^&%<=>: ;),]|$)/,
+		rgRowsR1C1            = /^(([Rr]{1}(\[)?(-?\d*)(\])?(:)?)([Rr]?(\[)?(-?\d*)(\])?))([-+*\/^&%<=>: ;),]|$)/,
 		rx_ref                = /^ *(\$?[A-Za-z]{1,3}\$?(\d{1,7}))([-+*\/^&%<=>: ;),]|$)/,
 		rx_refAll             = /^(\$?[A-Za-z]+\$?(\d+))([-+*\/^&%<=>: ;),]|$)/,
+		rx_refR1C1             = /^(([Rr]{1}(\[)?(-?\d*)(\])?)([Cc]{1}(\[)?(-?\d*)(\])?))([-+*\/^&%<=>: ;),]|$)/,
 		rx_ref3D_non_quoted   = new XRegExp("^(?<name_from>[" + str_namedRanges + "][" + str_namedRanges + "\\d.]*)(:(?<name_to>[" + str_namedRanges + "][" + str_namedRanges + "\\d.]*))?!", "i"),
 		rx_ref3D_quoted       = new XRegExp("^'(?<name_from>(?:''|[^\\[\\]'\\/*?:])*)(?::(?<name_to>(?:''|[^\\[\\]'\\/*?:])*))?'!"),
 		rx_ref3D              = new XRegExp("^(?<name_from>[^:]+)(:(?<name_to>[^:]+))?!"),
@@ -1941,6 +2000,52 @@
 		}
 		return false;
 	};
+	parserHelper.prototype.convertFromR1C1 = function (r, c, isAbsRow, isAbsCol)
+	{
+		var activeCell = AscCommonExcel.g_ActiveCell;
+		var colStr, rowStr, res = "";
+		if(r !== null && c !== null) {
+			if(isNaN(r)) {
+				r = 0;
+				isAbsRow = false;
+			}
+			if(isNaN(c)) {
+				c = 0;
+				isAbsCol = false;
+			}
+
+			colStr = g_oCellAddressUtils.colnumToColstrFromWsView(!isAbsCol && activeCell ? activeCell.c1 + 1 + c : c);
+			rowStr = !isAbsRow && activeCell ? activeCell.r1 + 1 + r : r;
+			if(isAbsCol) {
+				colStr = "$" + colStr;
+			}
+			if(isAbsRow) {
+				rowStr = "$" + rowStr;
+			}
+			res = colStr + rowStr;
+		} else if(c !== null) {
+			if(isNaN(c)) {
+				c = 0;
+				isAbsCol = false;
+			}
+			colStr = g_oCellAddressUtils.colnumToColstrFromWsView(!isAbsCol && activeCell ? activeCell.c1 + 1 + c : c);
+			if(isAbsCol) {
+				colStr = "$" + colStr;
+			}
+			res = colStr;
+		} else if(r !== null) {
+			if(isNaN(r)) {
+				r = 0;
+				isAbsRow = false;
+			}
+			rowStr = !isAbsRow && activeCell ? activeCell.r1 + 1 + r + "" : r + "";
+			if(isAbsRow) {
+				rowStr = "$" + rowStr;
+			}
+			res = rowStr;
+		}
+		return res;
+	};
 	parserHelper.prototype.isArea = function (formula, start_pos)
 	{
 		if (this instanceof parserHelper)
@@ -1948,16 +2053,98 @@
 			this._reset();
 		}
 
+		var checkAbs = function(val1, val2) {
+			var res = null;
+			if(val1 === val2 && val1 === undefined) {
+				res = true;
+			} else if(val1 === "[" && val2 === "]") {
+				res = false;
+			}
+			return res;
+		};
+
+		var checkMatchRowCol = function(tempMatch) {
+			var res = true;
+
+			if(tempMatch[9] !== "" && tempMatch[9] !== undefined && !(tempMatch[6] === ":" && tempMatch[7] !== "" && tempMatch[7] !== undefined)) {
+				res = false;
+			} else if(tempMatch[7] !== "" && tempMatch[7] !== undefined && tempMatch[6] !== ":") {
+				res = false;
+			} else if((tempMatch[7] === "" || tempMatch[7] === undefined) && tempMatch[6] === ":") {
+				res = false;
+			}
+
+			return res;
+		};
+
+		var R1C1Mode = AscCommonExcel.g_R1C1Mode;
 		var subSTR = formula.substring(start_pos);
-		var match = subSTR.match(rgRange) || subSTR.match(rgCols) || subSTR.match(rgRows);
-		if (match != null)
-		{
-			var m0 = match[1].split(":");
-			if (g_oCellAddressUtils.getCellAddress(m0[0]).isValid() && g_oCellAddressUtils.getCellAddress(m0[1]).isValid())
+
+		var match;
+		if(!R1C1Mode) {
+			match = subSTR.match(rgRange) || subSTR.match(rgCols) || subSTR.match(rgRows);
+			if (match != null)
 			{
-				this.pCurrPos += match[1].length;
-				this.operand_str = match[1];
-				return true;
+				var m0 = match[1].split(":");
+				if (g_oCellAddressUtils.getCellAddress(m0[0]).isValid() && g_oCellAddressUtils.getCellAddress(m0[1]).isValid())
+				{
+					this.pCurrPos += match[1].length;
+					this.operand_str = match[1];
+					return true;
+				}
+			}
+		} else {
+			var abs1Val, abs2Val, abs3Val, abs4Val, ref1, ref2;
+			if((match = subSTR.match(rgRangeR1C1)) !== null) {
+				abs1Val = checkAbs(match[3], match[5]);
+				abs2Val = checkAbs(match[7], match[9]);
+				abs3Val = checkAbs(match[11], match[13]);
+				abs4Val = checkAbs(match[15], match[17]);
+				if(abs1Val !== null && abs2Val !== null && abs3Val !== null && abs4Val !== null) {
+					ref1 = AscCommon.parserHelp.convertFromR1C1(parseInt(match[4]), parseInt(match[8]), abs1Val, abs2Val);
+					ref2 = AscCommon.parserHelp.convertFromR1C1(parseInt(match[12]), parseInt(match[16]), abs3Val, abs4Val);
+					if (g_oCellAddressUtils.getCellAddress(ref1).isValid() && g_oCellAddressUtils.getCellAddress(ref2).isValid()) {
+						this.pCurrPos += match[1].length;
+						this.operand_str = match[1];
+						this.real_str = ref1 + ":" + ref2;
+
+						return true;
+					}
+				}
+			} else if(null != (match = subSTR.match(rgColsR1C1))) {
+				if(checkMatchRowCol(match)) {
+					abs1Val = checkAbs(match[3], match[5]);
+					abs2Val = checkAbs(match[8], match[10]);
+					if(abs1Val !== null && abs2Val !== null) {
+
+						ref1 = AscCommon.parserHelp.convertFromR1C1(null, parseInt(match[4]), null, abs1Val);
+						ref2 = "" !== match[7] ? AscCommon.parserHelp.convertFromR1C1(null, parseInt(match[9]), null, abs2Val) : ref1;
+						if (g_oCellAddressUtils.getCellAddress(ref1).isValid() && g_oCellAddressUtils.getCellAddress(ref2).isValid()) {
+							this.pCurrPos += match[1].length;
+							this.operand_str = match[1];
+							this.real_str = ref1 + ":" + ref2;
+
+							return true;
+						}
+					}
+				}
+			} else if(null != (match = subSTR.match(rgRowsR1C1))) {
+				if(checkMatchRowCol(match)) {
+					abs1Val = checkAbs(match[3], match[5]);
+					abs2Val = checkAbs(match[8], match[10]);
+					if(abs1Val !== null && abs2Val !== null) {
+
+						ref1 = AscCommon.parserHelp.convertFromR1C1(parseInt(match[4]), null, abs1Val);
+						ref2 = "" !== match[7] ? AscCommon.parserHelp.convertFromR1C1(parseInt(match[9]), null, abs2Val) : ref1;
+						if (g_oCellAddressUtils.getCellAddress(ref1).isValid() && g_oCellAddressUtils.getCellAddress(ref2).isValid()) {
+							this.pCurrPos += match[1].length;
+							this.operand_str = match[1];
+							this.real_str = ref1 + ":" + ref2;
+
+							return true;
+						}
+					}
+				}
 			}
 		}
 		return false;
@@ -1968,25 +2155,46 @@
 		{
 			this._reset();
 		}
-		var substr = formula.substring(start_pos);
-		var match = substr.match(rx_ref);
-		if (match != null)
-		{
-			var m0 = match[0], m1 = match[1], m2 = match[2];
-			if (g_oCellAddressUtils.getCellAddress(m1).isValid() /*match.length >= 3 && g_oCellAddressUtils.colstrToColnum( m1.substr( 0, (m1.length - m2.length) ) ) <= gc_nMaxCol && parseInt( m2 ) <= gc_nMaxRow*/)
+
+		var R1C1Mode = AscCommonExcel.g_R1C1Mode;
+		var substr = formula.substring(start_pos), match;
+		var m0, m1;
+		if(!R1C1Mode) {
+			match = substr.match(rx_ref);
+			if (match != null)
 			{
-				this.pCurrPos += m0.indexOf(" ") > -1 ? m0.length - 1 : m1.length;
-				this.operand_str = m1;
-				return true;
-			}
-			else if (allRef)
-			{
-				match = substr.match(rx_refAll);
-				if ((match != null || match != undefined) && match.length >= 3)
+				m0 = match[0];
+				m1 = match[1];
+				if (g_oCellAddressUtils.getCellAddress(m1).isValid())
 				{
-					var m1 = match[1];
-					this.pCurrPos += m1.length;
+					this.pCurrPos += m0.indexOf(" ") > -1 ? m0.length - 1 : m1.length;
 					this.operand_str = m1;
+					return true;
+				}
+				else if (allRef)
+				{
+					match = substr.match(rx_refAll);
+					if ((match != null || match != undefined) && match.length >= 3)
+					{
+						m1 = match[1];
+						this.pCurrPos += m1.length;
+						this.operand_str = m1;
+						return true;
+					}
+				}
+			}
+		} else {
+			match = substr.match(rx_refR1C1);
+
+			if (match != null && (match[3] === match[5] || (match[3] === "[" && match[5] === "]")) && (match[7] === match[9] || (match[7] === "[" && match[9] === "]"))) {
+				m0 = match[0];
+				m1 = match[1];
+				var ref = AscCommon.parserHelp.convertFromR1C1(parseInt(match[4]), parseInt(match[8]), !match[3], !match[7]);
+				if (g_oCellAddressUtils.getCellAddress(ref).isValid()) {
+					this.pCurrPos += m0.indexOf(" ") > -1 ? m0.length - 1 : m1.length;
+					this.operand_str = m1;
+					this.real_str = ref;
+
 					return true;
 				}
 			}
@@ -2400,22 +2608,23 @@
 	 */
 	parserHelper.prototype.checkDataRange = function (model, wb, dialogType, dataRange, fullCheck, isRows, chartType)
 	{
-		var sDataRange = dataRange, sheetModel;
+		var result, range, sheetModel;
 		if (Asc.c_oAscSelectionDialogType.Chart === dialogType)
 		{
-			dataRange = parserHelp.parse3DRef(dataRange);
-			if (dataRange)
+			result = parserHelp.parse3DRef(dataRange);
+			if (result)
 			{
-				sheetModel = model.getWorksheetByName(dataRange.sheet);
+				sheetModel = model.getWorksheetByName(result.sheet);
+				if (sheetModel)
+				{
+					range = AscCommonExcel.g_oRangeCache.getAscRange(result.range);
+				}
 			}
-			if (null === dataRange || !sheetModel)
-				return Asc.c_oAscError.ID.DataRangeError;
-			dataRange = AscCommonExcel.g_oRangeCache.getAscRange(dataRange.range);
 		}
 		else
-			dataRange = AscCommonExcel.g_oRangeCache.getAscRange(dataRange);
+			range = AscCommonExcel.g_oRangeCache.getAscRange(dataRange);
 
-		if (null === dataRange)
+		if (!range)
 			return Asc.c_oAscError.ID.DataRangeError;
 
 		if (fullCheck)
@@ -2430,20 +2639,20 @@
 				var intervalValues, intervalSeries;
 				if (isRows)
 				{
-					intervalSeries = dataRange.r2 - dataRange.r1 + 1;
-					intervalValues = dataRange.c2 - dataRange.c1 + 1;
+					intervalSeries = range.r2 - range.r1 + 1;
+					intervalValues = range.c2 - range.c1 + 1;
 				}
 				else
 				{
-					intervalSeries = dataRange.c2 - dataRange.c1 + 1;
-					intervalValues = dataRange.r2 - dataRange.r1 + 1;
+					intervalSeries = range.c2 - range.c1 + 1;
+					intervalValues = range.r2 - range.r1 + 1;
 				}
 
 				if (Asc.c_oAscChartTypeSettings.stock === chartType)
 				{
-					var chartSettings = new AscCommon.asc_ChartSettings();
+					var chartSettings = new Asc.asc_ChartSettings();
 					chartSettings.putType(Asc.c_oAscChartTypeSettings.stock);
-					chartSettings.putRange(sDataRange);
+					chartSettings.putRange(dataRange);
 					chartSettings.putInColumns(!isRows);
 					var chartSeries = AscFormat.getChartSeries(sheetModel, chartSettings).series;
 					if (minStockVal !== chartSeries.length || !chartSeries[0].Val || !chartSeries[0].Val.NumCache || chartSeries[0].Val.NumCache.length < minStockVal)
@@ -2459,13 +2668,13 @@
 			else if (Asc.c_oAscSelectionDialogType.FormatTable === dialogType)
 			{
 				// ToDo убрать эту проверку, заменить на более грамотную после правки функции _searchFilters
-				if (true === wb.getWorksheet().model.autoFilters.isRangeIntersectionTableOrFilter(dataRange))
+				if (true === wb.getWorksheet().model.autoFilters.isRangeIntersectionTableOrFilter(range))
 					return Asc.c_oAscError.ID.AutoFilterDataRangeError;
 			}
 			else if (Asc.c_oAscSelectionDialogType.FormatTableChangeRange === dialogType)
 			{
 				// ToDo убрать эту проверку, заменить на более грамотную после правки функции _searchFilters
-				var checkChangeRange = wb.getWorksheet().af_checkChangeRange(dataRange);
+				var checkChangeRange = wb.getWorksheet().af_checkChangeRange(range);
 				if (null !== checkChangeRange)
 					return checkChangeRange;
 			}
@@ -2585,7 +2794,7 @@
 	function asc_ajax(obj)
 	{
 		var url                                       = "", type                            = "GET",
-			async                                     = true, data                        = null, dataType = "text/xml",
+			async                                     = true, data                        = null, dataType,
 			error = null, success = null, httpRequest = null,
 			contentType                               = "application/x-www-form-urlencoded",
 			responseType = '',
@@ -2632,7 +2841,7 @@
 				if (window.XMLHttpRequest)
 				{ // Mozilla, Safari, ...
 					httpRequest = new XMLHttpRequest();
-					if (httpRequest.overrideMimeType)
+					if (httpRequest.overrideMimeType && dataType)
 					{
 						httpRequest.overrideMimeType(dataType);
 					}
@@ -3164,11 +3373,11 @@
 		this.Dark = new CColor(R, G, B, 255);
 	};
 
-	function loadScript(url, callback)
+	function loadScript(url, onSuccess, onError)
 	{
 		if (window["NATIVE_EDITOR_ENJINE"] === true || window["Native"] !== undefined)
 		{
-			callback();
+			onSuccess();
 			return;
 		}
 
@@ -3177,7 +3386,7 @@
 			var _context = {
 				"completeLoad": function ()
 								{
-									return callback();
+									return onSuccess();
 								}
 			};
 			window["local_load_add"](_context, "sdk-all-from-min", url);
@@ -3186,7 +3395,7 @@
 				window["local_load_remove"](url);
 			if (_ret_param == 1)
 			{
-				setTimeout(callback, 1);
+				setTimeout(onSuccess, 1);
 				return;
 			}
 			else if (_ret_param == 2)
@@ -3196,21 +3405,22 @@
 		var script = document.createElement('script');
 		script.type = 'text/javascript';
 		script.src = url;
-		script.onload = script.onerror = callback;
+		script.onload = onSuccess;
+		script.onerror = onError;
 
 		// Fire the loading
 		document.head.appendChild(script);
 	}
 
-	function loadSdk(sdkName, callback)
+	function loadSdk(sdkName, onSuccess, onError)
 	{
 		if (window['AscNotLoadAllScript'])
 		{
-			callback();
+			onSuccess();
 		}
 		else
 		{
-			loadScript('./../../../../sdkjs/' + sdkName + '/sdk-all.js', callback);
+			loadScript('./../../../../sdkjs/' + sdkName + '/sdk-all.js', onSuccess, onError);
 		}
 	}
 
@@ -3512,8 +3722,12 @@
 	CSignatureDrawer.prototype.selectImage = CSignatureDrawer.prototype["selectImage"] = function()
 	{
 		this.Text = "";
-		window["AscDesktopEditor"]["OpenFilenameDialog"]("images", false, function(file) {
-            if (file == "")
+		window["AscDesktopEditor"]["OpenFilenameDialog"]("images", false, function(_file) {
+            var file = _file;
+            if (Array.isArray(file))
+                file = file[0];
+
+			if (file == "")
                 return;
 
             var _drawer = window.Asc.g_signature_drawer;
@@ -3587,6 +3801,8 @@
     };
     function CEncryptionData()
     {
+    	this._init = false;
+
         this.arrData = [];
         this.arrImages = [];
 
@@ -3594,6 +3810,7 @@
         this.isChangesHandled = false;
 
         this.cryptoMode = 0; // start crypto mode
+		this.isChartEditor = false;
 
         this.isExistDecryptedChanges = false; // был ли хоть один запрос на расшифровку данных (были ли чужие изменения)
 
@@ -3602,13 +3819,33 @@
 
         this.editorId = null;
 
+        this.nextChangesTimeoutId = -1;
+
+        this.isPasswordCryptoPresent = false;
+
+        this.init = function()
+		{
+			this._init = true;
+		};
+
+        this.isInit = function()
+        {
+			return this._init;
+        };
+
         this.isNeedCrypt = function()
 		{
-            if (!window.g_asc_plugins.isRunnedEncryption())
-                return false;
+			if (window.g_asc_plugins)
+			{
+                if (!window.g_asc_plugins.isRunnedEncryption())
+                    return false;
+            }
 
             if (!window["AscDesktopEditor"])
                 return false;
+
+            if (this.isChartEditor)
+            	return false;
 
             if (2 == this.cryptoMode)
             	return true;
@@ -3621,13 +3858,17 @@
 
 		this.isCryptoImages = function()
 		{
-            return this.isNeedCrypt();
+            return (this.isNeedCrypt() && this.isPasswordCryptoPresent);
 		};
 
         this.addCryproImagesFromDialog = function(callback)
 		{
 			var _this = this;
             window["AscDesktopEditor"]["OpenFilenameDialog"]("images", true, function(files) {
+
+                if (!Array.isArray(files)) // string detect
+                    files = [files];
+
 				var _files = [];
 
 				var _options = { isImageCrypt: true, callback: callback, ext : [] };
@@ -3691,8 +3932,9 @@
 
         this.nextChanges = function()
 		{
-			setTimeout(function() {
+            this.nextChangesTimeoutId = setTimeout(function() {
 				AscCommon.EncryptionWorker.sendChanges(undefined, undefined);
+                this.nextChangesTimeoutId = -1;
 			}, 10);
 		};
 
@@ -3722,8 +3964,19 @@
             if (this.arrData.length == 0)
                 return;
 
-            if (undefined !== type && 1 != this.arrData.length)
+            if (undefined !== type && ((1 != this.arrData.length) || !this.isChangesHandled))
             	return; // вызовется на коллбэке
+
+			if (undefined !== type && -1 != this.nextChangesTimeoutId)
+			{
+				// вызвали send, когда данные на receiveChanges были удалены - и запустился nextChanges
+				// но так как он сделан на таймере - то просто он не успел отработать.
+				// тут запускаем единственное изменение - это и есть как бы next.
+				// убиваем таймер
+
+				clearTimeout(this.nextChangesTimeoutId);
+				this.nextChangesTimeoutId = -1;
+			}
 
             if (AscCommon.EncryptionMessageType.Encrypt == this.arrData[0].type)
             {
@@ -3774,7 +4027,6 @@
 				}
                 this.isChangesHandled = true;
 				this.handleChangesCallback.callback.call(this.handleChangesCallback.sender);
-                this.isChangesHandled = false;
 				this.handleChangesCallback = null;
 
                 this.nextChanges();
@@ -3789,7 +4041,13 @@
             	if (obj.options && obj.options.isImageCrypt)
 				{
                     for (var i = 0; i < data.length; i++)
-                        data[i] = "ENCRYPTED;" + obj.options.ext[i] + ";" + data[i];
+					{
+						if (this.cryptoPrefix == data[i].substr(0, this.cryptoPrefixLen))
+						{
+							// дописываем extension
+                            data[i] = this.cryptoPrefix + obj.options.ext[i] + ";" + data[i].substr(this.cryptoPrefixLen);
+						}
+					}
 
 					if (!obj.options.isUrls)
 						obj.options.callback(Asc.c_oAscError.ID.No, data);
@@ -3902,7 +4160,6 @@
 
 				this.isChangesHandled = true;
 				_callback.call(_sender);
-                this.isChangesHandled = false;
                 return;
 			}
 
@@ -3930,6 +4187,14 @@
 
         this.asc_setAdvancedOptions = function(api, idOption, option)
 		{
+            if (window.isNativeOpenPassword)
+            {
+                window["AscDesktopEditor"]["NativeViewerOpen"](option.asc_getPassword());
+                return;
+            }
+            if (window.isCloudCryptoDownloadAs)
+            	return false;
+
 			if (!this.isNeedCrypt())
 				return false;
 
@@ -4072,7 +4337,6 @@
 	window["AscCommon"].getFullImageSrc2 = getFullImageSrc2;
 	window["AscCommon"].fSortAscending = fSortAscending;
 	window["AscCommon"].fSortDescending = fSortDescending;
-	window["AscCommon"].fOnlyUnique = fOnlyUnique;
 	window["AscCommon"].isLeadingSurrogateChar = isLeadingSurrogateChar;
 	window["AscCommon"].decodeSurrogateChar = decodeSurrogateChar;
 	window["AscCommon"].encodeSurrogateChar = encodeSurrogateChar;
@@ -4140,16 +4404,33 @@
 	window["AscCommon"].translateManager = new CTranslateManager();
 })(window);
 
-// ONLYPASS
 window["asc_initAdvancedOptions"] = function(_code, _file_hash, _docInfo)
 {
+    if (window.isNativeOpenPassword)
+	{
+		return window["NativeFileOpen_error"](window.isNativeOpenPassword, _file_hash, _docInfo);
+	}
+
     var _editor = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
 
-    if ((_code == 90 || _code == 91) && AscCommon.EncryptionWorker.isNeedCrypt() && !window.checkPasswordFromPlugin)
+    if (_code == 90 || _code == 91)
     {
-    	window.checkPasswordFromPlugin = true;
-        window.g_asc_plugins.sendToEncryption({ "type" : "getPasswordByFile", "hash" : _file_hash, "docinfo" : _docInfo });
-        return;
+    	if (window["AscDesktopEditor"] && (0 !== window["AscDesktopEditor"]["CryptoMode"]) && !_editor.isLoadFullApi)
+		{
+            // ждем инициализации
+            _editor.asc_initAdvancedOptions_params = [];
+            _editor.asc_initAdvancedOptions_params.push(_code);
+            _editor.asc_initAdvancedOptions_params.push(_file_hash);
+            _editor.asc_initAdvancedOptions_params.push(_docInfo);
+            return;
+        }
+
+    	if (AscCommon.EncryptionWorker.isNeedCrypt() && !window.checkPasswordFromPlugin)
+    	{
+            window.checkPasswordFromPlugin = true;
+            window.g_asc_plugins.sendToEncryption({ "type": "getPasswordByFile", "hash": _file_hash, "docinfo": _docInfo });
+            return;
+        }
     }
 
     window.checkPasswordFromPlugin = false;
@@ -4200,7 +4481,7 @@ window.openFileCryptCallback = function(_binary)
 
 window["asc_IsNeedBuildCryptedFile"] = function()
 {
-    if (!window["AscDesktopEditor"])
+    if (!window["AscDesktopEditor"] || !window["AscDesktopEditor"]["CryptoMode"])
         return false;
 
     var _api = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
@@ -4241,7 +4522,7 @@ window["asc_IsNeedBuildCryptedFile"] = function()
         }
     }
 
-    window["AscDesktopEditor"]["js_message"]("IsNeedBuildCryptedFile", "" + _returnValue);
+    window["AscDesktopEditor"]["execCommand"]("encrypt:isneedbuild", "" + _returnValue);
     return _returnValue;
 };
 
@@ -4410,4 +4691,57 @@ window["buildCryptoFile_End"] = function(url, error, hash, password)
 		xhr.send(null);
 	};
     window.g_asc_plugins.sendToEncryption({"type": "setPasswordByFile", "hash": hash, "password": password});
+};
+
+window["NativeFileOpen_error"] = function(error, _file_hash, _docInfo)
+{
+    var _api = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
+
+    if ("password" == error)
+    {
+        window.isNativeOpenPassword = error;
+
+        if (window["AscDesktopEditor"] && (0 !== window["AscDesktopEditor"]["CryptoMode"]) && !_api.isLoadFullApi)
+        {
+            // ждем инициализации
+            _api.asc_initAdvancedOptions_params = [];
+            _api.asc_initAdvancedOptions_params.push(90);
+            _api.asc_initAdvancedOptions_params.push(_file_hash);
+            _api.asc_initAdvancedOptions_params.push(_docInfo);
+            return;
+        }
+
+        if (AscCommon.EncryptionWorker.isNeedCrypt() && !window.checkPasswordFromPlugin)
+        {
+            window.checkPasswordFromPlugin = true;
+            window.g_asc_plugins.sendToEncryption({ "type": "getPasswordByFile", "hash": _file_hash, "docinfo": _docInfo });
+            return;
+        }
+
+        window.checkPasswordFromPlugin = false;
+        _api._onNeedParams(undefined, true);
+    }
+    else if ("error" == error)
+    {
+        _api.sendEvent("asc_onError", c_oAscError.ID.ConvertationOpenError, c_oAscError.Level.Critical);
+        return;
+    }
+};
+
+window["CryptoDownloadAsEnd"] = function()
+{
+    var _editor = window.Asc.editor ? window.Asc.editor : window.editor;
+    _editor.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.DownloadAs);
+
+    window.isCloudCryptoDownloadAs = undefined;
+};
+
+window["AscDesktopEditor_Save"] = function()
+{
+    var _editor = window.Asc.editor ? window.Asc.editor : window.editor;
+    if (!_editor.asc_Save(false))
+    {
+    	// сейва не будет. сами посылаем callback
+        window["AscDesktopEditor"]["OnSave"]();
+    }
 };

@@ -598,6 +598,15 @@ CImageShape.prototype.draw = function(graphics, transform)
             || bounds.y + bounds.h < rect.y)
             return;
     }
+
+    var oClipRect;
+    if(!graphics.IsSlideBoundsCheckerType){
+        oClipRect = this.getClipRect();
+    }
+    if(oClipRect){
+        graphics.SaveGrState();
+        graphics.AddClipRect(oClipRect.x, oClipRect.y, oClipRect.w, oClipRect.h);
+    }
     var _transform = transform ? transform :this.transform;
     graphics.SetIntegerGrid(false);
     graphics.transform3(_transform, false);
@@ -618,7 +627,7 @@ CImageShape.prototype.draw = function(graphics, transform)
             if(oApi){
                 sImageId = AscCommon.getFullImageSrc2(sImageId);
                 var _img = oApi.ImageLoader.map_image_index[sImageId];
-                if ((_img && _img.Status === AscFonts.ImageLoadStatus.Loading) || (_img && _img.Image) || true === graphics.IsSlideBoundsCheckerType){
+                if ((_img && _img.Status === AscFonts.ImageLoadStatus.Loading) || (_img && _img.Image) || true === graphics.IsSlideBoundsCheckerType || true == graphics.RENDERER_PDF_FLAG){
                     this.brush = new AscFormat.CUniFill();
                     this.brush.fill = this.blipFill;
                     this.pen = null;
@@ -646,6 +655,9 @@ CImageShape.prototype.draw = function(graphics, transform)
     this.pen = oldPen;
 
     this.drawLocks(_transform, graphics);
+    if(oClipRect){
+        graphics.RestoreGrState();
+    }
     graphics.reset();
     graphics.SetIntegerGrid(true);
 };

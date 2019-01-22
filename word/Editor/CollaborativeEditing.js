@@ -59,7 +59,7 @@ CWordCollaborativeEditing.prototype.Clear = function()
 	AscCommon.CCollaborativeEditingBase.prototype.Clear.apply(this, arguments);
 	this.Remove_AllForeignCursors();
 };
-CWordCollaborativeEditing.prototype.Send_Changes = function(IsUserSave, AdditionalInfo, IsUpdateInterface)
+CWordCollaborativeEditing.prototype.Send_Changes = function(IsUserSave, AdditionalInfo, IsUpdateInterface, isAfterAskSave)
 {
     // Пересчитываем позиции
     this.Refresh_DCChanges();
@@ -137,7 +137,7 @@ CWordCollaborativeEditing.prototype.Send_Changes = function(IsUserSave, Addition
 	}
 	else
 	{
-		editor.CoAuthoringApi.unLockDocument(true, editor.canUnlockDocument2, null, bCollaborative);
+		editor.CoAuthoringApi.unLockDocument(!!isAfterAskSave, editor.canUnlockDocument2, null, bCollaborative);
 	}
 	editor.canUnlockDocument2 = false;
 
@@ -229,7 +229,7 @@ CWordCollaborativeEditing.prototype.OnEnd_Load_Objects = function()
 
     LogicDocument.Reset_RecalculateCache();
 
-    LogicDocument.Recalculate(false, false, RecalculateData);
+    LogicDocument.Recalculate(RecalculateData);
     LogicDocument.Document_UpdateSelectionState();
     LogicDocument.Document_UpdateInterfaceState();
 
@@ -626,7 +626,7 @@ CWordCollaborativeEditing.prototype.Update_ForeignCursorLabelPosition = function
 
 
 CWordCollaborativeEditing.prototype.private_RecalculateDocument = function(oRecalcData){
-    this.m_oLogicDocument.Recalculate(false, false, oRecalcData);
+    this.m_oLogicDocument.Recalculate(oRecalcData);
 };
 
 

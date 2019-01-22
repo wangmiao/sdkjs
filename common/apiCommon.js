@@ -143,7 +143,8 @@
 		none: "none",
 		text: "text",
 		ole: "ole",
-		html: "html"
+		html: "html",
+        desktop: "desktop"
 	};
 
 	/** @constructor */
@@ -1107,6 +1108,22 @@
 						this.putShowHorAxis(true);
 						this.putShowVerAxis(true);
 					}
+					var oHorAxisProps = this.getHorAxisProps();
+						if(oHorAxisProps && oHorAxisProps.getAxisType() === c_oAscAxisType.cat){
+							if(type === c_oAscChartTypeSettings.areaNormal ||
+							type === c_oAscChartTypeSettings.areaStacked ||
+							type === c_oAscChartTypeSettings.areaStackedPer||
+							type === c_oAscChartTypeSettings.stock ||
+							type === c_oAscChartTypeSettings.surfaceNormal ||
+							type === c_oAscChartTypeSettings.surfaceWireframe ||
+							type === c_oAscChartTypeSettings.contourNormal ||
+							type === c_oAscChartTypeSettings.contourWireframe){
+								oHorAxisProps.putLabelsPosition(Asc.c_oAscLabelsPosition.byDivisions);
+							}
+							else{
+								oHorAxisProps.putLabelsPosition(Asc.c_oAscLabelsPosition.betweenDivisions);
+							}
+						}
 					break;
 				}
 				case c_oAscChartTypeSettings.hBarNormal          :
@@ -1126,6 +1143,11 @@
 						var bTemp = this.showHorAxis;
 						this.putShowHorAxis(this.showVerAxis);
 						this.putShowVerAxis(bTemp);
+					}
+
+					var oVertAxisProps = this.getVertAxisProps();
+					if(oVertAxisProps && oVertAxisProps.getAxisType() === c_oAscAxisType.cat){
+						oVertAxisProps.putLabelsPosition(Asc.c_oAscLabelsPosition.betweenDivisions);
 					}
 					//this.putHorGridLines(c_oAscGridLinesSettings.none);
 					//this.putVertGridLines(c_oAscGridLinesSettings.major);
@@ -1784,7 +1806,7 @@
 			this.Brd = (undefined != obj.Brd && null != obj.Brd) ? new asc_CParagraphBorders(obj.Brd) : null;
 			this.Shd = (undefined != obj.Shd && null != obj.Shd) ? new asc_CParagraphShd(obj.Shd) : null;
 			this.Tabs = (undefined != obj.Tabs) ? new asc_CParagraphTabs(obj.Tabs) : undefined;
-			this.DefaultTab = window["AscCommonWord"].Default_Tab_Stop;
+			this.DefaultTab = obj.DefaultTab != null ? obj.DefaultTab : window["AscCommonWord"].Default_Tab_Stop;
 			this.Locked = (undefined != obj.Locked && null != obj.Locked ) ? obj.Locked : false;
 			this.CanAddTable = (undefined != obj.CanAddTable ) ? obj.CanAddTable : true;
 
@@ -1800,6 +1822,8 @@
 			this.DStrikeout = (undefined != obj.DStrikeout) ? obj.DStrikeout : undefined;
 			this.TextSpacing = (undefined != obj.TextSpacing) ? obj.TextSpacing : undefined;
 			this.Position = (undefined != obj.Position) ? obj.Position : undefined;
+			this.Jc = (undefined != obj.Jc) ? obj.Jc : undefined;
+			this.ListType = (undefined != obj.ListType) ? obj.ListType : undefined;
 		} else {
 			//ContextualSpacing : false,            // Удалять ли интервал между параграфами одинакового стиля
 			//
@@ -1839,6 +1863,8 @@
 			this.DStrikeout = undefined;
 			this.TextSpacing = undefined;
 			this.Position = undefined;
+			this.Jc = undefined;
+			this.ListType = undefined;
 		}
 	}
 
@@ -1852,6 +1878,10 @@
 			return this.Ind;
 		}, asc_putInd: function (v) {
 			this.Ind = v;
+		}, asc_getJc: function () {
+			return this.Jc;
+		}, asc_putJc: function (v) {
+			this.Jc = v;
 		}, asc_getKeepLines: function () {
 			return this.KeepLines;
 		}, asc_putKeepLines: function (v) {
@@ -2029,8 +2059,11 @@
         this.signatureId = null;
 
 		this.rot = null;
+		this.rotAdd = null;
 		this.flipH = null;
 		this.flipV = null;
+		this.flipHInvert = null;
+		this.flipVInvert = null;
 	}
 
 	asc_CShapeProperty.prototype = {
@@ -2143,6 +2176,14 @@
 			this.rot = v;
 		},
 
+		asc_getRotAdd: function(){
+			return this.rotAdd;
+		},
+
+		asc_putRotAdd: function(v){
+			this.rotAdd = v;
+		},
+
 		asc_getFlipH: function(){
 			return this.flipH;
 		},
@@ -2157,6 +2198,21 @@
 
 		asc_putFlipV: function(v){
 			this.flipV = v;
+		},
+		asc_getFlipHInvert: function(){
+			return this.flipHInvert;
+		},
+
+		asc_putFlipHInvert: function(v){
+			this.flipHInvert = v;
+		},
+
+		asc_getFlipVInvert: function(){
+			return this.flipVInvert;
+		},
+
+		asc_putFlipVInvert: function(v){
+			this.flipVInvert = v;
 		}
 	};
 
@@ -2415,8 +2471,11 @@
 
 
 			this.rot = undefined;
+			this.rotAdd = undefined;
 			this.flipH = undefined;
 			this.flipV = undefined;
+			this.flipHInert = undefined;
+			this.flipVInert = undefined;
 		}
 	}
 
@@ -2675,6 +2734,13 @@
 		asc_putRot: function(v){
 			this.rot = v;
 		},
+		asc_getRotAdd: function(){
+			return this.rotAdd;
+		},
+
+		asc_putRotAdd: function(v){
+			this.rotAdd = v;
+		},
 
 		asc_getFlipH: function(){
 			return this.flipH;
@@ -2683,6 +2749,13 @@
 		asc_putFlipH: function(v){
 			this.flipH = v;
 		},
+		asc_getFlipHInvert: function(){
+			return this.flipHInvert;
+		},
+
+		asc_putFlipHInvert: function(v){
+			this.flipHInvert = v;
+		},
 
 		asc_getFlipV: function(){
 			return this.flipV;
@@ -2690,6 +2763,13 @@
 
 		asc_putFlipV: function(v){
 			this.flipV = v;
+		},
+		asc_getFlipVInvert: function(){
+			return this.flipVInvert;
+		},
+
+		asc_putFlipVInvert: function(v){
+			this.flipVInvert = v;
 		}
 	};
 
@@ -3113,7 +3193,7 @@
 	};
 	CHyperlinkProperty.prototype.is_Heading = function()
 	{
-		return (this.Heading instanceof Paragraph ? true : false)
+		return (this.Heading instanceof AscCommonWord.Paragraph ? true : false)
 	};
 	CHyperlinkProperty.prototype.put_Heading = function(oParagraph)
 	{
@@ -3397,14 +3477,14 @@
 
 
 	/** @constructor */
-    function asc_CSpellCheckProperty(Word, Checked, Variants, ParaId, ElemId)
+    function asc_CSpellCheckProperty(Word, Checked, Variants, ParaId, Element)
     {
         this.Word     = Word;
         this.Checked  = Checked;
         this.Variants = Variants;
 
-        this.ParaId = ParaId;
-        this.ElemId = ElemId;
+        this.ParaId  = ParaId;
+        this.Element = Element;
     }
 
     asc_CSpellCheckProperty.prototype.get_Word     = function()
@@ -3817,6 +3897,9 @@
 
 		this.size = undefined;
 		this.initOnSelectionChanged = undefined;
+
+		this.events = [];
+		this.eventsMap = {};
 	}
 
 	CPluginVariation.prototype["get_Description"] = function()
@@ -3945,6 +4028,20 @@
 	{
 		this.initOnSelectionChanged = value;
 	};
+    CPluginVariation.prototype["get_Events"]           = function()
+    {
+        return this.events;
+    };
+    CPluginVariation.prototype["set_Events"]           = function(value)
+    {
+    	if (!value)
+    		return;
+
+        this.events = value.slice(0, value.length);
+        this.eventsMap = {};
+        for (var i = 0; i < this.events.length; i++)
+        	this.eventsMap[this.events[i]] = true;
+    };
 
 	CPluginVariation.prototype["serialize"]   = function()
 	{
@@ -4225,7 +4322,7 @@
 	prot["getCrossMinVal"] = prot.getCrossMinVal;
 	prot["setDefault"] = prot.setDefault;
 
-	window["AscCommon"].asc_ChartSettings = asc_ChartSettings;
+	window["Asc"]["asc_ChartSettings"] = window["Asc"].asc_ChartSettings = asc_ChartSettings;
 	prot = asc_ChartSettings.prototype;
 	prot["putStyle"] = prot.putStyle;
 	prot["putTitle"] = prot.putTitle;
@@ -4439,6 +4536,8 @@
 	prot["put_ContextualSpacing"] = prot["asc_putContextualSpacing"] = prot.asc_putContextualSpacing;
 	prot["get_Ind"] = prot["asc_getInd"] = prot.asc_getInd;
 	prot["put_Ind"] = prot["asc_putInd"] = prot.asc_putInd;
+	prot["get_Jc"] = prot["asc_getJc"] = prot.asc_getJc;
+	prot["put_Jc"] = prot["asc_putJc"] = prot.asc_putJc;
 	prot["get_KeepLines"] = prot["asc_getKeepLines"] = prot.asc_getKeepLines;
 	prot["put_KeepLines"] = prot["asc_putKeepLines"] = prot.asc_putKeepLines;
 	prot["get_KeepNext"] = prot["asc_getKeepNext"] = prot.asc_getKeepNext;
@@ -4546,10 +4645,16 @@
 	prot["put_FromImage"] = prot["asc_putFromImage"] = prot.asc_putFromImage;
 	prot["get_Rot"] = prot["asc_getRot"] = prot.asc_getRot;
 	prot["put_Rot"] = prot["asc_putRot"] = prot.asc_putRot;
+	prot["get_RotAdd"] = prot["asc_getRotAdd"] = prot.asc_getRotAdd;
+	prot["put_RotAdd"] = prot["asc_putRotAdd"] = prot.asc_putRotAdd;
 	prot["get_FlipH"] = prot["asc_getFlipH"] = prot.asc_getFlipH;
 	prot["put_FlipH"] = prot["asc_putFlipH"] = prot.asc_putFlipH;
 	prot["get_FlipV"] = prot["asc_getFlipV"] = prot.asc_getFlipV;
 	prot["put_FlipV"] = prot["asc_putFlipV"] = prot.asc_putFlipV;
+	prot["get_FlipHInvert"] = prot["asc_getFlipHInvert"] = prot.asc_getFlipHInvert;
+	prot["put_FlipHInvert"] = prot["asc_putFlipHInvert"] = prot.asc_putFlipHInvert;
+	prot["get_FlipVInvert"] = prot["asc_getFlipVInvert"] = prot.asc_getFlipVInvert;
+	prot["put_FlipVInvert"] = prot["asc_putFlipVInvert"] = prot.asc_putFlipVInvert;
 
 	window["Asc"]["asc_TextArtProperties"] = window["Asc"].asc_TextArtProperties = asc_TextArtProperties;
 	prot = asc_TextArtProperties.prototype;
@@ -4654,10 +4759,16 @@
 	prot["put_PluginData"] = prot["asc_putPluginData"] = prot.asc_putPluginData;
 	prot["get_Rot"] = prot["asc_getRot"] = prot.asc_getRot;
 	prot["put_Rot"] = prot["asc_putRot"] = prot.asc_putRot;
+	prot["get_RotAdd"] = prot["asc_getRotAdd"] = prot.asc_getRotAdd;
+	prot["put_RotAdd"] = prot["asc_putRotAdd"] = prot.asc_putRotAdd;
 	prot["get_FlipH"] = prot["asc_getFlipH"] = prot.asc_getFlipH;
 	prot["put_FlipH"] = prot["asc_putFlipH"] = prot.asc_putFlipH;
 	prot["get_FlipV"] = prot["asc_getFlipV"] = prot.asc_getFlipV;
 	prot["put_FlipV"] = prot["asc_putFlipV"] = prot.asc_putFlipV;
+	prot["get_FlipHInvert"] = prot["asc_getFlipHInvert"] = prot.asc_getFlipHInvert;
+	prot["put_FlipHInvert"] = prot["asc_putFlipHInvert"] = prot.asc_putFlipHInvert;
+	prot["get_FlipVInvert"] = prot["asc_getFlipVInvert"] = prot.asc_getFlipVInvert;
+	prot["put_FlipVInvert"] = prot["asc_putFlipVInvert"] = prot.asc_putFlipVInvert;
 
 	prot["get_Title"] = prot["asc_getTitle"] = prot.asc_getTitle;
 	prot["put_Title"] = prot["asc_putTitle"] = prot.asc_putTitle;

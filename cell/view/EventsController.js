@@ -227,19 +227,19 @@
 			this.isSelectionDialogMode = isSelectionDialogMode;
 		};
 
-		asc_CEventsController.prototype.reinitScrollX = function (pos, max, endScroll) {
+		asc_CEventsController.prototype.reinitScrollX = function (pos, max, max2) {
 			var step = this.settings.hscrollStep;
 			this.hsbMax = Math.max(max * step, 1);
 			this.hsbHSt.width = (this.hsb.offsetWidth + this.hsbMax) + "px";
-			this.hsbApi.endByX = !!endScroll;
 			this.hsbApi.Reinit(this.settings, pos * step);
+			this.hsbApi.maxScrollX2 = Math.max(max2 * step, 1);
 		};
-		asc_CEventsController.prototype.reinitScrollY = function (pos, max, endScroll) {
+		asc_CEventsController.prototype.reinitScrollY = function (pos, max, max2) {
 			var step = this.settings.vscrollStep;
 			this.vsbMax = Math.max(max * step, 1);
 			this.vsbHSt.height = (this.vsb.offsetHeight + this.vsbMax) + "px";
-			this.vsbApi.endByY = !!endScroll;
 			this.vsbApi.Reinit(this.settings, pos * step);
+			this.vsbApi.maxScrollY2 = Math.max(max2 * step, 1);
 		};
 
 		/**
@@ -304,7 +304,7 @@
 				var coord = t._getCoordinates(event);
 				t.handlers.trigger("mouseDblClick", coord.x, coord.y, isHideCursor, function () {
 					// Мы изменяли размеры колонки/строки, не редактируем ячейку. Обновим состояние курсора
-					t.handlers.trigger("updateWorksheet", t.element, coord.x, coord.y, ctrlKey,
+					t.handlers.trigger("updateWorksheet", coord.x, coord.y, ctrlKey,
 						function (info) {t.targetInfo = info;});
 				});
 			}, 100);
@@ -340,10 +340,12 @@
 
 				this.vsbApi = new AscCommon.ScrollObject(this.vsb.id, settings);
 				this.vsbApi.bind("scrollvertical", function(evt) {
-					self.handlers.trigger("scrollY", evt.scrollPositionY / self.settings.vscrollStep);
+					self.handlers.trigger("scrollY", evt.scrollPositionY / self.settings.vscrollStep, !self.vsbApi.scrollerMouseDown);
 				});
-				this.vsbApi.bind("scrollVEnd", function(evt) {
-					self.handlers.trigger("addRow");
+				this.vsbApi.bind("mouseup", function(evt) {
+					if (self.vsbApi.scrollerMouseDown) {
+						self.handlers.trigger('initRowsCount');
+					}
 				});
 				this.vsbApi.onLockMouse = function(evt){
                     self.vsbApiLockMouse = true;
@@ -367,11 +369,13 @@
 
 				this.hsbApi = new AscCommon.ScrollObject(this.hsb.id, settings);
 				this.hsbApi.bind("scrollhorizontal",function(evt) {
-					self.handlers.trigger("scrollX", evt.scrollPositionX / self.settings.hscrollStep);
+					self.handlers.trigger("scrollX", evt.scrollPositionX / self.settings.hscrollStep, !self.hsbApi.scrollerMouseDown);
 				});
-				this.hsbApi.bind("scrollHEnd",function(evt) {
-						self.handlers.trigger("addColumn");
-					});
+				this.hsbApi.bind("mouseup", function(evt) {
+					if (self.hsbApi.scrollerMouseDown) {
+						self.handlers.trigger('initColsCount');
+					}
+				});
 				this.hsbApi.onLockMouse = function(){
                     self.hsbApiLockMouse = true;
 				};
@@ -1328,7 +1332,7 @@
 			}
 
 			if (!this.targetInfo) {
-				this.handlers.trigger("updateWorksheet", this.element, coord.x, coord.y, false, function (info) {
+				this.handlers.trigger("updateWorksheet", coord.x, coord.y, false, function (info) {
 					t.targetInfo = info;
 				});
 			}
@@ -1424,7 +1428,7 @@
 
 			// Если нажали правую кнопку мыши, то сменим выделение только если мы не в выделенной области
 			if (2 === event.button) {
-				this.handlers.trigger("changeSelectionRightClick", coord.x, coord.y, this.targetInfo.target);
+				this.handlers.trigger("changeSelectionRightClick", coord.x, coord.y, this.targetInfo && this.targetInfo.target);
 				this.handlers.trigger('onContextMenu', event);
 			} else {
 				if (this.targetInfo && this.targetInfo.target === c_oTargetType.FillHandle && this.canEdit()) {
@@ -1539,8 +1543,6 @@
 
 			// Режим перемещения диапазона
 			if (t.isMoveRangeMode) {
-				if (event.currentTarget && event.currentTarget.style)
-					event.currentTarget.style.cursor = ctrlKey ? "copy" : "move";
 				t._moveRangeHandle(event);
 				return true;
 			}
@@ -1559,11 +1561,11 @@
 			if (t.isShapeAction || graphicsInfo) {
 				event.isLocked = t.isMousePressed;
 				t.handlers.trigger("graphicObjectMouseMove", event, coord.x, coord.y);
-				t.handlers.trigger("updateWorksheet", t.element, coord.x, coord.y, ctrlKey, function(info){t.targetInfo = info;});
+				t.handlers.trigger("updateWorksheet", coord.x, coord.y, ctrlKey, function(info){t.targetInfo = info;});
 				return true;
 			}
 
-			t.handlers.trigger("updateWorksheet", t.element, coord.x, coord.y, ctrlKey, function(info){t.targetInfo = info;});
+			t.handlers.trigger("updateWorksheet", coord.x, coord.y, ctrlKey, function(info){t.targetInfo = info;});
 			return true;
 		};
 
@@ -1573,7 +1575,7 @@
 			this.hasCursor = false;
 			if (!this.isSelectMode && !this.isResizeMode && !this.isMoveResizeRange) {
 				this.targetInfo = undefined;
-				this.handlers.trigger("updateWorksheet", this.element);
+				this.handlers.trigger("updateWorksheet");
 			}
 			if (this.isMoveRangeMode) {
 				t.moveRangeTimerId = window.setTimeout(function(){t._moveRangeHandle2(event)},0);
@@ -1629,7 +1631,7 @@
 				deltaY = 0;
 			}
 
-			this.handlers.trigger("updateWorksheet", this.element, /*x*/undefined, /*y*/undefined, /*ctrlKey*/undefined,
+			this.handlers.trigger("updateWorksheet", /*x*/undefined, /*y*/undefined, /*ctrlKey*/undefined,
 				function () {
 					if (deltaX) {
 						deltaX = Math.sign(deltaX) * Math.ceil(Math.abs(deltaX / 3));

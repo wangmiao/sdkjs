@@ -124,29 +124,15 @@ CTable.prototype.PrepareRecalculateObject = function()
 };
 CTable.prototype.StartFromNewPage = function()
 {
-	this.Pages.length = 1;
-	this.Pages[0]     = new CTablePage(0, 0, 0, 0, 0, 0);
+	this.Pages.length     = 1;
+	this.Pages[0]         = new CTablePage(0, 0, 0, 0, 0, 0);
+	this.Pages[0].LastRow = -1;
 
 	this.HeaderInfo.Pages[0]      = {};
 	this.HeaderInfo.Pages[0].Draw = false;
 
-	this.RowsInfo[0]              = {};
-	this.RowsInfo[0].Pages        = 1;
-	this.RowsInfo[0].Y            = [];
-	this.RowsInfo[0].H            = [];
-	this.RowsInfo[0].TopDy        = [];
-	this.RowsInfo[0].MaxTopBorder = [];
-	this.RowsInfo[0].FirstPage    = false;
-	this.RowsInfo[0].StartPage    = 0;
-
-	this.RowsInfo[0].X0           = 0;
-	this.RowsInfo[0].X1           = 0;
-	this.RowsInfo[0].MaxBotBorder = 0;
-
-	this.RowsInfo[0].Y[0]            = 0.0;
-	this.RowsInfo[0].H[0]            = 0.0;
-	this.RowsInfo[0].TopDy[0]        = 0.0;
-	this.RowsInfo[0].MaxTopBorder[0] = 0.0;
+	this.RowsInfo[0] = new CTableRowsInfo();
+	this.RowsInfo[0].Init();
 
 	// Обнуляем таблицу суммарных высот ячеек
 	for (var Index = -1; Index < this.Content.length; Index++)
@@ -258,6 +244,7 @@ CTable.prototype.private_RecalculateGrid = function()
 
     var PctWidth = this.private_RecalculatePercentWidth();
     var MinWidth = this.Internal_Get_TableMinWidth();
+
     var TableW = 0;
     if (tblwidth_Auto === TablePr.TableW.Type)
     {
@@ -695,7 +682,24 @@ CTable.prototype.private_RecalculateGrid = function()
         }
 
         // 3. Рассчитаем максимально допустимую ширину под всю таблицу
-        var PageFields = this.Parent.Get_ColumnFields ? this.Parent.Get_ColumnFields(this.Get_Index(), this.Get_AbsoluteColumn(this.PageNum)) : this.Parent.Get_PageFields(this.private_GetRelativePageIndex(this.PageNum));
+
+		var PageFields;
+
+		// Случай, когда таблица лежит внутри CBlockLevelSdt
+		if (this.Parent instanceof CDocumentContent && this.LogicDocument && this.Parent.IsBlockLevelSdtContent() && this.Parent.GetTopDocumentContent() === this.LogicDocument && !this.Parent.IsTableCellContent())
+		{
+			var nTopIndex = -1;
+			var arrPos    = this.GetDocumentPositionFromObject();
+			if (arrPos.length > 0)
+				nTopIndex = arrPos[0].Position;
+
+			if (-1 !== nTopIndex)
+				PageFields = this.LogicDocument.Get_ColumnFields(nTopIndex, this.Get_AbsoluteColumn(this.PageNum));
+		}
+
+		if (!PageFields)
+			PageFields = this.Parent.Get_ColumnFields ? this.Parent.Get_ColumnFields(this.Get_Index(), this.Get_AbsoluteColumn(this.PageNum)) : this.Parent.Get_PageFields(this.private_GetRelativePageIndex(this.PageNum));
+
         var MaxTableW = PageFields.XLimit - PageFields.X - TablePr.TableInd;
         if ( null === TopTable )
             MaxTableW += LeftMargin + RightMargin; // Добавляем левый маргин первой ячейки + правый маргин правой ячейки для верхних таблиц
@@ -1622,23 +1626,23 @@ CTable.prototype.private_RecalculatePositionX = function(CurPage)
             var OffsetCorrection_Left  = 0;
             var OffsetCorrection_Right = 0;
 
-            if (true !== this.bPresentation)
+            if (true !== this.bPresentation && this.LogicDocument && this.LogicDocument.GetCompatibilityMode() < document_compatibility_mode_Word15)
             {
                 OffsetCorrection_Left  = this.GetTableOffsetCorrection();
                 OffsetCorrection_Right = this.GetRightTableOffsetCorrection();
             }
 
-            this.X = this.X_origin + this.GetTableOffsetCorrection();
-            this.AnchorPosition.Set_X(this.TableSumGrid[this.TableSumGrid.length - 1], this.X_origin, PageFields.X + OffsetCorrection_Left, PageFields.XLimit + OffsetCorrection_Right, LD_PageLimits.XLimit, PageLimits.X - OffsetCorrection_Left, PageLimits.XLimit + OffsetCorrection_Right);
+            this.X = this.X_origin + OffsetCorrection_Left;
+            this.AnchorPosition.Set_X(this.TableSumGrid[this.TableSumGrid.length - 1], this.X_origin, PageFields.X + OffsetCorrection_Left, PageFields.XLimit + OffsetCorrection_Right, LD_PageLimits.XLimit, PageLimits.X + OffsetCorrection_Left, PageLimits.XLimit + OffsetCorrection_Right);
 
             // Непонятно по какой причине, но Word для плавающих таблиц добаляется значение TableInd
 			this.AnchorPosition.Calculate_X(this.PositionH.RelativeFrom, this.PositionH.Align, this.PositionH.Value);
 			this.AnchorPosition.CalcX += TablePr.TableInd;
 
             this.X        = this.AnchorPosition.CalcX;
-            this.X_origin = this.X - this.GetTableOffsetCorrection();
+            this.X_origin = this.X - OffsetCorrection_Left;
 
-            if (undefined != this.PositionH_Old)
+			if (undefined != this.PositionH_Old)
             {
                 // Восстанови старые значения, чтобы в историю изменений все нормально записалось
                 this.PositionH.RelativeFrom = this.PositionH_Old.RelativeFrom;
@@ -1651,7 +1655,7 @@ CTable.prototype.private_RecalculatePositionX = function(CurPage)
 
                 // На всякий случай пересчитаем заново координату
 				this.X        = this.AnchorPosition.Calculate_X(this.PositionH.RelativeFrom, this.PositionH.Align, this.PositionH.Value);
-                this.X_origin = this.X - this.GetTableOffsetCorrection();
+                this.X_origin = this.X - OffsetCorrection_Left;
 
                 this.PositionH_Old = undefined;
             }
@@ -2176,19 +2180,13 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
 
 		if ((0 === CurRow && true === this.Check_EmptyPages(CurPage - 1)) || CurRow != FirstRow || (CurRow === FirstRow && true === ResetStartElement))
         {
-            this.RowsInfo[CurRow] = {};
-            this.RowsInfo[CurRow].Pages        = 1;
-            this.RowsInfo[CurRow].Y            = [];
-            this.RowsInfo[CurRow].H            = [];
-            this.RowsInfo[CurRow].TopDy        = [];
-            this.RowsInfo[CurRow].MaxTopBorder = [];
-            this.RowsInfo[CurRow].FirstPage    = true;
-            this.RowsInfo[CurRow].StartPage    = CurPage;
-            this.TableRowsBottom[CurRow]       = [];
+            this.RowsInfo[CurRow] = new CTableRowsInfo();
+            this.RowsInfo[CurRow].StartPage = CurPage;
+            this.TableRowsBottom[CurRow]    = [];
         }
         else
         {
-            this.RowsInfo[CurRow].Pages++;
+            this.RowsInfo[CurRow].Pages = CurPage - this.RowsInfo[CurRow].StartPage + 1;
         }
 
         this.TableRowsBottom[CurRow][CurPage] = Y;
@@ -2332,6 +2330,8 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
 
             Cell.Temp.Y = Y_content_start;
 
+            // Сохраняем ссылку на исходную ячейку
+			var oOriginCell = Cell;
             if ( VMergeCount > 1 )
             {
                 CurGridCol += GridSpan;
@@ -2380,7 +2380,7 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
                         ShiftDy   = -Cell.Content.Pages[0].Y + Y_content_start;
 
 						// Если в ячейке есть ссылки на сноски, тогда такую ячейку нужно пересчитывать
-						var arrFootnotes = Cell.Content.Get_FootnotesList(null, null);
+						var arrFootnotes = Cell.Content.GetFootnotesList(null, null);
 						if (arrFootnotes && arrFootnotes.length > 0)
 							bCanShift = false;
                     }
@@ -2449,11 +2449,11 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
 
 				nFootnotesHeight     = nCurFootnotesHeight;
 				nResetFootnotesIndex = CurRow;
-				Y                    = arrSavedY[Cell.Row.Index];
-				TableHeight          = arrSavedTableHeight[Cell.Row.Index];
-				oFootnotes.LoadRecalculateObject(nPageAbs, nColumnAbs, arrFootnotesObject[Cell.Row.Index]);
+				Y                    = arrSavedY[oOriginCell.Row.Index];
+				TableHeight          = arrSavedTableHeight[oOriginCell.Row.Index];
+				oFootnotes.LoadRecalculateObject(nPageAbs, nColumnAbs, arrFootnotesObject[oOriginCell.Row.Index]);
 
-				CurRow = Cell.Row.Index - 1;
+				CurRow = oOriginCell.Row.Index - 1;
 
 				bFootnoteBreak = true;
 				break;

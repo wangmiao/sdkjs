@@ -107,6 +107,11 @@ function CTableCell(Row, ColW)
         Y_VAlign_offset : [] // Сдвиг, который нужно сделать из-за VAlign (массив по страницам)
     };
 
+    this.CachedMinMax = {
+    	RecalcId : -1,
+		MinMax   : null
+	};
+
     this.Index = 0;
 
     // Добавляем данный класс в таблицу Id (обязательно в конце конструктора)
@@ -576,7 +581,7 @@ CTableCell.prototype =
         if ( false === Table.Selection.Use && this === Table.CurCell )
         {
             var Parent = Table.Parent;
-            if ((Parent instanceof AscFormat.CGraphicFrame) || docpostype_Content === Parent.Get_DocPosType() && false === Parent.Selection.Use && this.Index === Parent.CurPos.ContentPos )
+            if ((Parent instanceof AscFormat.CGraphicFrame) || docpostype_Content === Parent.GetDocPosType() && false === Parent.Selection.Use && this.Index === Parent.CurPos.ContentPos )
                 return Table.Parent.Is_ThisElementCurrent();
         }
 
@@ -604,11 +609,20 @@ CTableCell.prototype =
         return this.Row.Table.Get_StartPage_Relative();
     },
 
+	/**
+	 * Получаем абсолютный номер страницы по относительному номеру страницы (относительно таблицы, а не ячейки!)
+	 * @param CurPage
+	 * @returns {number}
+	 */
     Get_AbsolutePage : function(CurPage)
     {
-        return this.Row.Table.Get_AbsolutePage(CurPage);
+		return this.Row.Table.Get_AbsolutePage(CurPage);
     },
-
+	/**
+	 * Получаем абсолютный номер колонки по относительному номеру страницы (относительно таблицы, а не ячейки!)
+	 * @param CurPage
+	 * @returns {number}
+	 */
     Get_AbsoluteColumn : function(CurPage)
     {
         return this.Row.Table.Get_AbsoluteColumn(CurPage);
@@ -870,7 +884,21 @@ CTableCell.prototype =
         if (true === this.Is_VerticalText())
             isRotated = true === isRotated ? false : true;
 
-        var Result = this.Content.RecalculateMinMaxContentWidth(isRotated);
+        var Result;
+        if (this.GetTable() && this.GetTable().LogicDocument && this.GetTable().LogicDocument.RecalcId === this.CachedMinMax.RecalcId)
+		{
+			Result = this.CachedMinMax.MinMax;
+		}
+        else
+		{
+			Result = this.Content.RecalculateMinMaxContentWidth(isRotated);
+
+			if (this.GetTable() && this.GetTable().LogicDocument)
+			{
+				this.CachedMinMax.RecalcId = this.GetTable().LogicDocument.RecalcId;
+				this.CachedMinMax.MinMax   = Result;
+			}
+		}
 
         if (true !== isRotated && true === this.Get_NoWrap())
             Result.Min = Math.max(Result.Min, Result.Max);
@@ -923,7 +951,7 @@ CTableCell.prototype =
 
     Recalculate : function()
     {
-        this.Content.Recalculate(false);
+        this.Content.Recalculate();
     },
 
     Content_Merge : function(OtherContent)
@@ -995,19 +1023,18 @@ CTableCell.prototype =
         }
 
         // Shd
-        if ( undefined === OtherPr.Shd )
-            this.Set_Shd( undefined );
-        else
-        {
-            var Shd_new =
-                {
-                    Value : OtherPr.Shd.Value,
-                    Color : { r : OtherPr.Shd.Color.r, g : OtherPr.Shd.Color.g, b : OtherPr.Shd.Color.b },
-                    Unifill : OtherPr.Shd.Unifill ? OtherPr.Shd.Unifill.createDuplicate() : undefined
-                };
-
-            this.Set_Shd( Shd_new );
-        }
+		if (undefined === OtherPr.Shd)
+		{
+			this.Set_Shd(undefined);
+		}
+		else
+		{
+			this.Set_Shd({
+				Value   : OtherPr.Shd.Value,
+				Color   : OtherPr.Shd.Color ? {r : OtherPr.Shd.Color.r, g : OtherPr.Shd.Color.g, b : OtherPr.Shd.Color.b} : undefined,
+				Unifill : OtherPr.Shd.Unifill ? OtherPr.Shd.Unifill.createDuplicate() : undefined
+			});
+		}
 
         if ( true != bCopyOnlyVisualProps )
         {
@@ -1056,37 +1083,47 @@ CTableCell.prototype =
         }
 
         // Margins
-        if ( undefined === OtherPr.TableCellMar )
-            this.Set_Margins( undefined );
+        if (!OtherPr.TableCellMar)
+		{
+			this.Set_Margins(undefined);
+		}
         else
         {
-            var Margins_new = ( null === OtherPr.TableCellMar ? null :
-            {
-                Top :
-                {
-                    W    : OtherPr.TableCellMar.Top.W,
-                    Type : OtherPr.TableCellMar.Top.Type
-                },
-                Left :
-                {
-                    W    : OtherPr.TableCellMar.Left.W,
-                    Type : OtherPr.TableCellMar.Left.Type
-                },
+        	var oMarginsNew = {};
 
-                Bottom :
-                {
-                    W    : OtherPr.TableCellMar.Bottom.W,
-                    Type : OtherPr.TableCellMar.Bottom.Type
-                },
+        	if (OtherPr.TableCellMar.Top)
+			{
+				oMarginsNew.Top = {
+					W    : OtherPr.TableCellMar.Top.W,
+					Type : OtherPr.TableCellMar.Top.Type
+				};
+			}
 
-                Right :
-                {
-                    W    : OtherPr.TableCellMar.Right.W,
-                    Type : OtherPr.TableCellMar.Right.Type
-                }
-            } );
+			if (OtherPr.TableCellMar.Left)
+			{
+				oMarginsNew.Left = {
+					W    : OtherPr.TableCellMar.Left.W,
+					Type : OtherPr.TableCellMar.Left.Type
+				};
+			}
 
-            this.Set_Margins( Margins_new, -1 );
+			if (OtherPr.TableCellMar.Bottom)
+			{
+				oMarginsNew.Bottom = {
+					W    : OtherPr.TableCellMar.Bottom.W,
+					Type : OtherPr.TableCellMar.Bottom.Type
+				};
+			}
+
+			if (OtherPr.TableCellMar.Right)
+			{
+				oMarginsNew.Right = {
+					W    : OtherPr.TableCellMar.Right.W,
+					Type : OtherPr.TableCellMar.Right.Type
+				};
+			}
+
+            this.Set_Margins(oMarginsNew, -1);
         }
 
         // W
@@ -1205,14 +1242,29 @@ CTableCell.prototype =
 			{
 				bNeedChange = true;
 
-				Margins_new.Top.W       = Margin.Top.W;
-				Margins_new.Top.Type    = Margin.Top.Type;
-				Margins_new.Right.W     = Margin.Right.W;
-				Margins_new.Right.Type  = Margin.Right.Type;
-				Margins_new.Bottom.W    = Margin.Bottom.W;
-				Margins_new.Bottom.Type = Margin.Bottom.Type;
-				Margins_new.Left.W      = Margin.Left.W;
-				Margins_new.Left.Type   = Margin.Left.Type;
+				if (Margin.Top)
+				{
+					Margins_new.Top.W    = Margin.Top.W;
+					Margins_new.Top.Type = Margin.Top.Type;
+				}
+
+				if (Margin.Right)
+				{
+					Margins_new.Right.W    = Margin.Right.W;
+					Margins_new.Right.Type = Margin.Right.Type;
+				}
+
+				if (Margin.Bottom)
+				{
+					Margins_new.Bottom.W    = Margin.Bottom.W;
+					Margins_new.Bottom.Type = Margin.Bottom.Type;
+				}
+
+				if (Margin.Left)
+				{
+					Margins_new.Left.W    = Margin.Left.W;
+					Margins_new.Left.Type = Margin.Left.Type;
+				}
 
 				break;
 			}
@@ -1879,6 +1931,14 @@ CTableCell.prototype.GetGridSpan = function()
 	return this.Get_GridSpan();
 };
 /**
+ * Выставляем количество промежутков, которое занимает данная ячейка
+ * @param nGridSpan
+ */
+CTableCell.prototype.SetGridSpan = function(nGridSpan)
+{
+	return this.Set_GridSpan(nGridSpan);
+};
+/**
  * Получаем информацию о границе ячейки
  * @param {number} nType - 0 - Top, 1 - Right, 2- Bottom, 3- Left
  */
@@ -2021,6 +2081,126 @@ CTableCell.prototype.GetFirstElementInNextCell = function()
 
 	return oCellContent.GetElement(0);
 };
+/**
+ * Получаем предыдущий параграф
+ * @returns {?Paragraph}
+ */
+CTableCell.prototype.GetPrevParagraph = function()
+{
+	var oTable     = this.GetTable();
+	var oRow       = this.GetRow();
+	var nCellIndex = this.GetIndex();
+
+	if (0 === nCellIndex)
+	{
+		var nRowIndex = oRow.GetIndex();
+
+		if (0 === nRowIndex)
+		{
+			return oTable.GetPrevParagraph();
+		}
+		else
+		{
+			var oPrevRow  = oTable.GetRow(nRowIndex - 1);
+			var oPrevCell = oPrevRow.GetCell(oPrevRow.GetCellsCount() - 1);
+
+			if (!oPrevCell)
+				return null;
+
+			return oPrevCell.GetContent().GetLastParagraph();
+		}
+	}
+	else
+	{
+		var oPrevCell = oRow.GetCell(nCellIndex - 1);
+
+		if (!oPrevCell)
+			return null;
+
+		return oPrevCell.GetContent().GetLastParagraph();
+	}
+};
+/**
+ * Участвует ли в вертикальном объединении данная ячейка
+ * @returns {vmerge_Restart | vmerge_Continue}
+ */
+CTableCell.prototype.GetHMerge = function()
+{
+	return this.Get_CompiledPr(false).HMerge;
+};
+/**
+ * Задаем настройку участия данной ячейки в вертикальном объединении
+ * @param {vmerge_Restart | vmerge_Continue} nType
+ */
+CTableCell.prototype.SetHMerge = function(nType)
+{
+	if (nType === this.Pr.HMerge)
+		return;
+
+	History.Add(new CChangesTableCellHMerge(this, this.Pr.HMerge, nType));
+	this.Pr.HMerge = nType;
+	this.Recalc_CompiledPr();
+};
+/**
+ * По заданной абсолютной странице получаем массив относительных страниц (относительно таблицы)
+ * @param nPageAbs
+ * @returns {Array}
+ */
+CTableCell.prototype.GetCurPageByAbsolutePage = function(nPageAbs)
+{
+	var arrPages = [];
+
+	var oRow = this.GetRow();
+	var oTable = this.GetTable();
+
+	if (!oRow || !oTable || !oTable.RowsInfo[oRow.GetIndex()])
+		return arrPages;
+
+	var nStartPage = oTable.RowsInfo[oRow.GetIndex()].StartPage;
+
+	var nPagesCount = this.Content.Pages.length;
+	for (var nCurPage = 0; nCurPage < nPagesCount; ++nCurPage)
+	{
+		if (nPageAbs === this.Get_AbsolutePage(nStartPage + nCurPage))
+		{
+			arrPages.push(nStartPage + nCurPage);
+		}
+	}
+
+	return arrPages;
+};
+/**
+ * Получаем границы ячейки
+ * @param nCurPage Номер страницы относительно таблицы
+ * @returns {CDocumentBounds}
+ */
+CTableCell.prototype.GetPageBounds = function(nCurPage)
+{
+	var oTable = this.GetTable();
+	var oRow   = this.GetRow();
+
+	if (!oRow || !oTable || !oTable.Pages[nCurPage])
+		return new CDocumentBounds(0, 0, 0, 0);
+
+	var nCurRow = oRow.GetIndex();
+	if (!oTable.RowsInfo[nCurRow] || !oTable.RowsInfo[nCurRow].Y[nCurPage] || !oTable.RowsInfo[nCurRow].H[nCurPage])
+		return new CDocumentBounds(0, 0, 0, 0);
+
+
+	var oPage = oTable.Pages[nCurPage];
+
+	var oCellInfo = oRow.GetCellInfo(this.GetIndex());
+
+
+	var nL = oPage.X + oCellInfo.X_cell_start;
+	var nR = oPage.X + oCellInfo.X_cell_end;
+
+	var nT = oTable.RowsInfo[nCurRow].Y[nCurPage];
+	var nB = oTable.RowsInfo[nCurRow].Y[nCurPage] + oTable.RowsInfo[nCurRow].H[nCurPage];
+
+	return new CDocumentBounds(nL, nT, nR, nB);
+};
+
 
 function CTableCellRecalculateObject()
 {

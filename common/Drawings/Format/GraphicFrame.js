@@ -615,6 +615,9 @@ CGraphicFrame.prototype.getSnapArrays = function(snapX, snapY)
 CGraphicFrame.prototype.hitInInnerArea = function(x, y)
     {
         var invert_transform = this.getInvertTransform();
+        if(!invert_transform){
+            return false;
+        }
         var x_t = invert_transform.TransformPointX(x, y);
         var y_t = invert_transform.TransformPointY(x, y);
         return x_t > 0 && x_t < this.extX && y_t > 0 && y_t < this.extY;
@@ -635,6 +638,9 @@ CGraphicFrame.prototype.getInvertTransform = function()
 CGraphicFrame.prototype.hitInBoundingRect = function(x, y)
     {
         var invert_transform = this.getInvertTransform();
+        if(!invert_transform){
+            return false;
+        }
         var x_t = invert_transform.TransformPointX(x, y);
         var y_t = invert_transform.TransformPointY(x, y);
 
@@ -710,13 +716,12 @@ CGraphicFrame.prototype.selectionSetStart = function(e, x, y, slideIndex)
             {
                 if(this.graphicObject.IsTableBorder( tx, ty, 0))
                 {
-                    if(!editor.isViewMode && editor.WordControl.m_oLogicDocument.Document_Is_SelectionLocked(AscCommon.changestype_Drawing_Props) === false)
+                    if(editor.WordControl.m_oLogicDocument.Document_Is_SelectionLocked(AscCommon.changestype_Drawing_Props) !== false)
                     {
-                        History.Create_NewPoint(AscDFH.historydescription_Presentation_TableBorder);
+                        return;
                     }
                     else
                     {
-                        return;
                     }
                 }
             }

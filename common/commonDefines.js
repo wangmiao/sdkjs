@@ -47,6 +47,7 @@
 	var c_nMaxDownloadTitleLen= 255;
 	var c_nVersionNoBase64 = 10;
 	var c_dMaxParaRunContentLength = 256;
+	var c_rUneditableTypes = /^(?:(pdf|djvu|xps))$/;
 
 	//files type for Saving & DownloadAs
 	var c_oAscFileType = {
@@ -115,6 +116,8 @@
 			KeyExpire             : -21,
 			UserCountExceed       : -22,
 			AccessDeny            : -23,
+			LoadingScriptError    : -24,
+			EditingError          :	-25,
 
 			SplitCellMaxRows     : -30,
 			SplitCellMaxCols     : -31,
@@ -181,6 +184,8 @@
 			OpenWarning : 500,
 
             DataEncrypted : -600,
+
+			CannotChangeFormulaArray: -450,
 		}
 	};
 
@@ -337,6 +342,10 @@
 	var vertalign_SubScript   = 2;
 	var hdrftr_Header         = 0x01;
 	var hdrftr_Footer         = 0x02;
+
+	var vaKSize  =  0.65;  // Коэффициент изменения размера текста для верхнего и нижнего индексов
+	var vaKSuper =  0.35;  // Позиция верхнего индекса (относительно размера текста)
+	var vaKSub   = -0.141; // Позиция нижнего индекса (относительно размера текста)
 
 	var c_oAscDropCap = {
 		None   : 0x00,
@@ -1015,6 +1024,7 @@
 		[26, 1255, "windows-1255", "Hebrew (Windows)"],
 
 		[27, 932, "Shift_JIS", "Japanese (Shift-JIS)"],
+		[52, 950, "EUC-JP", "Japanese (EUC-JP)"],
 
 		[28, 949, "KS_C_5601-1987", "Korean (Windows)"],
 		[29, 51949, "EUC-KR", "Korean (EUC)"],
@@ -1113,6 +1123,7 @@
 	var changestype_2_Element_and_Type       = 4; // Проверяем возможно ли сделать изменение заданного типа с заданным элементом(а не с текущим)
 	var changestype_2_ElementsArray_and_Type = 5; // Аналогично предыдущему, только идет массив элементов
 	var changestype_2_AdditionalTypes        = 6; // Дополнительные проверки типа 1
+	var changestype_2_Element_and_Type_Array = 7; // Проверяем возможно ли сделать изменения заданного типа с заданными элементами (для каждого элемента свое изменение)
 
 	var contentchanges_Add    = 1;
 	var contentchanges_Remove = 2;
@@ -1408,7 +1419,12 @@
 		Text : 0x00,
 		Num  : 0x01
 	};
-	
+
+	var c_oAscSdtAppearance = {
+		Frame  : 1,
+		Hidden : 2
+	};
+
 	//------------------------------------------------------------export--------------------------------------------------
 	var prot;
 	window['Asc']                          = window['Asc'] || {};
@@ -1419,6 +1435,7 @@
 	window['Asc']['c_nMaxDownloadTitleLen'] = window['Asc'].c_nMaxDownloadTitleLen = c_nMaxDownloadTitleLen;
 	window['Asc']['c_nVersionNoBase64'] = window['Asc'].c_nVersionNoBase64 = c_nVersionNoBase64;
 	window['Asc']['c_dMaxParaRunContentLength'] = window['Asc'].c_dMaxParaRunContentLength = c_dMaxParaRunContentLength;
+	window['Asc']['c_rUneditableTypes'] = window['Asc'].c_rUneditableTypes = c_rUneditableTypes;
 	window['Asc']['c_oAscFileType'] = window['Asc'].c_oAscFileType = c_oAscFileType;
 	prot                         = c_oAscFileType;
 	prot['UNKNOWN']              = prot.UNKNOWN;
@@ -1476,6 +1493,8 @@
 	prot['KeyExpire']                        = prot.KeyExpire;
 	prot['UserCountExceed']                  = prot.UserCountExceed;
 	prot['AccessDeny']                       = prot.AccessDeny;
+	prot['LoadingScriptError']               = prot.LoadingScriptError;
+	prot['EditingError']                     = prot.EditingError;
 	prot['SplitCellMaxRows']                 = prot.SplitCellMaxRows;
 	prot['SplitCellMaxCols']                 = prot.SplitCellMaxCols;
 	prot['SplitCellRowsDivider']             = prot.SplitCellRowsDivider;
@@ -1520,6 +1539,7 @@
 	prot['LockedCellPivot']                  = prot.LockedCellPivot;
 	prot['ForceSaveButton']                  = prot.ForceSaveButton;
 	prot['ForceSaveTimeout']                 = prot.ForceSaveTimeout;
+	prot['CannotChangeFormulaArray']         = prot.CannotChangeFormulaArray;
 	prot['OpenWarning']                      = prot.OpenWarning;
 	prot['DataEncrypted']                    = prot.DataEncrypted;
 	window['Asc']['c_oAscAsyncAction']       = window['Asc'].c_oAscAsyncAction = c_oAscAsyncAction;
@@ -2018,6 +2038,9 @@
 	window["AscCommon"].vertalign_SubScript         = vertalign_SubScript;
 	window["AscCommon"].hdrftr_Header               = hdrftr_Header;
 	window["AscCommon"].hdrftr_Footer               = hdrftr_Footer;
+	window["AscCommon"].vaKSize                     = vaKSize;
+	window["AscCommon"].vaKSuper                    = vaKSuper;
+	window["AscCommon"].vaKSub                      = vaKSub;
 	window["AscCommon"].c_oAscSizeRelFromH          = c_oAscSizeRelFromH;
 	window["AscCommon"].c_oAscSizeRelFromV          = c_oAscSizeRelFromV;
 	window["AscCommon"].c_oAscWrapStyle             = c_oAscWrapStyle;
@@ -2090,6 +2113,7 @@
 	window["AscCommon"].changestype_2_Element_and_Type        = changestype_2_Element_and_Type;
 	window["AscCommon"].changestype_2_ElementsArray_and_Type  = changestype_2_ElementsArray_and_Type;
 	window["AscCommon"].changestype_2_AdditionalTypes         = changestype_2_AdditionalTypes;
+	window["AscCommon"].changestype_2_Element_and_Type_Array  = changestype_2_Element_and_Type_Array;
 	window["AscCommon"].contentchanges_Add                    = contentchanges_Add;
 	window["AscCommon"].contentchanges_Remove                 = contentchanges_Remove;
 
@@ -2156,4 +2180,8 @@
 	prot = c_oAscNumberingLvlTextType;
 	prot['Text'] = c_oAscNumberingLvlTextType.Text;
 	prot['Num']  = c_oAscNumberingLvlTextType.Num;
+
+	prot = window['Asc']['c_oAscSdtAppearance'] = window['Asc'].c_oAscSdtAppearance = c_oAscSdtAppearance;
+	prot['Frame']  = c_oAscSdtAppearance.Frame;
+	prot['Hidden'] = c_oAscSdtAppearance.Hidden;
 })(window);

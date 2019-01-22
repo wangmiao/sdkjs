@@ -75,6 +75,14 @@ CNumberingLvl.prototype.GetPStyle = function()
 	return this.PStyle;
 };
 /**
+ * Устанавливаем связанный стиль
+ * @param {string} sStyleId
+ */
+CNumberingLvl.prototype.SetPStyle = function(sStyleId)
+{
+	this.PStyle = sStyleId;
+};
+/**
  * Доступ к начальному значению для данного уровня
  * @returns {number}
  */
@@ -972,6 +980,23 @@ CNumberingLvl.prototype.private_ReadLvlTextFromBinary = function(oReader)
 	oElement.ReadFromBinary(oReader);
 	return oElement;
 };
+/**
+ * Проверяем является ли данный уровень маркированным
+ * @returns {boolean}
+ */
+CNumberingLvl.prototype.IsBulleted = function()
+{
+	return this.GetFormat() === Asc.c_oAscNumberingFormat.Bullet;
+};
+/**
+ * Проверяем является ли данный уровень нумерованным
+ * @returns {boolean}
+ */
+CNumberingLvl.prototype.IsNumbered = function()
+{
+	var nFormat = this.GetFormat();
+	return (nFormat !== Asc.c_oAscNumberingFormat.Bullet && nFormat !== Asc.c_oAscNumberingFormat.None);
+};
 
 
 function CNumberingLvlTextString(Val)
@@ -1052,5 +1077,5 @@ CNumberingLvlLegacy.prototype.ReadFromBinary = function(oReader)
 	// Long : Space
 	this.Legacy = oReader.GetBool();
 	this.Indent = oReader.GetLong();
-	this.Space  = oReader.GetSpace();
+	this.Space  = oReader.GetLong();
 };

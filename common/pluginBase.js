@@ -1,6 +1,7 @@
 (function(window, undefined){
 
     var g_isMouseSendEnabled = false;
+    var g_language = "";
 
     // должны быть методы
     // init(data);
@@ -36,6 +37,39 @@
             if (type == "init")
                 window.Asc.plugin.info = pluginData;
 
+            if (!window.Asc.plugin.tr)
+            {
+                window.Asc.plugin.tr = function(val) {
+                    if (!window.Asc.plugin.translateManager || !window.Asc.plugin.translateManager[val])
+                        return val;
+                    return window.Asc.plugin.translateManager[val];
+                };
+            }
+
+            if (window.Asc.plugin.info.lang != g_language)
+            {
+                g_language = window.Asc.plugin.info.lang;
+
+                var _client = new XMLHttpRequest();
+                _client.open("GET", "./translations/" + g_language + ".json");
+
+                _client.onreadystatechange = function() {
+                    if (_client.readyState == 4 && (_client.status == 200 || location.href.indexOf("file:") == 0))
+                    {
+                        try
+                        {
+                            window.Asc.plugin.translateManager = JSON.parse(_client.responseText);
+                            if (window.Asc.plugin.onTranslate)
+                                window.Asc.plugin.onTranslate();
+                        }
+                        catch (err)
+                        {
+                        }
+                    }
+                };
+                _client.send();
+            }
+
             switch (type)
             {
                 case "init":
@@ -60,7 +94,13 @@
 					window.Asc.plugin.executeMethod = function(name, params, callback)
 					{
 					    if (window.Asc.plugin.isWaitMethod === true)
-					        return false;
+                        {
+                            if (undefined === this.executeMethodStack)
+                                this.executeMethodStack = [];
+
+                            this.executeMethodStack.push({ name : name, params : params, callback : callback });
+                            return false;
+                        }
 
 					    window.Asc.plugin.isWaitMethod = true;
 					    window.Asc.plugin.methodCallback = callback;
@@ -192,6 +232,13 @@
 					{
 						window.Asc.plugin.onMethodReturn(pluginData.methodReturnData);
 					}
+
+					if (window.Asc.plugin.executeMethodStack && window.Asc.plugin.executeMethodStack.length > 0)
+                    {
+                        var obj = window.Asc.plugin.executeMethodStack.shift();
+                        window.Asc.plugin.executeMethod(obj.name, obj.params, obj.callback);
+                    }
+
                     break;
                 }
 				case "onCommandCallback":
@@ -204,6 +251,11 @@
                 {
 					if (window.Asc.plugin.onExternalPluginMessage && pluginData.data && pluginData.data.type)
 						window.Asc.plugin.onExternalPluginMessage(pluginData.data);
+                }
+                case "onEvent":
+                {
+                    if (window.Asc.plugin["event_" + pluginData.eventName])
+                        window.Asc.plugin["event_" + pluginData.eventName](pluginData.eventData);
                 }
                 default:
                     break;
