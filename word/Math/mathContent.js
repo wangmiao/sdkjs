@@ -7619,7 +7619,7 @@ function CMathAutoCorrectEngine(Elem, CurPos) {
     this.ActionElement    = Elem;                       // Элемент на которотом срабатывает автодополнение
     this.CurElement       = CurPos;                     // индекс текущего элемента, где стоит курсор
     this.Elements         = [];
-    this.Brackets         = {countL : 0, countR : 0};   // объект, который хранит все скобки в формуле по уровням вложенности
+    this.Brackets         = {countL : 0, countR : 0, lv : 0};   // объект, который хранит все скобки в формуле по уровням вложенности
     this.BracketsInActive = false;
 
     this.CollectText      = true;
@@ -7667,7 +7667,50 @@ CMathAutoCorrectEngine.prototype.Add_Element = function(Content) {
         }
     } else {
         // to do if btackets was found
+        var objStart = this.Brackets[1].left[0].ObjectPos;
+        var objEnd = this.Brackets[1].right[this.Brackets[1].right.length - 1].ObjectPos;
+        for (var i = objEnd; i >= objStart; i--) {
+            if (Content[i].Type === 49) {
+                var kStart = FindkStar(Content, objEnd, this.Brackets[1].right[this.Brackets[1].right.length - 1].PosInObj);
+                var kEnd = FindkEnd(Content, objStart, this.Brackets[1].left[0].PosInObj);
+                for (var k = kStart - 1; k >= kEnd; k--) {
+                        this.Elements.unshift({Element: Content[i].Content[k], ElPos: i, ContPos: k});
+                }
+            } else {
+                this.Elements.unshift({Element: Content[i], ElPos: i});
+            }
+        }
     }
+};
+
+CMathAutoCorrectEngine.prototype.FindkStar = function(Content, ObjPos, PosInObj) {
+    var res = PosInObj;
+    if (res === Content[ObjPos].Content.length) {
+        return res;
+    }
+    for (var i = ObjPos; i < Content.length; i++) {
+        for (var k = PosInObj; k < Content[ObjPos].Content.length; k++) {
+            if (Content[i].Content[k].value === 32) {
+                break;
+            }
+            res = i;
+        }
+    }
+    return res;
+};
+
+CMathAutoCorrectEngine.prototype.FindkEnd = function(Content, ObjPos, PosInObj) {
+    var res = PosInObj;
+    if (res === 0) {
+        return res;
+    }
+    for (var i = PosInObj; i >= 0; i--) {
+        if (Content[ObjPos].Content[k].value === 32) {
+            break;
+        }
+        res = i;
+    }
+    return res;
 };
 
 CMathAutoCorrectEngine.prototype.Add_Text = function(Txt, Run, Pos, ElementPos, Type)
@@ -7688,7 +7731,7 @@ CMathAutoCorrectEngine.prototype.Stop_CollectText = function()
 CMathAutoCorrectEngine.prototype.Find_All_Brackets = function (Content) {
     this.Calc_Brackets_Count(Content);
     // var shift = this.Brackets.countL - this.Brackets.countR;
-    var shift = this.Brackets.SkipFirst;;
+    var shift = this.Brackets.SkipFirst;
     if (shift < 0) {
         return false;
     }
@@ -7718,7 +7761,7 @@ CMathAutoCorrectEngine.prototype.Find_All_Brackets = function (Content) {
                             // IsLeft : true,
                             InActEl : (i === this.CurElement) ? true : false,
                         });
-                        this.Brackets.lv = (this.Brackets.lv < level) ? level : this.Brackets.lv; 
+                        this.Brackets.lv = (!this.Brackets.lv || this.Brackets.lv < level) ? level : this.Brackets.lv; 
                         level++;
                         if (Content[i].Content[k].value === 0x7C || Content[i].Content[k].value === 0x2016) {
                             flag = true;
