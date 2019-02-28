@@ -5375,7 +5375,9 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
     var AutoCorrectEngine = new CMathAutoCorrectEngine(ActionElement, this.CurPos);
     
     //необходимо найти все скобки и запомнить что находится между ними
-    AutoCorrectEngine.Find_All_Brackets(this.Content);
+    // AutoCorrectEngine.Find_All_Brackets(this.Content);
+    AutoCorrectEngine.Find_All_Brackets(this.Content[0].Parent.Copy(), this.Content[this.CurPos].State.ContentPos);
+
     //добавить все элементы между закрывающейся и открывающейся скобкой если они есть или от текущего положения курсора влево до конца или двух пробелов или объекта
     AutoCorrectEngine.Add_Element(this.Content);
 
@@ -7620,7 +7622,7 @@ function CMathAutoCorrectEngine(Elem, CurPos) {
     this.CurElement       = CurPos;                     // индекс текущего элемента, где стоит курсор
     this.Elements         = [];
     this.Brackets         = {countL : 0, countR : 0, lv : 0};   // объект, который хранит все скобки в формуле по уровням вложенности
-    this.BracketsInActive = false;
+    this.FBracketsAdd     = false;
 
     this.CollectText      = true;
     this.Type			  = null;
@@ -7635,10 +7637,42 @@ function CMathAutoCorrectEngine(Elem, CurPos) {
     this.MathPr           = null;
 }
 
+CMathAutoCorrectEngine.prototype.FindkStart  = function(Content, ObjPos, PosInObj) {
+    var res = PosInObj;
+    if (res === Content[ObjPos].Content.length) {
+        return res;
+    }
+    for (var i = ObjPos; i < Content.length; i++) {
+        for (var k = PosInObj; k <= Content[ObjPos].Content.length; k++) {
+            res = k;
+            if (Content[i].Content[k].value === 32) {
+                break;
+            }
+        }
+    }
+    return res;
+};
+
+CMathAutoCorrectEngine.prototype.FindkEnd = function(Content, ObjPos, PosInObj) {
+    var res = PosInObj;
+    if (res === 0) {
+        return res;
+    }
+    for (var i = ObjPos; i >= 0; i--) {
+        for (var k = PosInObj; k >= 0; k--) {
+            if (Content[i].Content[k].value === 32) {
+                break;
+            }
+            res = k;
+        }
+    }
+    return res;
+};
+
 CMathAutoCorrectEngine.prototype.Add_Element = function(Content) {
     var nCount = this.CurElement;
     var Fbreak = false;
-    if (!this.Brackets.lv) {    //if brackets not found
+    if (!this.Brackets.lv) {    //if brackets not found or are not processed
         for (var i = nCount; i >= 0; i--) {
             if (Fbreak) {
                 break;
@@ -7671,8 +7705,8 @@ CMathAutoCorrectEngine.prototype.Add_Element = function(Content) {
         var objEnd = this.Brackets[1].right[this.Brackets[1].right.length - 1].ObjectPos;
         for (var i = objEnd; i >= objStart; i--) {
             if (Content[i].Type === 49) {
-                var kStart = FindkStar(Content, objEnd, this.Brackets[1].right[this.Brackets[1].right.length - 1].PosInObj);
-                var kEnd = FindkEnd(Content, objStart, this.Brackets[1].left[0].PosInObj);
+                var kStart = this.FindkStart(Content, objEnd, this.Brackets[1].right[this.Brackets[1].right.length - 1].PosInObj);
+                var kEnd = this.FindkEnd(Content, objStart, this.Brackets[1].left[0].PosInObj);
                 for (var k = kStart - 1; k >= kEnd; k--) {
                         this.Elements.unshift({Element: Content[i].Content[k], ElPos: i, ContPos: k});
                 }
@@ -7681,41 +7715,6 @@ CMathAutoCorrectEngine.prototype.Add_Element = function(Content) {
             }
         }
     }
-};
-
-CMathAutoCorrectEngine.prototype.FindkStar = function(Content, ObjPos, PosInObj) {
-    var res = PosInObj;
-    if (res === Content[ObjPos].Content.length) {
-        return res;
-    }
-    for (var i = ObjPos; i < Content.length; i++) {
-        for (var k = PosInObj; k < Content[ObjPos].Content.length; k++) {
-            if (Content[i].Content[k].value === 32) {
-                break;
-            }
-            res = i;
-        }
-    }
-    return res;
-};
-
-CMathAutoCorrectEngine.prototype.FindkEnd = function(Content, ObjPos, PosInObj) {
-    var res = PosInObj;
-    if (res === 0) {
-        return res;
-    }
-    for (var i = PosInObj; i >= 0; i--) {
-        if (Content[ObjPos].Content[k].value === 32) {
-            break;
-        }
-        res = i;
-    }
-    return res;
-};
-
-CMathAutoCorrectEngine.prototype.Add_Text = function(Txt, Run, Pos, ElementPos, Type)
-{
-    this.Elements.push({Text : Txt, Run : Run, Pos : Pos, ElementPos : ElementPos, Type : Type});
 };
 
 CMathAutoCorrectEngine.prototype.Get_ActionElement = function()
@@ -7728,7 +7727,11 @@ CMathAutoCorrectEngine.prototype.Stop_CollectText = function()
     this.CollectText = false;
 };
 
-CMathAutoCorrectEngine.prototype.Find_All_Brackets = function (Content) {
+CMathAutoCorrectEngine.prototype.Find_All_Brackets = function (Content, StatePos) {
+    var CurElem = this.CurElement;
+    Content.CurPos = this.CurElement;
+    Content.Content[this.CurElement].State.ContentPos = StatePos;
+    Content = this.ChangeCopyContent(Content);
     this.Calc_Brackets_Count(Content);
     // var shift = this.Brackets.countL - this.Brackets.countR;
     var shift = this.Brackets.SkipFirst;
@@ -7787,9 +7790,6 @@ CMathAutoCorrectEngine.prototype.Find_All_Brackets = function (Content) {
                         // IsLeft : false,
                         InActEl : (i === this.CurElement) ? true : false,
                     });
-                    // if (i === this.CurElement && this.ActionElement !== Content[i].Content[k]) {
-                        this.BracketsInActive = true;
-                    // }
                         level--;
                     if (Content[i].Content[k].value === 0x7C || Content[i].Content[k].value === 0x2016) {
                         flag = false;
@@ -7798,12 +7798,49 @@ CMathAutoCorrectEngine.prototype.Find_All_Brackets = function (Content) {
             }
         }
     }
-    if (!this.BracketsInActive) {
-        //to do
+    if (this.Brackets.lv) {
+        if (!this.CheckBrackets(Content)) {
+            this.Brackets = {lv : 0};
+        }
     }
+    this.CurElement = CurElem;
 };
 
-CMathAutoCorrectEngine.prototype.Calc_Brackets_Count = function (Content) {
+CMathAutoCorrectEngine.prototype.ChangeCopyContent = function(Content) {
+    var FFirsObj = false;
+    for (var i = this.CurElement; i >= 0; i--) {
+        if (Content.Content[i].Type !== 49) {
+            FFirsObj = true;
+            continue;
+        }
+        if(!FFirsObj) {
+            continue;
+        }
+        Content.Remove_Content(i,1);
+        this.CurElement--;
+    }
+    return Content.Content;
+};
+
+CMathAutoCorrectEngine.prototype.CheckBrackets = function(Content) {
+    var res = true;
+    var LastRBracket = this.Brackets[1].right[this.Brackets[1].right.length - 1];
+    if (this.CurElement !== LastRBracket.ObjectPos) {
+        res = false;
+    } else if (Content[this.CurElement].State.ContentPos -1 < LastRBracket.PosInObj) {
+        res = false;
+    } else {
+        for (var i = Content[this.CurElement].State.ContentPos - 2; i >= LastRBracket.PosInObj; i--) {
+            if (Content[this.CurElement].Content[i].value === 32) {
+                res = false;
+                break;
+            }
+        }
+    }
+    return res;
+};
+
+CMathAutoCorrectEngine.prototype.Calc_Brackets_Count = function(Content) {
     //надо посчитать количество левых и правых, если правых больше левых и они не вначале -> автозамена не делается,
     //если правих больше левых и они вначале, то просто пропускаем их
     //если левых больше правых, то отбрасываем крайнюю левую (сначала) до тех пока, пока их количество не сровняется
