@@ -5723,14 +5723,17 @@ AutoCorrectionControl.prototype.SetReplaceChar = function(AutoCorrectEngine) {
 };
 AutoCorrectionControl.prototype.PackTextToContent = function(Element, TempElements, AutoCorrectEngine, bReplaceBrackets) {
     var len = TempElements.length;
+    var start = 0;
     if (len > 1 && TempElements[0].Type != para_Math_Composition && bReplaceBrackets) {
         if ((TempElements[0].value === 0x0028 && TempElements[len-1].value === 0x0029) || (TempElements[0].value === 0x3016 && TempElements[len-1].value === 0x3017)) {
             // TempElements.splice(len-1,1);
             // TempElements.splice(0,1);
             // len -= 2 ;
+            start = 1;
+            len -= 1;
         }
     }
-    for (var nPos = 0; nPos < len; nPos++) {
+    for (var nPos = start; nPos < len; nPos++) {
         if (undefined === TempElements[nPos].value) {
             Element.Internal_Content_Add(nPos, TempElements[nPos]);
         } else {
@@ -6128,85 +6131,85 @@ AutoCorrectionControl.prototype.FindFunction = function(CanMakeAutoCorrect)
         if (para_Math_Composition == oCurElem.Type) {
             continue;
         }else if (oCurElem.Type === para_Math_Text && oCurElem.value === 0x0028 && this.bCloseBrk) {    // (
-            // if (this.BrAccount.LBracket == 0x7C) {    // |
-            //     this.BrAccount.CorrectLeftSeparate(oCurElem, i, oCurElem.value);
-            //     this.bOpenBrk    = true;
-            //     oLeftCommandType = MATH_DELIMITER;
-            //     this.bDelimiter  = true;
-            // } else {
-            //     this.BrAccount.CorrectLeft(oCurElem, i, oCurElem.value);
-            //     this.bOpenBrk = true;
-            //     if (this.BrAccount.nCounter < 0) {
-            //         break;
-            //     }
-            //     //для дроби и степени контент в скобках не заменяем на delimiter
-            //     if (0x5E != this.ActionElementCode && 0x5F != this.ActionElementCode && 0x2F != this.ActionElementCode) { // _ && /
-            //         oLeftCommandType = MATH_DELIMITER;
-            //         this.bDelimiter  = true;
-            //     }
-            // }
+            if (this.BrAccount.LBracket == 0x7C) {    // |
+                this.BrAccount.CorrectLeftSeparate(oCurElem, i, oCurElem.value);
+                this.bOpenBrk    = true;
+                oLeftCommandType = MATH_DELIMITER;
+                this.bDelimiter  = true;
+            } else {
+                this.BrAccount.CorrectLeft(oCurElem, i, oCurElem.value);
+                this.bOpenBrk = true;
+                if (this.BrAccount.nCounter < 0) {
+                    break;
+                }
+                //для дроби и степени контент в скобках не заменяем на delimiter
+                if (0x5E != this.ActionElementCode && 0x5F != this.ActionElementCode && 0x2F != this.ActionElementCode) { // _ && /
+                    oLeftCommandType = MATH_DELIMITER;
+                    this.bDelimiter  = true;
+                }
+            }
 
         } else if (oCurElem.value === 0x0029) { // )
-            // this.BrAccount.CorrectRight(oCurElem, i, oCurElem.value);
-            // this.bCloseBrk = true;
+            this.BrAccount.CorrectRight(oCurElem, i, oCurElem.value);
+            this.bCloseBrk = true;
         } else if (g_MathLeftBracketAutoCorrectCharCodes[oCurElem.value] && this.bCloseBrk) {
-            // if (this.BrAccount.LBracket == 0x7C) {    // |
-            //     this.BrAccount.CorrectLeftSeparate(oCurElem, i, oCurElem.value);
-            //     this.bOpenBrk    = true;
-            //     oLeftCommandType = MATH_DELIMITER;
-            //     this.bDelimiter  = true;
-            // } else {
-            //     this.BrAccount.CorrectLeft(oCurElem, i, oCurElem.value);
-            //     this.bOpenBrk = true;
-            //     if (this.BrAccount.nCounter < 0) {
-            //         break;
-            //     }
-            //     //для дроби и степени контент в скобках не заменяем на delimiter
-            //     if (0x5E != this.ActionElementCode && 0x5F != this.ActionElementCode && 0x2F != this.ActionElementCode) { // _ && /
-            //         oLeftCommandType = MATH_DELIMITER;
-            //         this.bDelimiter  = true;
-            //     }
-            // }
+            if (this.BrAccount.LBracket == 0x7C) {    // |
+                this.BrAccount.CorrectLeftSeparate(oCurElem, i, oCurElem.value);
+                this.bOpenBrk    = true;
+                oLeftCommandType = MATH_DELIMITER;
+                this.bDelimiter  = true;
+            } else {
+                this.BrAccount.CorrectLeft(oCurElem, i, oCurElem.value);
+                this.bOpenBrk = true;
+                if (this.BrAccount.nCounter < 0) {
+                    break;
+                }
+                //для дроби и степени контент в скобках не заменяем на delimiter
+                if (0x5E != this.ActionElementCode && 0x5F != this.ActionElementCode && 0x2F != this.ActionElementCode) { // _ && /
+                    oLeftCommandType = MATH_DELIMITER;
+                    this.bDelimiter  = true;
+                }
+            }
         } else if (g_MathRightBracketAutoCorrectCharCodes[oCurElem.value]) {
-            // this.BrAccount.CorrectRight(oCurElem, i, oCurElem.value);
-            // this.bCloseBrk = true;
+            this.BrAccount.CorrectRight(oCurElem, i, oCurElem.value);
+            this.bCloseBrk = true;
         } else if (oCurElem.value === 0x007C) { // |
-            // var code = oCurElem.value;
-            // this.BrAccount.Elems.unshift(i, code);
+            var code = oCurElem.value;
+            this.BrAccount.Elems.unshift(i, code);
 
-            // if (this.bCloseBrk == false) { 
-            //     this.BrAccount.CorrectRight(oCurElem, i, oCurElem.value);
-            //     this.bCloseBrk = true;
-            // } else if (this.bCloseBrk == true && this.bOpenBrk == false) {
-            //     this.BrAccount.CorrectLeft(oCurElem, i, oCurElem.value);
-            //     this.bOpenBrk = true;
-            //     if (this.BrAccount.nCounter < 0) {
-            //         break;
-            //     }
-            //     oLeftCommandType = MATH_DELIMITER;
-            //     this.bDelimiter  = true;
-            // } else if (this.bCloseBrk == true && this.bOpenBrk == true) {
-            //     if (this.BrAccount.LBracket == 0x7C) {    // |
-            //         this.BrAccount.CorrectLeftSeparate(oCurElem, i, oCurElem.value);
-            //         this.bOpenBrk    = true;
-            //         oLeftCommandType = MATH_DELIMITER;
-            //         this.bDelimiter  = true;
-            //     } else {
-            //         this.BrAccount.CorrectLeft(oCurElem, i, oCurElem.value);
-            //         this.bOpenBrk = true;
-            //         if (this.BrAccount.nCounter < 0) {
-            //             break;
-            //         }
-            //         oLeftCommandType = MATH_DELIMITER;
-            //         this.bDelimiter  = true;
-            //     }
-            // }
+            if (this.bCloseBrk == false) { 
+                this.BrAccount.CorrectRight(oCurElem, i, oCurElem.value);
+                this.bCloseBrk = true;
+            } else if (this.bCloseBrk == true && this.bOpenBrk == false) {
+                this.BrAccount.CorrectLeft(oCurElem, i, oCurElem.value);
+                this.bOpenBrk = true;
+                if (this.BrAccount.nCounter < 0) {
+                    break;
+                }
+                oLeftCommandType = MATH_DELIMITER;
+                this.bDelimiter  = true;
+            } else if (this.bCloseBrk == true && this.bOpenBrk == true) {
+                if (this.BrAccount.LBracket == 0x7C) {    // |
+                    this.BrAccount.CorrectLeftSeparate(oCurElem, i, oCurElem.value);
+                    this.bOpenBrk    = true;
+                    oLeftCommandType = MATH_DELIMITER;
+                    this.bDelimiter  = true;
+                } else {
+                    this.BrAccount.CorrectLeft(oCurElem, i, oCurElem.value);
+                    this.bOpenBrk = true;
+                    if (this.BrAccount.nCounter < 0) {
+                        break;
+                    }
+                    oLeftCommandType = MATH_DELIMITER;
+                    this.bDelimiter  = true;
+                }
+            }
         } else if (oCurElem.value === 0x0028 && !this.bCloseBrk) { // (
-            // if (g_MathRightBracketAutoCorrectCharCodes[this.ActionElementCode] || g_aMathAutoCorrectFracCharCodes[this.ActionElementCode]) {
-            //     break;
-            // } else {
-            //     return;
-            // }
+            if (g_MathRightBracketAutoCorrectCharCodes[this.ActionElementCode] || g_aMathAutoCorrectFracCharCodes[this.ActionElementCode]) {
+                break;
+            } else {
+                return;
+            }
         } else if (oCurElem.Type === para_Math_BreakOperator && oCurElem.value == 0x5C) { // \
             if (i < nCurPos) {
                 var oPrevElem = this.Elements[i + 1].Element.value;
@@ -6439,33 +6442,34 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
         } else if (Elem.value === 0x0029) { // )
             TempElements.splice(0, 0, Elem);
             TempElementsPos.splice(0, 0, CurPos);
-            // bCloseBrk = true;
+            bCloseBrk = true;
         } else if (Elem.value === 0x0028) { // (
-            // if (!bCloseBrk) {
-            //     return false;
-            // }
-            // if (bOpenBrk) {
-            //     //CurPos--; // a^((a/2))
-            //     break;
-            // }
+            if (!bCloseBrk) {
+                return false;
+            }
+            if (bOpenBrk) {
+                //CurPos--; // a^((a/2))
+                break;
+            }
             TempElements.splice(0, 0, Elem);
             TempElementsPos.splice(0, 0, CurPos);
-            // bOpenBrk = true;
-            // if (this.ActionElementCode === 0x20) {
-            //     if (CurPos-1 > 0) { // ((a/1(a+1)
-            //         // var Elem = this.Elements[this.CurElement].Element.Content[CurPos-1];
-            //         var Elem = this.Elements[CurPos-1].Element;
+            bOpenBrk = true;
+            if (this.ActionElementCode === 0x20) {
+                if (CurPos-1 > 0) { // ((a/1(a+1)
+                    // var Elem = this.Elements[this.CurElement].Element.Content[CurPos-1];
+                    var Elem = this.Elements[CurPos-1].Element;
 
-            //         if ( para_Math_Text == Elem.Type  &&  0x002F != Elem.value && 0x005F != Elem.value && 0x005E != Elem.value && 0x00A6 != Elem.value && 0x2592 != Elem.value && !q_aMathAutoCorrectControlCharCodes[Elem.value] ) {
-            //             break;
-            //         }
-            //     }
+                    if ( para_Math_Text == Elem.Type  &&  0x002F != Elem.value && 0x005F != Elem.value && 0x005E != Elem.value && 0x00A6 != Elem.value && 0x2592 != Elem.value && !q_aMathAutoCorrectControlCharCodes[Elem.value] ) {
+                        CurPos--;
+                        break;
+                    }
+                }
 
-            // }
+            }
         }
         else if (0x002F === Elem.value) { // /
             //введены символы _ ^ + -
-            if (this.ActionElement.Type == para_Math_Text && (this.ActionElementCode == 0x005E || this.ActionElementCode == 0x005F)) { // a/a_
+            if (this.ActionElement.Type == para_Math_Text && (this.ActionElementCode == 0x005E || this.ActionElementCode == 0x005F || this.ActionElementCode == 0x0028 || this.ActionElementCode == 0x0029)) { // a/a_
                 return false;
             }
             this.Type = MATH_FRACTION;
@@ -6533,28 +6537,38 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             CurPos--;
             break;
         } else if (0x0020 === Elem.value && !bCloseBrk) { // space
+            if (CurPos-1 > 0) {
+                var el = this.Elements[CurPos-1].Element;
+                if (para_Math_Text == el.Type && el.value ===0x0020) { //2 spaces in a row
+                    break;
+                }
+            }
+            // TempElements.splice(0, 0, Elem);
+            // TempElementsPos.splice(0, 0, CurPos);
             CurPos--;
             continue;
         } else if (g_aMathAutoCorrectTriggerCharCodes[Elem.value] && bOpenBrk && bCloseBrk) {
             break;
-        } else if (g_aMathAutoCorrectFracCharCodes[Elem.value]) {
-            if (CurPos-1 > 0) { // \sum_-\infty
-                // var Elem = this.Elements[this.CurElement].Element.Content[CurPos-1];
-                var Elem = this.Elements[CurPos-1].Element;
+        } 
+        // else if (g_aMathAutoCorrectFracCharCodes[Elem.value]) {
+        //     if (CurPos-1 > 0) { // \sum_-\infty
+        //         // var Elem = this.Elements[this.CurElement].Element.Content[CurPos-1];
+        //         var Elem = this.Elements[CurPos-1].Element;
 
-                if (para_Math_Text == Elem.Type  &&  (0x005F == Elem.value || 0x005E == Elem.value)) {
-                    TempElements.splice(0, 0, Elem);
-                    TempElementsPos.splice(0, 0, CurPos);
-                } else if (bCloseBrk) { // \sum_(--)
-                    TempElements.splice(0, 0, Elem);
-                    TempElementsPos.splice(0, 0, CurPos);
-                } else if (!bCloseBrk && !bOf ) { // \sum_--
-                    break;
-                }
-            } else {
-                break;
-            }
-        } else if (q_aMathAutoCorrectControlCharCodes[Elem.value]) {
+        //         if (para_Math_Text == Elem.Type  &&  (0x005F == Elem.value || 0x005E == Elem.value)) {
+        //             TempElements.splice(0, 0, Elem);
+        //             TempElementsPos.splice(0, 0, CurPos);
+        //         } else if (bCloseBrk) { // \sum_(--)
+        //             TempElements.splice(0, 0, Elem);
+        //             TempElementsPos.splice(0, 0, CurPos);
+        //         } else if (!bCloseBrk && !bOf ) { // \sum_--
+        //             break;
+        //         }
+        //     } else {
+        //         break;
+        //     }
+        // } 
+        else if (q_aMathAutoCorrectControlCharCodes[Elem.value]) {
             break;
         } else {
             TempElements.splice(0, 0, Elem);
@@ -6588,20 +6602,20 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
                 TempElements2.splice(0, 0, Elem);
             }
         } else if (Elem.value === 0x0029) {  // )
-            // if (bOpenBrk || TempElements2.length > 0) {
-            //     break;
-            // }
+            if (bOpenBrk || TempElements2.length > 0) {
+                break;
+            }
             TempElements2.splice(0, 0, Elem);
-            // bCloseBrk = true;
+            bCloseBrk = true;
         } else if (Elem.value === 0x0028) { //(
-            // if (!bCloseBrk) {
-            //     break;
-            // }
-            // if (bOpenBrk) {
-            //     break;
-            // }
+            if (!bCloseBrk) {
+                break;
+            }
+            if (bOpenBrk) {
+                break;
+            }
             TempElements2.splice(0, 0, Elem);
-            // bOpenBrk = true;
+            bOpenBrk = true;
         } else if  (0x005F === Elem.value) { // _
             if (this.Type == MATH_DEGREE && TempElements.Type == DEGREE_SUBSCRIPT) {
                 break;
@@ -6648,25 +6662,24 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             // CurPos--;
             // continue;
         }
-            
-        else if (g_aMathAutoCorrectFracCharCodes[Elem.value]) {
-            if (CurPos-1 > 0) { // \sum_-\infty
-                // var Elem = this.Elements[this.CurElement].Element.Content[CurPos-1];
-                var Elem = this.Elements[CurPos-1].Element;
+        // else if (g_aMathAutoCorrectFracCharCodes[Elem.value]) {
+        //     if (CurPos-1 > 0) { // \sum_-\infty
+        //         // var Elem = this.Elements[this.CurElement].Element.Content[CurPos-1];
+        //         var Elem = this.Elements[CurPos-1].Element;
 
-                if (para_Math_Text == Elem.Type  &&  (0x005F == Elem.value || 0x005E == Elem.value)) {   // _ || ^
-                    TempElements2.splice(0, 0, Elem);
-                } else if (bCloseBrk) { // \sum_(--)
-                    TempElements2.splice(0, 0, Elem);
-                } else if (!bCloseBrk && !bOf ) { // \sum_--
-                    break;
-                } else if (!bCloseBrk && bOf) { // \root n+a\of 2
-                    TempElements2.splice(0, 0, Elem);
-                }
-            } else {
-                break;
-            }
-        }
+        //         if (para_Math_Text == Elem.Type  &&  (0x005F == Elem.value || 0x005E == Elem.value)) {   // _ || ^
+        //             TempElements2.splice(0, 0, Elem);
+        //         } else if (bCloseBrk) { // \sum_(--)
+        //             TempElements2.splice(0, 0, Elem);
+        //         } else if (!bCloseBrk && !bOf ) { // \sum_--
+        //             break;
+        //         } else if (!bCloseBrk && bOf) { // \root n+a\of 2
+        //             TempElements2.splice(0, 0, Elem);
+        //         }
+        //     } else {
+        //         break;
+        //     }
+        // }
         else if (q_aMathAutoCorrectControlCharCodes[Elem.value]) {
             break;
         } else {
@@ -6856,7 +6869,7 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
 
                 // var BaseElems = [TempElements3[TempElements3.length-1]];
                 var BaseElems = TempElements3;
-                this.PackTextToContent(BaseContent, BaseElems, AutoCorrectEngine, true);
+                this.PackTextToContent(BaseContent, BaseElems, AutoCorrectEngine, false);
 
                 // AutoCorrectEngine.RemoveCount = TempElements.length + TempElements2.length + TempElements3.length + 1;
                 // if (0x20 == this.ActionElementCode)
@@ -8238,7 +8251,7 @@ var g_aMathAutoCorrectDegreeCharCodes =
 var g_aMathAutoCorrectTriggerCharCodes =
 {
     0x20 : 1, 0x21 : 1, 0x22 : 1, 0x23 : 1, 0x24 : 1, 0x25 : 1, /*0x26 : 1,*/
-    0x27 : 1, /*0x28 : 1, 0x29 : 1,*/ 0x2A : 1, 0x2B : 1, 0x2C : 1, 0x2D : 1,
+    0x27 : 1, 0x28 : 1, 0x29 : 1, 0x2A : 1, 0x2B : 1, 0x2C : 1, 0x2D : 1,
     0x2E : 1, /*0x2F : 1,*/ 0x3A : 1, 0x3B : 1, 0x3C : 1, 0x3D : 1, 0x3E : 1,
     0x3F : 1, 0x40 : 1, /*0x5B : 1, 0x5D : 1,*/ 0x5C : 1, 0x5E : 1, 0x5F : 1,
     0x60 : 1, /*0x7B : 1, 0x7D : 1, 0x7C : 1,*/ 0x7E : 1 /*,0x2592 : 1*/
