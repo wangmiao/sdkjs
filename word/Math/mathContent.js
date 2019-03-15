@@ -5341,7 +5341,7 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
 
     var bNeedAutoCorrect = this.private_NeedAutoCorrect(ActionElement);
 
-    var AutoCorrectEngine = new CMathAutoCorrectEngine(ActionElement, this.CurPos);
+    var AutoCorrectEngine = new CMathAutoCorrectEngine(ActionElement, this.CurPos, this.ParaMath);
 
     //добавить все элементы
     AutoCorrectEngine.Add_Element(this.Content);
@@ -5421,7 +5421,8 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
         // Пробуем сделать формульную автозамену
         if (CanMakeAutoCorrectFunc === false && CanMakeAutoCorrect === false) {
             // if (CanMakeAutoCorrect || ( 0x28 != ActionElement.value && 0x5C != ActionElement.value)) {
-                CanMakeAutoCorrectEquation = oAutoCorrectControl.private_CanAutoCorrectEquation(AutoCorrectEngine, CanMakeAutoCorrect, bCursorStepRight);
+                // CanMakeAutoCorrectEquation = oAutoCorrectControl.private_CanAutoCorrectEquation(AutoCorrectEngine, CanMakeAutoCorrect, bCursorStepRight);
+                CanMakeAutoCorrectEquation = AutoCorrectEngine.private_CanAutoCorrectEquation(CanMakeAutoCorrect, bCursorStepRight);
             // }
         }
     }
@@ -5749,6 +5750,36 @@ AutoCorrectionControl.prototype.PackTextToContent = function(Element, TempElemen
         }
     }
 };
+
+CMathAutoCorrectEngine.prototype.PackTextToContent = function(Element, TempElements, bReplaceBrackets) {
+    var len = TempElements.length;
+    var start = 0;
+    if (len > 1 && TempElements[0].Type != para_Math_Composition && bReplaceBrackets) {
+        if ((TempElements[0].value === 0x0028 && TempElements[len-1].value === 0x0029) || (TempElements[0].value === 0x3016 && TempElements[len-1].value === 0x3017)) {
+            // TempElements.splice(len-1,1);
+            // TempElements.splice(0,1);
+            // len -= 2 ;
+            start = 1;
+            len -= 1;
+        }
+    }
+    for (var nPos = start; nPos < len; nPos++) {
+        if (undefined === TempElements[nPos].value) {
+            Element.Internal_Content_Add(nPos, TempElements[nPos]);
+        } else {
+            var MathRun = new ParaRun(this.ParaMath.Paragraph, true);
+
+            MathRun.Set_Pr(this.TextPr.Copy());
+            MathRun.Set_MathPr(this.MathPr.Copy());
+
+            var MathText = new CMathText();
+            MathText.add(TempElements[nPos].value);
+            MathRun.Add_ToContent(nPos, MathText);
+            Element.Internal_Content_Add(nPos, MathRun);
+        }
+    }
+};
+
 AutoCorrectionControl.prototype.AutoCorrectAccent = function(AutoCorrectEngine, CanMakeAutoCorrect)
 {
     var CurPos = this.CurPos;
@@ -6379,6 +6410,115 @@ AutoCorrectionControl.prototype.FindFunction = function(CanMakeAutoCorrect)
     this.CurPos = nCurPos;
     return true;
 };
+
+CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMakeAutoCorrect, bCursorStepRight) { 
+    var buffer = {
+        lv0 : []
+    };
+    var CurLvBuf = 0;
+    var lvBrackets = 1;
+    var CurPos = this.Elements.length - 1;
+    var bBrackOpen = false;
+    while (CurPos >= 0) {
+        var Elem = this.Elements[CurPos].Element;
+        if (Elem.value === undefined) {
+            buffer["lv" + CurLvBuf].splice(0, 0, Elem);
+        } else if (Elem.value === 0x002F) { // /
+            if (this.ActionElement.Type === para_Math_Text && g_aMathAutoCorrectNotDoFraction[this.ActionElement.value]) {
+                //дробь не закончена и рано еще делать автозамену
+                return false;
+            }
+            this.Type = MATH_FRACTION;
+            if (CurPos - 1 > 0) {
+                Elem = this.Elements[CurPos-1].Element;
+
+                if ( (Elem.Type === para_Math_Text || Elem.Type === para_Math_BreakOperator) && Elem.value === 0x005C) {
+                    this.props = {type: LINEAR_FRACTION};
+                    CurPos--;
+                }
+            }
+            CurPos--;
+            CurLvBuf++;
+            buffer["lv" + CurLvBuf] = [];
+            continue;
+        } else if (g_MathRightBracketAutoCorrectCharCodes[Elem.value]) { //right bracket
+            if (!this.Type) {
+                this.Type = MATH_DELIMITER;
+            }
+            if (!this.Brackets[lvBrackets]) {
+                this.Brackets[lvBrackets] = {};	
+                this.Brackets[lvBrackets]['left'] = [];	
+                this.Brackets[lvBrackets]['right'] = [];
+            }
+            this.Brackets[lvBrackets]['right'].push(Elem);
+            lvBrackets++;
+            buffer["lv" + CurLvBuf].splice(0, 0, Elem);
+            bBrackOpen = true;
+        }  else if (g_MathLeftBracketAutoCorrectCharCodes[Elem.value]) { //left bracket
+            if (!this.Brackets[0]) { // if firs brackesk is left
+                return false;
+            }
+            if (lvBrackets > 1) {
+                lvBrackets--;
+            }
+            if (this.Brackets[lvBrackets][left].length === this.Brackets[lvBrackets][right].length) {
+                buffer["lv" + CurLvBuf].splice(0, 0, Elem);
+                CurPos--;
+                continue;
+            } else if (this.Brackets[lvBrackets][left].length < this.Brackets[lvBrackets][right].length) {
+                this.Brackets[lvBrackets][left].push(Elem);
+                bBrackOpen = false;
+                if (CurPos - 1 >= 0) {
+                    //смотрим что слева от скобки и делаем елементам соответствующий тип или иожет это не надо
+                }
+            }
+
+            if (this.Brackets[lvBrackets])
+            buffer["lv" + CurLvBuf].splice(0, 0, Elem);
+        
+        } else if (Elem.value === 0x0020 && !bBrackOpen) { // space
+            //доделать на нулевом уровне и с открытой скобкой
+            if (Elem === this.ActionElement) {
+                CurPos--;
+                continue;
+            }
+            break;
+        }
+        else {
+            buffer["lv" + CurLvBuf].splice(0, 0, Elem);
+        }
+        CurPos--;
+    }
+
+    switch(this.Type) {
+        case MATH_FRACTION :
+            var props = new CMathFractionPr();
+            props.Set_FromObject(this.props);
+            props.ctrPrp = this.TextPr.Copy();
+            var Fraction = new CFraction(props);
+
+            var DenMathContent = Fraction.getDenominatorMathContent();
+            var NumMathContent = Fraction.getNumeratorMathContent();
+
+            this.PackTextToContent(DenMathContent, buffer.lv0, true);
+            this.PackTextToContent(NumMathContent, buffer.lv1, true);
+
+            var RemoveCount = buffer.lv0.length + buffer.lv1.length + 1;
+            if (0x20 == this.ActionElement.value) {
+                RemoveCount++;
+            }
+            var Start = this.Elements.length - RemoveCount;
+            this.Remove.push({Count:RemoveCount, Start:Start});
+            this.ReplaceContent.unshift(Fraction);
+            return true;
+            break;
+        case MATH_DELIMITER :
+            //todo
+            break;
+    }
+
+};
+
 AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCorrectEngine, CanMakeAutoCorrect, bCursorStepRight) {
     var TempElements = [];
     var TempElementsPos = [];
@@ -6780,7 +6920,6 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
     }
     if (this.Type == MATH_FRACTION) {
         //todo для нуля вставить плейсхолдер
-        if (TempElements2.length > 0) {
             var props = new CMathFractionPr();
             props.Set_FromObject(this.props);
             props.ctrPrp = AutoCorrectEngine.TextPr.Copy();
@@ -6806,7 +6945,6 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             AutoCorrectEngine.ReplaceContent.unshift(Fraction);
 
             return true;
-        }
     } else if (this.Type == MATH_DEGREE) {
         var ReplaceElem = null;
         if (CanMakeAutoCorrect && AutoCorrectEngine.ReplaceContent.length>0 && AutoCorrectEngine.ReplaceContent[0].Content.length>0) {
@@ -7619,16 +7757,18 @@ CMathBracketAcc.prototype.Compare             = function()
 };
 
 
-function CMathAutoCorrectEngine(Elem, CurPos) {
+function CMathAutoCorrectEngine(Elem, CurPos, ParaMath) {
     this.ActionElement    = Elem;                       // Элемент на которотом срабатывает автодополнение
     this.CurElement       = CurPos;                     // индекс текущего элемента, где стоит курсор
     this.Elements         = [];
-    this.Brackets         = {};                         // сейчас под вопросом нужен ли он
+    this.Brackets         = [];                         // сейчас под вопросом нужен ли он
     this.FBracketsAdd     = false;
 
     this.CollectText      = true;
     this.Type			  = null;
     this.Kind			  = null;
+    this.props            = {};
+    this.ParaMath         = ParaMath;
     this.Delimiter		  = null;
 
     this.Remove           = [];
@@ -8210,14 +8350,14 @@ var g_aMathAutoCorrectTriggerEquationCharCodes =
 //left brackets
 var g_MathLeftBracketAutoCorrectCharCodes =
 {
-    0x28 : 1, 0x5B : 1, 0x7B : 1, 0x7C : 1, 0x2016 : 1, 0x27E8 : 1,
+    0x28 : 1, 0x5B : 1, 0x7B : 1, /*0x7C : 1, 0x2016 : 1,*/ 0x27E8 : 1,
     0x2329 : 1, 0x27E6 : 1, 0x27EA : 1, 0x2308 : 1, 0x230A : 1,
     0x3016 : 1, 0x251C : 1
 };
 //righ brackets
 var g_MathRightBracketAutoCorrectCharCodes =
 {
-    0x29 : 1, 0x5D : 1, 0x7D : 1, 0x7C : 1, 0x2016 : 1, 0x27E9 : 1,
+    0x29 : 1, 0x5D : 1, 0x7D : 1,/* 0x7C : 1, 0x2016 : 1,*/ 0x27E9 : 1,
     0x232A : 1, 0x27E7 : 1, 0x27EB : 1, 0x2309 : 1, 0x230B : 1,   
     0x3017 : 1, 0x2524 : 1
 };
@@ -8256,6 +8396,20 @@ var g_aMathAutoCorrectTriggerCharCodes =
     0x3F : 1, 0x40 : 1, /*0x5B : 1, 0x5D : 1,*/ 0x5C : 1, 0x5E : 1, 0x5F : 1,
     0x60 : 1, /*0x7B : 1, 0x7D : 1, 0x7C : 1,*/ 0x7E : 1 /*,0x2592 : 1*/
 };
+
+
+//символы при которых не производится автозамена дроби без скобок
+var g_aMathAutoCorrectNotDoFraction = {
+    0x21 : 1, 0x22 : 1, 0x27 : 1, 0x24 : 1, 0x28 : 1, 0x29 : 1, 0x5B : 1,
+    0x5D : 1, 0x7B : 1, 0x7D : 1, 0x5C : 1, 0x5E : 1, 0x5F : 1, 0x7C : 1
+};
+//символы при которых не производится автозамена
+var g_aMathDoNotAutoCorrect =
+[
+    //дробь
+    0x21, 0x22, 0x27, 0x24, 0x28, 0x29, 0x5B,
+    0x5D, 0x7B, 0x7D, 0x5C, 0x5E, 0x5F, 0x7C
+];
 
 //--------------------------------------------------------export----------------------------------------------------
 window['AscCommonWord'] = window['AscCommonWord'] || {};
