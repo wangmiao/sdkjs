@@ -5854,6 +5854,42 @@ AutoCorrectionControl.prototype.AutoCorrectDelimiter = function(AutoCorrectEngin
 
     AutoCorrectEngine.ReplaceContent.unshift(oDelimiter);
 };
+
+CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorrect)
+{
+    var props = new CMathDelimiterPr();
+    props.column = 1;
+    props.begChr = this.Brackets[1]['left'][0].bracket.value;
+    props.endChr = this.Brackets[1]['right'][0].bracket.value;
+    var oDelimiter = new CDelimiter(props);
+
+    var oBase = oDelimiter.getBase();
+    var TempElements = [];
+    for (var i = this.Brackets[1]['right'][0].pos-1.; i>this.Brackets[1]['left'][0].pos; i--) {
+        TempElements.splice(0, 0, this.Elements[i].Element);
+    }
+        // TempElements.splice(0, 0, AutoCorrectEngine.Elements[this.CurElement].Element.Content[i]);
+
+    this.PackTextToContent(oBase, TempElements, false);
+
+    this.Shift = this.Elements.length - 1 - this.Brackets[1]['right'][0].pos;
+    // AutoCorrectEngine.Shift = AutoCorrectEngine.Elements[this.CurElement].Element.Content.length - 1 - this.BrAccount.nRPos;
+
+    if (0x20 == this.ActionElement.value) {
+        this.Shift--;
+    }
+    var nRemoveCount = this.Brackets[1]['right'][0].pos - this.Brackets[1]['left'][0].pos + 1;
+    if (CanMakeAutoCorrect) {
+        nRemoveCount += this.Remove[0].Count;
+    } else if (0x20 == this.ActionElement.value) {
+        nRemoveCount++;
+    }
+    // AutoCorrectEngine.RemoveCount = nRemoveCount;
+    var Start = this.Elements.length - nRemoveCount;
+    this.Remove.push({Count:nRemoveCount, Start:Start});
+
+    this.ReplaceContent.unshift(oDelimiter);
+};
 AutoCorrectionControl.prototype.AutoCorrectPhantom = function(AutoCorrectEngine, CanMakeAutoCorrect)
 {
     var props = new CMathPhantomPr();
@@ -6441,8 +6477,8 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             CurLvBuf++;
             buffer["lv" + CurLvBuf] = [];
             continue;
-        } else if (g_MathRightBracketAutoCorrectCharCodes[Elem.value]) { //right bracket
-            if (!this.Type) {
+        } else if (g_MathRightBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //right bracket
+            if (this.Type === null) {
                 this.Type = MATH_DELIMITER;
             }
             if (!this.Brackets[lvBrackets]) {
@@ -6450,32 +6486,32 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 this.Brackets[lvBrackets]['left'] = [];	
                 this.Brackets[lvBrackets]['right'] = [];
             }
-            this.Brackets[lvBrackets]['right'].push(Elem);
+            this.Brackets[lvBrackets]['right'].push({bracket : Elem, pos: CurPos});
             lvBrackets++;
             buffer["lv" + CurLvBuf].splice(0, 0, Elem);
             bBrackOpen = true;
-        }  else if (g_MathLeftBracketAutoCorrectCharCodes[Elem.value]) { //left bracket
-            if (!this.Brackets[0]) { // if firs brackesk is left
+        }  else if (g_MathLeftBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //left bracket
+            if (!this.Brackets[1]) { // if firs brackesk is left
                 return false;
             }
             if (lvBrackets > 1) {
                 lvBrackets--;
             }
-            if (this.Brackets[lvBrackets][left].length === this.Brackets[lvBrackets][right].length) {
+            if (this.Brackets[lvBrackets]['left'].length === this.Brackets[lvBrackets]['right'].length && this.Brackets[lvBrackets]['right'].length) {
                 buffer["lv" + CurLvBuf].splice(0, 0, Elem);
                 CurPos--;
-                continue;
-            } else if (this.Brackets[lvBrackets][left].length < this.Brackets[lvBrackets][right].length) {
-                this.Brackets[lvBrackets][left].push(Elem);
+            } else if (this.Brackets[lvBrackets]['left'].length < this.Brackets[lvBrackets]['right'].length) {
+                this.Brackets[lvBrackets]['left'].push({bracket : Elem, pos: CurPos});
                 bBrackOpen = false;
+                buffer["lv" + CurLvBuf].splice(0, 0, Elem);
+                CurPos--;
+                // CurLvBuf++;
+                // buffer["lv" + CurLvBuf] = [];
                 if (CurPos - 1 >= 0) {
-                    //смотрим что слева от скобки и делаем елементам соответствующий тип или иожет это не надо
+                    //смотрим что слева от скобки и делаем елементам соответствующий тип или может это не надо
                 }
             }
-
-            if (this.Brackets[lvBrackets])
-            buffer["lv" + CurLvBuf].splice(0, 0, Elem);
-        
+            continue;  
         } else if (Elem.value === 0x0020 && !bBrackOpen) { // space
             //доделать на нулевом уровне и с открытой скобкой
             if (Elem === this.ActionElement) {
@@ -6511,10 +6547,9 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             this.Remove.push({Count:RemoveCount, Start:Start});
             this.ReplaceContent.unshift(Fraction);
             return true;
-            break;
         case MATH_DELIMITER :
-            //todo
-            break;
+            this.AutoCorrectDelimiter(CanMakeAutoCorrect);
+            return true;
     }
 
 };
@@ -8402,6 +8437,10 @@ var g_aMathAutoCorrectTriggerCharCodes =
 var g_aMathAutoCorrectNotDoFraction = {
     0x21 : 1, 0x22 : 1, 0x27 : 1, 0x24 : 1, 0x28 : 1, 0x29 : 1, 0x5B : 1,
     0x5D : 1, 0x7B : 1, 0x7D : 1, 0x5C : 1, 0x5E : 1, 0x5F : 1, 0x7C : 1
+};
+//символы при которых не производится автозамена скобок
+var g_aMathAutoCorrectDoNotDelimetr = {
+    0x2F : 1
 };
 //символы при которых не производится автозамена
 var g_aMathDoNotAutoCorrect =
