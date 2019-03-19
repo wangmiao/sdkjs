@@ -5427,61 +5427,121 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
         }
     }
     if (bFindFunction || CanMakeAutoCorrect || CanMakeAutoCorrectEquation || CanMakeAutoCorrectFunc) {
-        var ElCount = AutoCorrectEngine.Elements.length;
-        var LastEl = null;
-        var FirstEl = AutoCorrectEngine.Elements[ElCount - 1 - AutoCorrectEngine.Shift];
-        var FirstElPos = FirstEl.ElPos;
-        FirstEl.ContPos++;
-        for (var nPos = 0, nCount = AutoCorrectEngine.Remove[0].Count; nPos < nCount; nPos++) {
-            LastEl = AutoCorrectEngine.Elements[ElCount - nPos - 1 - AutoCorrectEngine.Shift];
-            if (undefined !== LastEl.Element.Parent && !LastEl.Element.kind) {
-                if (FirstEl.Element.Parent === LastEl.Element.Parent) {
-                    FirstEl.ContPos--;
+        for (var i = AutoCorrectEngine.Remove.length - 1; i >= 0; i--) {
+            var ElCount = AutoCorrectEngine.Elements.length;
+            var LastEl = null;
+            var Start = AutoCorrectEngine.Remove[i].Start;
+            var End = AutoCorrectEngine.Remove[i].Start + AutoCorrectEngine.Remove[i].Count;
+            var FirstEl = AutoCorrectEngine.Elements[Start];
+            var FirstElPos = FirstEl.ElPos;
+            
+            for (var nPos = Start; nPos < End; nPos++) {
+                LastEl = AutoCorrectEngine.Elements[nPos];
+                if (undefined !== LastEl.Element.Parent && !LastEl.Element.kind) {
+                    // if (FirstEl.Element.Parent === LastEl.Element.Parent) {
+                    //     FirstEl.ContPos--;
+                    // }
+                    LastEl.Element.Parent.Remove_FromContent(LastEl.ContPos, 1);
+                } else {
+                    this.Remove_FromContent(LastEl.ElPos, 1);
+                    // FirstElPos--;
                 }
-                LastEl.Element.Parent.Remove_FromContent(LastEl.ContPos, 1);
-            } else {
-                this.Remove_FromContent(LastEl.ElPos, 1);
-                FirstElPos--;
             }
-        }
 
-        if (FirstEl.Element.Type != para_Math_Composition) {
-            var NewRun = FirstEl.Element.Parent.Split2(FirstEl.ContPos);
-            this.Internal_Content_Add(FirstElPos + 1, NewRun, false);
-        }
-        var NewElCount = AutoCorrectEngine.ReplaceContent.length;
-        for (var nPos = 0; nPos < NewElCount; nPos++) {
-            this.Internal_Content_Add(nPos + FirstElPos + 1, AutoCorrectEngine.ReplaceContent[nPos], false);
-        }
-        this.CurPos = FirstElPos + NewElCount;
-        if (CanMakeAutoCorrectEquation && AutoCorrectEngine.Type == MATH_NARY) {
-            // var oContentElem = this.Content[this.CurPos];
-            // this.Correct_Content(true);
+            if (FirstEl.Element.Type != para_Math_Composition) {
+                var NewRun = FirstEl.Element.Parent.Split2(FirstEl.ContPos);
+                this.Internal_Content_Add(FirstElPos + 1, NewRun, false);
+            }
 
-            // var CurrentContent = new CParagraphContentPos();
-            // this.ParaMath.Get_ParaContentPos(false, false, CurrentContent);
+            this.Internal_Content_Add(FirstElPos + 1, AutoCorrectEngine.ReplaceContent[i], false);
+            this.CurPos = FirstElPos + 1;
 
-            // var LeftContentPos = new CParagraphSearchPos();
-            // this.ParaMath.Get_LeftPos(LeftContentPos, CurrentContent, 0, true);
-            // this.ParaMath.Set_ParaContentPos(LeftContentPos.ContPos, 0);
-
-            // this.CurPos++;
-            // oContentElem.CurPos = 2;
-            // oContentElem.Content[2].MoveCursorToStartPos();
-        } else {
-            this.CurPos++;
-            if (AutoCorrectEngine.Shift == 0) {
+            if (CanMakeAutoCorrectEquation && AutoCorrectEngine.Type == MATH_NARY) {
+                // var oContentElem = this.Content[this.CurPos];
+                // this.Correct_Content(true);
+    
+                // var CurrentContent = new CParagraphContentPos();
+                // this.ParaMath.Get_ParaContentPos(false, false, CurrentContent);
+    
+                // var LeftContentPos = new CParagraphSearchPos();
+                // this.ParaMath.Get_LeftPos(LeftContentPos, CurrentContent, 0, true);
+                // this.ParaMath.Set_ParaContentPos(LeftContentPos.ContPos, 0);
+    
+                // this.CurPos++;
+                // oContentElem.CurPos = 2;
+                // oContentElem.Content[2].MoveCursorToStartPos();
+            } else {
+                this.CurPos++;
                 this.Content[this.CurPos].MoveCursorToStartPos();
-            } else {
-                this.Content[this.CurPos].MoveCursorToEndPos();
+                // this.Content[this.CurPos].MoveCursorToEndPos();
             }
-        }
-        if (true === bCursorStepRight) {
-            // TODO: Переделать через функцию в ране
-            if (this.Content[this.CurPos].Content.length >= 1) {
-                this.Content[this.CurPos].State.ContentPos = 1;
+
+            if (true === bCursorStepRight) {
+                // TODO: Переделать через функцию в ране
+                if (this.Content[this.CurPos].Content.length >= 1) {
+                    this.Content[this.CurPos].State.ContentPos = 1;
+                }
             }
+
+
         }
+        
+        
+        // var ElCount = AutoCorrectEngine.Elements.length;
+        // var LastEl = null;
+        // var FirstEl = AutoCorrectEngine.Elements[ElCount - 1 - AutoCorrectEngine.Shift];
+        // var FirstElPos = FirstEl.ElPos;
+        // FirstEl.ContPos++;
+        // for (var nPos = 0, nCount = AutoCorrectEngine.Remove[0].Count; nPos < nCount; nPos++) {
+        //     LastEl = AutoCorrectEngine.Elements[ElCount - nPos - 1 - AutoCorrectEngine.Shift];
+        //     if (undefined !== LastEl.Element.Parent && !LastEl.Element.kind) {
+        //         if (FirstEl.Element.Parent === LastEl.Element.Parent) {
+        //             FirstEl.ContPos--;
+        //         }
+        //         LastEl.Element.Parent.Remove_FromContent(LastEl.ContPos, 1);
+        //     } else {
+        //         this.Remove_FromContent(LastEl.ElPos, 1);
+        //         FirstElPos--;
+        //     }
+        // }
+
+        // if (FirstEl.Element.Type != para_Math_Composition) {
+        //     var NewRun = FirstEl.Element.Parent.Split2(FirstEl.ContPos);
+        //     this.Internal_Content_Add(FirstElPos + 1, NewRun, false);
+        // }
+        // var NewElCount = AutoCorrectEngine.ReplaceContent.length;
+        // for (var nPos = 0; nPos < NewElCount; nPos++) {
+        //     this.Internal_Content_Add(nPos + FirstElPos + 1, AutoCorrectEngine.ReplaceContent[nPos], false);
+        // }
+        // this.CurPos = FirstElPos + NewElCount;
+        // if (CanMakeAutoCorrectEquation && AutoCorrectEngine.Type == MATH_NARY) {
+        //     // var oContentElem = this.Content[this.CurPos];
+        //     // this.Correct_Content(true);
+
+        //     // var CurrentContent = new CParagraphContentPos();
+        //     // this.ParaMath.Get_ParaContentPos(false, false, CurrentContent);
+
+        //     // var LeftContentPos = new CParagraphSearchPos();
+        //     // this.ParaMath.Get_LeftPos(LeftContentPos, CurrentContent, 0, true);
+        //     // this.ParaMath.Set_ParaContentPos(LeftContentPos.ContPos, 0);
+
+        //     // this.CurPos++;
+        //     // oContentElem.CurPos = 2;
+        //     // oContentElem.Content[2].MoveCursorToStartPos();
+        // } else {
+        //     this.CurPos++;
+        //     if (AutoCorrectEngine.Shift == 0) {
+        //         this.Content[this.CurPos].MoveCursorToStartPos();
+        //     } else {
+        //         this.Content[this.CurPos].MoveCursorToEndPos();
+        //     }
+        // }
+        // if (true === bCursorStepRight) {
+        //     // TODO: Переделать через функцию в ране
+        //     if (this.Content[this.CurPos].Content.length >= 1) {
+        //         this.Content[this.CurPos].State.ContentPos = 1;
+        //     }
+        // }
     } else {
         History.Remove_LastPoint();
     }
@@ -5857,38 +5917,43 @@ AutoCorrectionControl.prototype.AutoCorrectDelimiter = function(AutoCorrectEngin
 
 CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorrect)
 {
-    var props = new CMathDelimiterPr();
-    props.column = 1;
-    props.begChr = this.Brackets[1]['left'][0].bracket.value;
-    props.endChr = this.Brackets[1]['right'][0].bracket.value;
-    var oDelimiter = new CDelimiter(props);
+    for(var j = 0; j < this.Brackets[1]['left'].length; j++) {
+        var props = new CMathDelimiterPr();
+        props.column = 1;
+        props.begChr = this.Brackets[1]['left'][j].bracket.value;
+        props.endChr = this.Brackets[1]['right'][j].bracket.value;
+        var oDelimiter = new CDelimiter(props);
 
-    var oBase = oDelimiter.getBase();
-    var TempElements = [];
-    for (var i = this.Brackets[1]['right'][0].pos-1.; i>this.Brackets[1]['left'][0].pos; i--) {
-        TempElements.splice(0, 0, this.Elements[i].Element);
+        var oBase = oDelimiter.getBase();
+        var TempElements = [];
+        for (var i = this.Brackets[1]['right'][j].pos - 1; i>this.Brackets[1]['left'][j].pos; i--) {
+            TempElements.splice(0, 0, this.Elements[i].Element);
+        }
+
+        this.PackTextToContent(oBase, TempElements, false);
+
+        this.Shift = this.Elements.length - 1 - this.Brackets[1]['right'][j].pos;
+
+        if (0x20 == this.ActionElement.value) {
+            this.Shift--;
+        }
+        var nRemoveCount = this.Brackets[1]['right'][j].pos - this.Brackets[1]['left'][j].pos + 1;
+        if (CanMakeAutoCorrect) {
+            nRemoveCount += this.Remove[0].Count;
+        } else if (0x20 == this.ActionElement.value && !this.Remove[0]) {
+            nRemoveCount++;
+        }
+        var Start = this.Elements.length - nRemoveCount;
+        if (!this.Remove['total']) {
+            this.Remove['total'] = nRemoveCount;
+        } else {
+            Start -= this.Remove['total'];
+            this.Remove['total'] += nRemoveCount;
+        }
+        this.Remove.unshift({Count:nRemoveCount, Start:Start});
+        
+        this.ReplaceContent.unshift(oDelimiter);
     }
-        // TempElements.splice(0, 0, AutoCorrectEngine.Elements[this.CurElement].Element.Content[i]);
-
-    this.PackTextToContent(oBase, TempElements, false);
-
-    this.Shift = this.Elements.length - 1 - this.Brackets[1]['right'][0].pos;
-    // AutoCorrectEngine.Shift = AutoCorrectEngine.Elements[this.CurElement].Element.Content.length - 1 - this.BrAccount.nRPos;
-
-    if (0x20 == this.ActionElement.value) {
-        this.Shift--;
-    }
-    var nRemoveCount = this.Brackets[1]['right'][0].pos - this.Brackets[1]['left'][0].pos + 1;
-    if (CanMakeAutoCorrect) {
-        nRemoveCount += this.Remove[0].Count;
-    } else if (0x20 == this.ActionElement.value) {
-        nRemoveCount++;
-    }
-    // AutoCorrectEngine.RemoveCount = nRemoveCount;
-    var Start = this.Elements.length - nRemoveCount;
-    this.Remove.push({Count:nRemoveCount, Start:Start});
-
-    this.ReplaceContent.unshift(oDelimiter);
 };
 AutoCorrectionControl.prototype.AutoCorrectPhantom = function(AutoCorrectEngine, CanMakeAutoCorrect)
 {
@@ -6492,7 +6557,8 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             bBrackOpen = true;
         }  else if (g_MathLeftBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //left bracket
             if (!this.Brackets[1]) { // if firs brackesk is left
-                return false;
+                // return false;
+                break;
             }
             if (lvBrackets > 1) {
                 lvBrackets--;
@@ -6548,8 +6614,12 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             this.ReplaceContent.unshift(Fraction);
             return true;
         case MATH_DELIMITER :
-            this.AutoCorrectDelimiter(CanMakeAutoCorrect);
-            return true;
+            if(!bBrackOpen && lvBrackets === 1) {
+                this.AutoCorrectDelimiter(CanMakeAutoCorrect);
+                return true;
+            } else {
+                return false;
+            }
     }
 
 };
