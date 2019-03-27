@@ -5943,10 +5943,10 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
         var nRemoveCount = this.Brackets[1]['right'][j].pos - this.Brackets[1]['left'][j].pos + 1;
         if (CanMakeAutoCorrect) {
             nRemoveCount += this.Remove[0].Count;
-        } else if (0x20 == this.ActionElement.value && !this.Remove[0]) {
+        } else if (0x20 == this.ActionElement.value && !this.Remove[0] && this.Brackets[1]['right'][j].pos >= (this.Elements.length - 2)) {
             nRemoveCount++;
         }
-        var Start = this.Elements.length - nRemoveCount;
+        var Start = this.Brackets[1]['left'][j].pos;
         if (!this.Remove['total']) {
             this.Remove['total'] = nRemoveCount;
         } else {
