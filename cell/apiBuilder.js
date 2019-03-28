@@ -173,6 +173,14 @@
 	}
 
 	/**
+	 * Class representing a workbook
+	 * @constructor
+	 */
+	function ApiWorkbook(workbook) {
+		this.WorkBook = workbook;
+	}
+
+	/**
 	 * Returns a class formatted according to instructions contained in a format expression
 	 * @memberof Api
 	 * @param {string} expression Any valid expression.
@@ -385,6 +393,20 @@
 	 */
 	Api.prototype.Save = function () {
 		this.SaveAfterMacros = true;
+	};
+
+	/**
+	 * Returns a ApiWorkbook.
+	 * @typeofeditors ["CSE"]
+	 * @memberof Api
+	 * @param {String} data 
+	 * @returns {ApiWorkbook}
+	 */
+	Api.prototype.OpenWorkbook = function (data) {
+		var workbook = new AscCommonExcel.Workbook();
+		var oBinaryFileReader = new AscCommonExcel.BinaryFileReader(true);
+		oBinaryFileReader.Read(data, workbook);
+		return new ApiWorkbook(workbook);
 	};
 
 	/**
@@ -2456,6 +2478,33 @@
 		this.Comment.worksheet.cellCommentator.removeComment(this.Comment.asc_getId());
 	};
 
+	//------------------------------------------------------------------------------------------------------------------
+	//
+	// ApiWorkbook
+	//
+	//------------------------------------------------------------------------------------------------------------------
+	
+	/**
+	 * Return worksheet by id
+	 * @typeofeditors ["CSE"]
+	 * @memberof ApiWorkbook
+	 * @param {number} id
+	 * @returns {ApiWorksheet}
+	 */
+	ApiWorkbook.prototype.GetSheet = function (id) {
+		return new ApiWorksheet(this.WorkBook.getWorksheetById(id));
+	};
+
+	/**
+	 * Return active worksheet
+	 * @typeofeditors ["CSE"]
+	 * @memberof ApiWorkbook
+	 * @returns {ApiWorksheet}
+	 */
+	ApiWorkbook.prototype.GetActiveSheet = function () {
+		return new ApiWorksheet(this.WorkBook.getActiveWs());
+	};
+
 	Api.prototype["Format"] = Api.prototype.Format;
 	Api.prototype["AddSheet"] = Api.prototype.AddSheet;
 	Api.prototype["GetSheets"] = Api.prototype.GetSheets;
@@ -2473,6 +2522,8 @@
 	Api.prototype["AddDefName"] = Api.prototype.AddDefName;
 	Api.prototype["GetDefName"] = Api.prototype.GetDefName;
 	Api.prototype["Save"] = Api.prototype.Save;
+	Api.prototype["OpenWorkbook"] = Api.prototype.OpenWorkbook;
+	
 
 	ApiWorksheet.prototype["GetVisible"] = ApiWorksheet.prototype.GetVisible;
 	ApiWorksheet.prototype["SetVisible"] = ApiWorksheet.prototype.SetVisible;
@@ -2606,6 +2657,8 @@
 	ApiComment.prototype["GetText"]              =  ApiComment.prototype.GetText;
 	ApiComment.prototype["Delete"]               =  ApiComment.prototype.Delete;
 
+	ApiWorkbook.prototype["GetSheet"]  			 =  ApiWorkbook.prototype.GetSheet;
+	ApiWorkbook.prototype["GetActiveSheet"]  	 =  ApiWorkbook.prototype.GetActiveSheet;
 
 	function private_SetCoords(oDrawing, oWorksheet, nExtX, nExtY, nFromCol, nColOffset,  nFromRow, nRowOffset, pos){
 		oDrawing.x = 0;
