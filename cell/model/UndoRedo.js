@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -411,6 +411,10 @@ function (window, undefined) {
 
 		this.ArrayFormula = 95;
 
+		this.StylePatternFill = 100;
+		this.StyleGradientFill = 101;
+		this.StyleGradientFillStop = 102;
+
 		this.Create = function (nType) {
 			switch (nType) {
 				case this.ValueMultiTextElem:
@@ -460,6 +464,15 @@ function (window, undefined) {
 					break;
 				case this.StyleFill:
 					return new AscCommonExcel.Fill();
+					break;
+				case this.StylePatternFill:
+					return new AscCommonExcel.PatternFill();
+					break;
+				case this.StyleGradientFill:
+					return new AscCommonExcel.GradientFill();
+					break;
+				case this.StyleGradientFillStop:
+					return new AscCommonExcel.GradientStop();
 					break;
 				case this.StyleNum:
 					return new AscCommonExcel.Num();
@@ -734,14 +747,15 @@ function (window, undefined) {
 		}
 	};
 
-	function UndoRedoData_FromTo(from, to, copyRange) {
+	function UndoRedoData_FromTo(from, to, copyRange, sheetIdTo) {
 		this.from = from;
 		this.to = to;
 		this.copyRange = copyRange;
+		this.sheetIdTo = sheetIdTo;
 	}
 
 	UndoRedoData_FromTo.prototype.Properties = {
-		from: 0, to: 1, copyRange: 2
+		from: 0, to: 1, copyRange: 2, sheetIdTo: 3
 	};
 	UndoRedoData_FromTo.prototype.getType = function () {
 		return UndoRedoDataTypes.FromTo;
@@ -760,6 +774,9 @@ function (window, undefined) {
 			case this.Properties.copyRange:
 				return this.copyRange;
 				break;
+			case this.Properties.sheetIdTo:
+				return this.sheetIdTo;
+				break;
 		}
 		return null;
 	};
@@ -773,6 +790,9 @@ function (window, undefined) {
 				break;
 			case this.Properties.copyRange:
 				this.copyRange = value;
+				break;
+			case this.Properties.sheetIdTo:
+				this.sheetIdTo = value;
 				break;
 		}
 	};
@@ -1892,7 +1912,7 @@ function (window, undefined) {
 					cell.setBorder(null);
 				}
 			} else if (AscCH.historyitem_Cell_ShrinkToFit == Type) {
-				cell.setFill(Val);
+				cell.setShrinkToFit(Val);
 			} else if (AscCH.historyitem_Cell_Wrap == Type) {
 				cell.setWrap(Val);
 			} else if (AscCH.historyitem_Cell_Num == Type) {
@@ -2237,10 +2257,16 @@ function (window, undefined) {
 			to = new Asc.Range(Data.to.c1, Data.to.r1, Data.to.c2, Data.to.r2);
 			var copyRange = Data.copyRange;
 
+			var wsTo = wb.getWorksheetById(Data.sheetIdTo);
 			if (bUndo) {
 				temp = from;
 				from = to;
 				to = temp;
+				if (wsTo) {
+					temp = wsTo;
+					wsTo = ws;
+					ws = temp;
+				}
 			}
 			if (wb.bCollaborativeChanges) {
 				var coBBoxTo = new Asc.Range(0, 0, 0, 0), coBBoxFrom = new Asc.Range(0, 0, 0, 0);
@@ -2255,9 +2281,9 @@ function (window, undefined) {
 				coBBoxFrom.r2 = collaborativeEditing.getLockOtherRow2(nSheetId, from.r2);
 				coBBoxFrom.c2 = collaborativeEditing.getLockOtherColumn2(nSheetId, from.c2);
 
-				ws._moveRange(coBBoxFrom, coBBoxTo, copyRange);
+				ws._moveRange(coBBoxFrom, coBBoxTo, copyRange, wsTo);
 			} else {
-				ws._moveRange(from, to, copyRange);
+				ws._moveRange(from, to, copyRange, wsTo);
 			}
 			worksheetView = wb.oApi.wb.getWorksheetById(nSheetId);
 			if (bUndo)//если на Undo перемещается диапазон из форматированной таблицы - стиль форматированной таблицы не должен цепляться

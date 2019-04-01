@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -66,6 +66,11 @@
 		EPUB : 0x0048,
 		FB2  : 0x0049,
 		MOBI : 0x004a,
+		DOCM : 0x004b,
+		DOTX : 0x004c,
+		DOTM : 0x004d,
+		FODT : 0x004e,
+		OTT  : 0x004f,
 		DOCY : 0x1001,
 		CANVAS_WORD : 0x2001,
 		JSON : 0x0808,	// Для mail-merge
@@ -75,12 +80,24 @@
 		XLS  : 0x0102,
 		ODS  : 0x0103,
 		CSV  : 0x0104,
+		XLSM : 0x0105,
+		XLTX : 0x0106,
+		XLTM : 0x0107,
+		FODS : 0x0108,
+		OTS  : 0x0109,
 		XLSY : 0x1002,
 
 		// PowerPoint
 		PPTX : 0x0081,
 		PPT  : 0x0082,
-		ODP  : 0x0083
+		ODP  : 0x0083,
+		PPSX : 0x0084,
+		PPTM : 0x0085,
+		PPSM : 0x0086,
+		POTX : 0x0087,
+		POTM : 0x0088,
+		FODP : 0x0089,
+		OTP  : 0x008a
 	};
 
 	var c_oAscError = {
@@ -186,6 +203,9 @@
             DataEncrypted : -600,
 
 			CannotChangeFormulaArray: -450,
+			MultiCellsInTablesFormulaArray: -451,
+
+			MailToClientMissing	: -452
 		}
 	};
 
@@ -1086,6 +1106,7 @@
 	var changestype_Paragraph_Content         = 1; // Добавление/удаление элементов в параграф
 	var changestype_Paragraph_Properties      = 2; // Изменение свойств параграфа
 	var changestype_Paragraph_AddText         = 3; // Добавление текста
+	var changestype_Paragraph_TextProperties  = 4; // Изменение настроек текста
 	var changestype_Document_Content          = 10; // Добавление/удаление элементов в Document или в DocumentContent
 	var changestype_Document_Content_Add      = 11; // Добавление элемента в класс Document или в класс DocumentContent
 	var changestype_Document_SectPr           = 12; // Изменения свойств данной секции (размер страницы, поля и ориентация)
@@ -1425,6 +1446,31 @@
 		Hidden : 2
 	};
 
+
+	var c_oAscObjectsAlignType = {
+		Selected: 0,
+		Slide: 1,
+		Page: 2,
+		Margin: 3
+	};
+
+	var c_oAscItemType = {
+		Default: 0,
+		Avg: 1,
+		Count: 2,
+		CountA: 3,
+		Max: 4,
+		Min: 5,
+		Product: 6,
+		StdDev: 7,
+		StdDevP: 8,
+		Sum: 9,
+		Var: 10,
+		VarP: 11,
+		Data: 12,
+		Grand: 13,
+		Blank: 14
+	};
 	//------------------------------------------------------------export--------------------------------------------------
 	var prot;
 	window['Asc']                          = window['Asc'] || {};
@@ -1451,16 +1497,33 @@
 	prot['EPUB']                 = prot.EPUB;
 	prot['FB2']                  = prot.FB2;
 	prot['MOBI']                 = prot.MOBI;
+	prot['DOCM']                 = prot.DOCM;
+	prot['DOTX']                 = prot.DOTX;
+	prot['DOTM']                 = prot.DOTM;
+	prot['FODT']                 = prot.FODT;
+	prot['OTT']                  = prot.OTT;
 	prot['DOCY']                 = prot.DOCY;
 	prot['JSON']                 = prot.JSON;
 	prot['XLSX']                 = prot.XLSX;
 	prot['XLS']                  = prot.XLS;
 	prot['ODS']                  = prot.ODS;
 	prot['CSV']                  = prot.CSV;
+	prot['XLSM']                 = prot.XLSM;
+	prot['XLTX']                 = prot.XLTX;
+	prot['XLTM']                 = prot.XLTM;
+	prot['FODS']                 = prot.FODS;
+	prot['OTS']                  = prot.OTS;
 	prot['XLSY']                 = prot.XLSY;
 	prot['PPTX']                 = prot.PPTX;
 	prot['PPT']                  = prot.PPT;
 	prot['ODP']                  = prot.ODP;
+	prot['PPSX']                 = prot.PPSX;
+	prot['PPTM']                 = prot.PPTM;
+	prot['PPSM']                 = prot.PPSM;
+	prot['POTX']                 = prot.POTX;
+	prot['POTM']                 = prot.POTM;
+	prot['FODP']                 = prot.FODP;
+	prot['OTP']                  = prot.OTP;
 	window['Asc']['c_oAscError'] = window['Asc'].c_oAscError = c_oAscError;
 	prot                                     = c_oAscError;
 	prot['Level']                            = prot.Level;
@@ -1540,6 +1603,8 @@
 	prot['ForceSaveButton']                  = prot.ForceSaveButton;
 	prot['ForceSaveTimeout']                 = prot.ForceSaveTimeout;
 	prot['CannotChangeFormulaArray']         = prot.CannotChangeFormulaArray;
+	prot['MultiCellsInTablesFormulaArray']   = prot.MultiCellsInTablesFormulaArray;
+	prot['MailToClientMissing']				 = prot.MailToClientMissing;
 	prot['OpenWarning']                      = prot.OpenWarning;
 	prot['DataEncrypted']                    = prot.DataEncrypted;
 	window['Asc']['c_oAscAsyncAction']       = window['Asc'].c_oAscAsyncAction = c_oAscAsyncAction;
@@ -2079,6 +2144,7 @@
 	window["AscCommon"].changestype_Paragraph_Content         = changestype_Paragraph_Content;
 	window["AscCommon"].changestype_Paragraph_Properties      = changestype_Paragraph_Properties;
 	window["AscCommon"].changestype_Paragraph_AddText         = changestype_Paragraph_AddText;
+	window["AscCommon"].changestype_Paragraph_TextProperties  = changestype_Paragraph_TextProperties;
 	window["AscCommon"].changestype_Document_Content          = changestype_Document_Content;
 	window["AscCommon"].changestype_Document_Content_Add      = changestype_Document_Content_Add;
 	window["AscCommon"].changestype_Document_SectPr           = changestype_Document_SectPr;
@@ -2132,6 +2198,13 @@
 	window['AscCommon']['align_Left'] = window['AscCommon'].align_Left = align_Left;
 	window['AscCommon']['align_Center'] = window['AscCommon'].align_Center = align_Center;
 	window['AscCommon']['align_Justify'] = window['AscCommon'].align_Justify = align_Justify;
+
+
+	window["AscCommon"]["c_oAscFormatPainterState"]    = c_oAscFormatPainterState;
+	c_oAscFormatPainterState["kOff"] = c_oAscFormatPainterState.kOff;
+	c_oAscFormatPainterState["kOn"] = c_oAscFormatPainterState.kOn;
+	c_oAscFormatPainterState["kMultiple"] = c_oAscFormatPainterState.kMultiple;
+
 	
 	window['Asc']['c_oSpecialPasteProps'] = window['Asc'].c_oSpecialPasteProps = c_oSpecialPasteProps;
 	prot = c_oSpecialPasteProps;
@@ -2184,4 +2257,28 @@
 	prot = window['Asc']['c_oAscSdtAppearance'] = window['Asc'].c_oAscSdtAppearance = c_oAscSdtAppearance;
 	prot['Frame']  = c_oAscSdtAppearance.Frame;
 	prot['Hidden'] = c_oAscSdtAppearance.Hidden;
+
+
+	prot = window['Asc']['c_oAscObjectsAlignType'] = window['Asc'].c_oAscObjectsAlignType = c_oAscObjectsAlignType;
+	prot['Selected'] = c_oAscObjectsAlignType.Selected;
+	prot['Slide'] = c_oAscObjectsAlignType.Slide;
+	prot['Page'] = c_oAscObjectsAlignType.Page;
+	prot['Margin'] = c_oAscObjectsAlignType.Margin;
+
+	prot = window['Asc']['c_oAscItemType'] = window['Asc'].c_oAscItemType = c_oAscItemType;
+	prot['Data'] = prot.Data;
+	prot['Default'] = prot.Default;
+	prot['Sum'] = prot.Sum;
+	prot['CountA'] = prot.CountA;
+	prot['Avg'] = prot.Avg;
+	prot['Max'] = prot.Max;
+	prot['Min'] = prot.Min;
+	prot['Product'] = prot.Product;
+	prot['Count'] = prot.Count;
+	prot['StdDev'] = prot.StdDev;
+	prot['StdDevP'] = prot.StdDevP;
+	prot['Var'] = prot.Var;
+	prot['VarP'] = prot.VarP;
+	prot['Grand'] = prot.Grand;
+	prot['Blank'] = prot.Blank;
 })(window);

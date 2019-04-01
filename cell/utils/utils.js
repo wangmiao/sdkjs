@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -1158,7 +1158,7 @@
 
 			// Check active cell in merge cell (bug 36708)
 			var mc = this.worksheet.getMergedByCell(this.activeCell.row, this.activeCell.col);
-			if (this.worksheet.getMergedByCell(this.activeCell.row, this.activeCell.col)) {
+			if (mc) {
 				res = -1 === this.offsetCell(1, 0, false, function () {return false;});
 				if (res) {
 					this.activeCell.row = mc.r1;
@@ -1718,6 +1718,17 @@
 			AscCommonExcel.g_R1C1Mode = oldMode;
 		}
 
+		function checkFilteringMode(f, oThis, args) {
+			if (!window['AscCommonExcel'].filteringMode) {
+				History.LocalChange = true;
+			}
+			var ret = f.apply(oThis, args);
+			if (!window['AscCommonExcel'].filteringMode) {
+				History.LocalChange = false;
+			}
+			return ret;
+		}
+
 		function getEndValueRange (dx, start, v1, v2) {
 			var x1, x2;
 			if (0 !== dx) {
@@ -1865,6 +1876,7 @@
 			// Вид печати
 			this.printType = Asc.c_oAscPrintType.ActiveSheets;
 			this.pageOptionsMap = null;
+			this.ignorePrintArea = null;
 
 			// ToDo сюда же start и end page index
 
@@ -1874,6 +1886,8 @@
 		asc_CAdjustPrint.prototype.asc_setPrintType = function (val) { this.printType = val; };
 		asc_CAdjustPrint.prototype.asc_getPageOptionsMap = function () { return this.pageOptionsMap; };
 		asc_CAdjustPrint.prototype.asc_setPageOptionsMap = function (val) { this.pageOptionsMap = val; };
+		asc_CAdjustPrint.prototype.asc_getIgnorePrintArea = function () { return this.ignorePrintArea; };
+		asc_CAdjustPrint.prototype.asc_setIgnorePrintArea = function (val) { this.ignorePrintArea = val; };
 
 		/** @constructor */
 		function asc_CLockInfo () {
@@ -2077,10 +2091,12 @@
 		asc_CStylesPainter.prototype.drawStyle = function (oGraphics, sr, oStyle, sStyleName) {
 			oGraphics.clear();
 			// Fill cell
-			var oColor = oStyle.getFill();
-			if (null !== oColor) {
-				oGraphics.setFillStyle(oColor);
-				oGraphics.fillRect(0, 0, this.styleThumbnailWidthPt, this.styleThumbnailHeightPt);
+			if (oStyle.ApplyFill) {
+				var oColor = oStyle.getFillColor();
+				if (null !== oColor) {
+					oGraphics.setFillStyle(oColor);
+					oGraphics.fillRect(0, 0, this.styleThumbnailWidthPt, this.styleThumbnailHeightPt);
+				}
 			}
 
 			var drawBorder = function (b, x1, y1, x2, y2) {
@@ -2092,14 +2108,16 @@
 				}
 			};
 
-			// borders
-			var oBorders = oStyle.getBorder();
-			drawBorder(oBorders.l, 0, 0, 0, this.styleThumbnailHeightPt);
-			drawBorder(oBorders.r, this.styleThumbnailWidthPt, 0, this.styleThumbnailWidthPt,
-				this.styleThumbnailHeightPt);
-			drawBorder(oBorders.t, 0, 0, this.styleThumbnailWidthPt, 0);
-			drawBorder(oBorders.b, 0, this.styleThumbnailHeightPt, this.styleThumbnailWidthPt,
-				this.styleThumbnailHeightPt);
+			if (oStyle.ApplyBorder) {
+				// borders
+				var oBorders = oStyle.getBorder();
+				drawBorder(oBorders.l, 0, 0, 0, this.styleThumbnailHeightPt);
+				drawBorder(oBorders.r, this.styleThumbnailWidthPt, 0, this.styleThumbnailWidthPt,
+					this.styleThumbnailHeightPt);
+				drawBorder(oBorders.t, 0, 0, this.styleThumbnailWidthPt, 0);
+				drawBorder(oBorders.b, 0, this.styleThumbnailHeightPt, this.styleThumbnailWidthPt,
+					this.styleThumbnailHeightPt);
+			}
 
 			// Draw text
 			var format = oStyle.getFont().clone();
@@ -2344,7 +2362,7 @@
 			this.cache = {};
 		}
 		CCacheMeasureEmpty2.prototype.getKey = function (elem) {
-			return elem.getName() + elem.getBold() ? 'B' : 'N' + elem.getItalic() ? 'I' : 'N';
+			return elem.getName() + (elem.getBold() ? 'B' : 'N') + (elem.getItalic() ? 'I' : 'N');
 		};
 		CCacheMeasureEmpty2.prototype.add = function (elem, val) {
 			this.cache[this.getKey(elem)] = val;
@@ -2442,6 +2460,7 @@
 		window["AscCommonExcel"].getFragmentsText = getFragmentsText;
 		window['AscCommonExcel'].executeInR1C1Mode = executeInR1C1Mode;
 		window["Asc"].getEndValueRange = getEndValueRange;
+		window['AscCommonExcel'].checkFilteringMode = checkFilteringMode;
 
 		window["AscCommonExcel"].referenceType = referenceType;
 		window["Asc"].Range = Range;
@@ -2497,6 +2516,8 @@
 		prot["asc_setPrintType"] = prot.asc_setPrintType;
 		prot["asc_getPageOptionsMap"] = prot.asc_getPageOptionsMap;
 		prot["asc_setPageOptionsMap"] = prot.asc_setPageOptionsMap;
+		prot["asc_getIgnorePrintArea"] = prot.asc_getIgnorePrintArea;
+		prot["asc_setIgnorePrintArea"] = prot.asc_setIgnorePrintArea;
 
 		window["AscCommonExcel"].asc_CLockInfo = asc_CLockInfo;
 

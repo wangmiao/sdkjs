@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -460,7 +460,7 @@ ParaComment.prototype =
         return true;
     },
 
-    Selection_CorrectLeftPos : function(Direction)
+	SkipAnchorsAtSelectionStart : function(nDirection)
     {
         return true;
     },
@@ -498,8 +498,8 @@ ParaComment.prototype.Get_TextPr = function(ContentPos, Depth)
 //----------------------------------------------------------------------------------------------------------------------
 // Разное
 //----------------------------------------------------------------------------------------------------------------------
-ParaComment.prototype.Set_ReviewType = function(ReviewType, RemovePrChange){};
-ParaComment.prototype.Set_ReviewTypeWithInfo = function(ReviewType, ReviewInfo){};
+ParaComment.prototype.SetReviewType = function(ReviewType, RemovePrChange){};
+ParaComment.prototype.SetReviewTypeWithInfo = function(ReviewType, ReviewInfo){};
 ParaComment.prototype.Check_RevisionsChanges = function(Checker, ContentPos, Depth){};
 ParaComment.prototype.AcceptRevisionChanges = function(Type, bAll){};
 ParaComment.prototype.RejectRevisionChanges = function(Type, bAll){};
@@ -580,8 +580,6 @@ CWriteCommentData.prototype =
         else
         {
             this.AdditionalData = "teamlab_data:";
-            this.AdditionalData += ("0;" + this.Data.m_sUserId.length + ";" + this.Data.m_sUserId + ";" );
-            this.AdditionalData += ("1;" + this.Data.m_sUserName.length + ";" + this.Data.m_sUserName + ";" );
             this.AdditionalData += ("2;1;" + (this.Data.m_bSolved ? "1;" : "0;"));
             if (this.Data.m_sOOTime)
             {
@@ -638,11 +636,7 @@ CWriteCommentData.prototype =
             var _value = _parsed.data.substr(_parsed.pos, _len);
             _parsed.pos += (_len + 1);
 
-            if (0 == _attr)
-                _comment_data.m_sUserId = _value;
-            else if (1 == _attr)
-                _comment_data.m_sUserName = _value;
-            else if (2 == _attr)
+            if (2 == _attr)
                 _comment_data.m_bSolved = ("1" == _value) ? true : false;
             else if (3 == _attr)
             {

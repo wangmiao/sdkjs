@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -63,7 +63,7 @@ function (window, undefined) {
 
 	cFormulaFunctionGroup['Statistical'] = cFormulaFunctionGroup['Statistical'] || [];
 	cFormulaFunctionGroup['Statistical'].push(cAVEDEV, cAVERAGE, cAVERAGEA, cAVERAGEIF, cAVERAGEIFS, cBETADIST,
-		cBETA_DIST, cBETA_INV, cBINOMDIST, cBINOM_DIST, cBINOM_DIST_RANGE, cBINOM_INV, cCHIDIST, cCHIINV, cCHISQ_DIST,
+		cBETA_DIST, cBETA_INV, cBETAINV, cBINOMDIST, cBINOM_DIST, cBINOM_DIST_RANGE, cBINOM_INV, cCHIDIST, cCHIINV, cCHISQ_DIST,
 		cCHISQ_DIST_RT, cCHISQ_INV, cCHISQ_INV_RT, cCHITEST, cCHISQ_TEST, cCONFIDENCE, cCONFIDENCE_NORM, cCONFIDENCE_T,
 		cCORREL, cCOUNT, cCOUNTA, cCOUNTBLANK, cCOUNTIF, cCOUNTIFS, cCOVAR, cCOVARIANCE_P, cCOVARIANCE_S, cCRITBINOM,
 		cDEVSQ, cEXPON_DIST, cEXPONDIST, cF_DIST, cFDIST, cF_DIST_RT, cF_INV, cFINV, cF_INV_RT, cFISHER, cFISHERINV,
@@ -776,7 +776,7 @@ function (window, undefined) {
 
 		if (null !== calcTest) {
 			if (false === calcTest) {
-				return new cError(cErrorType.wrong_value_type);
+				return new cError(cErrorType.division_by_zero);
 			} else {
 				fT = calcTest.fT;
 				fF = calcTest.fF;
@@ -1023,7 +1023,7 @@ function (window, undefined) {
 				//return HUGE_VAL;
 				return;
 			}
-			return fA * pow(fX, fA - 1);
+			return fA * Math.pow(fX, fA - 1);
 		}
 		if (fX <= 0) {
 			if (fA < 1 && fX === 0) {
@@ -2767,7 +2767,7 @@ function (window, undefined) {
 							}
 							break;
 						case 7 : // SUM
-							while (i < mnCount && maRange[i].X === maRange[i - 1].X) {
+							while (i < this.mnCount && maRange[i].X === maRange[i - 1].X) {
 								fTmp += maRange[i].Y;
 								maRange.splice(i, 1);
 								--this.mnCount;
@@ -2800,7 +2800,7 @@ function (window, undefined) {
 
 							var aTmp = [];
 							aTmp.push(maRange[i - 1].Y);
-							while (i < mnCount && maRange[i].X === maRange[i - 1].X) {
+							while (i < this.mnCount && maRange[i].X === maRange[i - 1].X) {
 								aTmp.push(maRange[i].Y);
 								nCounter++;
 								maRange.splice(i, 1);
@@ -3624,6 +3624,7 @@ function (window, undefined) {
 		var z = gaussinv(( 1.0 + fPILevel ) / 2.0);
 		var o = 1 - fPILevel;
 		//std::vector< double > c( nSize );
+		var c = [];
 		for (var i = 0; i < nSize; i++) {
 			c[i] = Math.sqrt(1 + ( fPILevel / Math.pow(1 + o, 3.0) ) *
 				( ( 1 + 4 * o + 5 * o * o ) + 2 * ( i ) * fPILevel * ( 1 + 3 * o ) + 2 * ( i * i ) * fPILevel *
@@ -4227,6 +4228,17 @@ function (window, undefined) {
 
 		return this._findArrayInNumberArguments(oArguments, calcGamma);
 	};
+
+	/**
+	 * @constructor
+	 * @extends {cBETA_INV}
+	 */
+	function cBETAINV() {
+	}
+
+	cBETAINV.prototype = Object.create(cBETA_INV.prototype);
+	cBETAINV.prototype.constructor = cBETAINV;
+	cBETAINV.prototype.name = 'BETAINV';
 
 	/**
 	 * @constructor
@@ -5019,7 +5031,17 @@ function (window, undefined) {
 			//TODO нужно протестировать на различных вариантах
 			//когда в ячейке пустое значение - сравниваем его только с пустым значением
 			//при matchingInfo отличным от пустого значения в данном случае возвращаем false
-			if(tempVal === "" && tempMatchingInfo.val && "" !== tempMatchingInfo.val.value) {
+
+			//ms excel при несовпадении типов возвращает всегда отрицательное значение
+			//в нашем случае сравниваемая величина(в tempMatchingInfo) не всегда приводится к нужному типу(например, error, empty)
+			//TODO рассмотреть добавление подобной правки, проверить все варианты + расскоментировать тесты
+			/*if ((tempVal.type === cElementType.string || tempVal.type === cElementType.number) && tempMatchingInfo.val && tempMatchingInfo.val.type !== tempVal.type) {
+				return false;
+			}*/
+
+			tempVal = undefined !== tempVal.value ? tempVal.value : tempVal;
+			var matchingValue = tempMatchingInfo.val && tempMatchingInfo.val.value.toString ? tempMatchingInfo.val.value.toString() : null;
+			if(tempVal === "" && matchingValue && "" !== matchingValue.replace(/\*|\?/g, '')) {
 				return false;
 			}
 			return res;
@@ -10861,7 +10883,7 @@ function (window, undefined) {
 	cVAR.prototype.returnValueType = AscCommonExcel.cReturnFormulaType.array;
 	cVAR.prototype.Calculate = function (arg) {
 		function _var(x) {
-			if (x.length < 1) {
+			if (x.length <= 1) {
 				return new cError(cErrorType.division_by_zero);
 			}
 
@@ -11285,8 +11307,8 @@ function (window, undefined) {
 				arr0.push(arg[j].tocNumber());
 			} else if (arg[j] instanceof cString) {
 				arr0.push(new cNumber(0));
-			} else if (elem instanceof cError) {
-				return new cError(cErrorType.wrong_value_type);
+			} else if (arg[j] instanceof cError) {
+				return arg[j];
 			}
 
 		}

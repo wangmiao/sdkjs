@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -2302,7 +2302,7 @@ CDocumentContent.prototype.AddNewParagraph = function()
             }
             else
             {
-                var ItemReviewType = Item.Get_ReviewType();
+                var ItemReviewType = Item.GetReviewType();
                 // Создаем новый параграф
                 var NewParagraph   = new Paragraph(this.DrawingDocument, this, this.bPresentation === true);
 
@@ -2356,49 +2356,68 @@ CDocumentContent.prototype.AddNewParagraph = function()
                 this.Internal_Content_Add(this.CurPos.ContentPos + 1, NewParagraph);
                 this.CurPos.ContentPos++;
 
-                if (true === this.Is_TrackRevisions())
+                if (true === this.IsTrackRevisions())
                 {
-                    NewParagraph.Remove_PrChange();
-                    NewParagraph.Set_ReviewType(ItemReviewType);
-                    Item.Set_ReviewType(reviewtype_Add);
+                    Item.RemovePrChange();
+                    NewParagraph.SetReviewType(ItemReviewType);
+                    Item.SetReviewType(reviewtype_Add);
                 }
                 else if (reviewtype_Common !== ItemReviewType)
                 {
-                    NewParagraph.Set_ReviewType(ItemReviewType);
-                    Item.Set_ReviewType(reviewtype_Common);
+                    NewParagraph.SetReviewType(ItemReviewType);
+                    Item.SetReviewType(reviewtype_Common);
                 }
             }
         }
-        else if (type_Table === Item.GetType() || type_BlockLevelSdt === Item.GetType())
-        {
-            // Если мы находимся в начале первого параграфа первой ячейки, и
-            // данная таблица - первый элемент, тогда добавляем параграф до таблицы.
+		else if (type_Table === Item.GetType() || type_BlockLevelSdt === Item.GetType())
+		{
+			// Если мы находимся в начале первого параграфа первой ячейки, и
+			// данная таблица - первый элемент, тогда добавляем параграф до таблицы.
 
-            if (0 === this.CurPos.ContentPos && Item.IsCursorAtBegin(true))
-            {
-                // Создаем новый параграф
-                var NewParagraph = new Paragraph(this.DrawingDocument, this, this.bPresentation === true);
-                this.Internal_Content_Add(0, NewParagraph);
-                this.CurPos.ContentPos = 0;
+			if (0 === this.CurPos.ContentPos && Item.IsCursorAtBegin(true))
+			{
+				// Создаем новый параграф
+				var NewParagraph = new Paragraph(this.DrawingDocument, this, this.bPresentation === true);
+				this.Internal_Content_Add(0, NewParagraph);
+				this.CurPos.ContentPos = 0;
 
-				if (true === this.Is_TrackRevisions())
+				if (true === this.IsTrackRevisions())
 				{
-					NewParagraph.Remove_PrChange();
-					NewParagraph.Set_ReviewType(reviewtype_Add);
+					NewParagraph.RemovePrChange();
+					NewParagraph.SetReviewType(reviewtype_Add);
 				}
-            }
-            else
+			}
+			else if (this.Content.length - 1 === this.CurPos.ContentPos && Item.IsCursorAtEnd())
+			{
+				var oNewParagraph = new Paragraph(this.DrawingDocument, this);
+				this.Internal_Content_Add(this.Content.length, oNewParagraph);
+				this.CurPos.ContentPos = this.Content.length - 1;
+
+				if (this.IsTrackRevisions())
+				{
+					oNewParagraph.RemovePrChange();
+					oNewParagraph.SetReviewType(reviewtype_Add);
+				}
+			}
+			else
 			{
 				Item.AddNewParagraph();
 			}
-        }
-    }
+		}
+	}
 };
 // Расширяем документ до точки (X,Y) с помощью новых параграфов
 // Y0 - низ последнего параграфа, YLimit - предел страницы
 CDocumentContent.prototype.Extend_ToPos                       = function(X, Y)
 {
-    var LastPara  = this.Content[this.Content.length - 1];
+	if (this.IsBlockLevelSdtContent())
+	{
+		var oParent = this.Parent.GetParent();
+		if (oParent)
+			return oParent.Extend_ToPos(X, Y);
+	}
+
+    var LastPara  = this.GetLastParagraph();
     var LastPara2 = LastPara;
 
     History.Create_NewPoint(AscDFH.historydescription_Document_DocumentContentExtendToPos);
@@ -2437,11 +2456,6 @@ CDocumentContent.prototype.Extend_ToPos                       = function(X, Y)
             NewParagraph.Apply_TextPr(TextPr);
         }
 
-        LastPara.Set_DocumentNext(NewParagraph);
-
-        NewParagraph.Set_DocumentPrev(LastPara);
-        NewParagraph.Set_DocumentIndex(LastPara.Index + 1);
-
         var CurPage = LastPara.Pages.length - 1;
         var X0      = LastPara.Pages[CurPage].X;
         var Y0      = LastPara.Pages[CurPage].Bounds.Bottom;
@@ -2449,12 +2463,14 @@ CDocumentContent.prototype.Extend_ToPos                       = function(X, Y)
         var YLimit  = LastPara.Pages[CurPage].YLimit;
         var PageNum = LastPara.PageNum;
 
+		this.AddToContent(this.Content.length, NewParagraph, false);
+
         NewParagraph.Reset(X0, Y0, XLimit, YLimit, PageNum);
         var RecalcResult = NewParagraph.Recalculate_Page(0);
 
         if (!(RecalcResult & recalcresult_NextElement))
         {
-            LastPara.Next = null;
+			this.RemoveFromContent(this.Content.length - 1, 1, false);
             break;
         }
 
@@ -3829,7 +3845,7 @@ CDocumentContent.prototype.IsCursorAtEnd = function()
 {
 	if (docpostype_DrawingObjects === this.CurPos.Type)
 		return false;
-	else if (false != this.Selection.Use || 0 != this.CurPos.ContentPos)
+	else if (false != this.Selection.Use || this.Content.length - 1 != this.CurPos.ContentPos)
 		return false;
 
 	var Item = this.Content[this.Content.length - 1];
@@ -4050,7 +4066,24 @@ CDocumentContent.prototype.Insert_Content                     = function(Selecte
         if (-1 === DstIndex)
             return;
 
-        var bNeedSelect = true;
+		if (this.IsBlockLevelSdtContent() && this.Parent.IsPlaceHolder())
+		{
+			var oBlockLevelSdt = this.Parent;
+			oBlockLevelSdt.ReplacePlaceHolderWithContent();
+
+			Para = this.Content[0];
+			if (!Para || type_Paragraph !== Para.GetType())
+				return;
+
+			NearPos = Para.Get_NearestPos(0, 0, 0, false, false);
+			Para.Check_NearestPos(NearPos);
+			ParaNearPos = Para.Get_ParaNearestPos(NearPos);
+			LastClass   = ParaNearPos.Classes[ParaNearPos.Classes.length - 1];
+
+			DstIndex = 0;
+		}
+
+		var bNeedSelect = true;
 
         var Elements      = SelectedContent.Elements;
         var ElementsCount = Elements.length;
@@ -4060,6 +4093,19 @@ CDocumentContent.prototype.Insert_Content                     = function(Selecte
             // Нам нужно в заданный параграф вставить выделенный текст
             var NewPara          = FirstElement.Element;
             var NewElementsCount = NewPara.Content.length - 1; // Последний ран с para_End не добавляем
+
+			if (LastClass instanceof ParaRun && LastClass.GetParent() instanceof CInlineLevelSdt && LastClass.GetParent().IsPlaceHolder())
+			{
+				var oInlineLeveLSdt = LastClass.GetParent();
+				oInlineLeveLSdt.ReplacePlaceHolderWithContent();
+
+				LastClass = oInlineLeveLSdt.GetElement(0);
+
+				ParaNearPos.Classes[ParaNearPos.Classes.length - 1] = LastClass;
+
+				ParaNearPos.NearPos.ContentPos.Update(0, ParaNearPos.Classes.length - 1);
+				ParaNearPos.NearPos.ContentPos.Update(0, ParaNearPos.Classes.length - 2);
+			}
 
             var NewElement = LastClass.Split(ParaNearPos.NearPos.ContentPos, ParaNearPos.Classes.length - 1);
             var PrevClass  = ParaNearPos.Classes[ParaNearPos.Classes.length - 2];
@@ -7546,10 +7592,10 @@ CDocumentContent.prototype.GetStyleFromFormatting = function()
         }
     }
 };
-CDocumentContent.prototype.Is_TrackRevisions = function()
+CDocumentContent.prototype.IsTrackRevisions = function()
 {
     if (this.LogicDocument)
-        return this.LogicDocument.Is_TrackRevisions();
+        return this.LogicDocument.IsTrackRevisions();
 
     return false;
 };

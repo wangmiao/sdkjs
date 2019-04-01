@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -233,10 +233,22 @@ window["AscCommon"].getFullImageSrc2 = function (src) {
 
     if (0 !== start.indexOf('http:') && 0 !== start.indexOf('data:') && 0 !== start.indexOf('https:') &&
         0 !== start.indexOf('file:') && 0 !== start.indexOf('ftp:')){
-        var srcFull = AscCommon.g_oDocumentUrls.getImageUrl(src);
+            var srcFull = AscCommon.g_oDocumentUrls.getImageUrl(src);
+            var srcFull2 = srcFull;
+            if(src.indexOf(".svg") === src.length - 4){
+                var sName = src.slice(0, src.length - 3);
+
+                src = sName + 'wmf';
+                srcFull = AscCommon.g_oDocumentUrls.getImageUrl(src);
+                if(!srcFull){
+                    src = sName + 'emf';
+                    srcFull = AscCommon.g_oDocumentUrls.getImageUrl(src);
+                }
+            }
+        
         if(srcFull){
             window["native"]["loadUrlImage"](srcFull, src);
-            return srcFull;
+            return srcFull2;
         }
     }
     return src;
@@ -1127,7 +1139,10 @@ Asc['asc_docs_api'].prototype["Call_Menu_Event"] = function(type, _params)
         }
         case 112: // ASC_MENU_EVENT_TYPE_CONTEXTMENU_PASTE
         {
-            this.Call_Menu_Context_Paste(_params[0], _params[1]);
+            if(undefined !== _params)
+            {
+                this.Call_Menu_Context_Paste(_params[0], _params[1]);
+            }
             break;
         }
         case 113: // ASC_MENU_EVENT_TYPE_CONTEXTMENU_DELETE
@@ -1325,18 +1340,18 @@ Asc['asc_docs_api'].prototype["Call_Menu_Event"] = function(type, _params)
         {
             var level = parseInt(_params);
 
-            if (Asc.c_oAscAlignShapeType.ALIGN_LEFT == level) {
-                this.put_ShapesAlign(Asc.c_oAscAlignShapeType.ALIGN_LEFT);
-            } else if (Asc.c_oAscAlignShapeType.ALIGN_CENTER == level) {
-                this.put_ShapesAlign(Asc.c_oAscAlignShapeType.ALIGN_CENTER);
-            } else if (Asc.c_oAscAlignShapeType.ALIGN_RIGHT == level) {
-                this.put_ShapesAlign(Asc.c_oAscAlignShapeType.ALIGN_RIGHT);
-            } else if (Asc.c_oAscAlignShapeType.ALIGN_TOP == level) {
-                this.put_ShapesAlign(Asc.c_oAscAlignShapeType.ALIGN_TOP);
-            } else if (Asc.c_oAscAlignShapeType.ALIGN_MIDDLE == level) {
-                this.put_ShapesAlign(Asc.c_oAscAlignShapeType.ALIGN_MIDDLE);
-            } else if (Asc.c_oAscAlignShapeType.ALIGN_BOTTOM == level) {
-                this.put_ShapesAlign(Asc.c_oAscAlignShapeType.ALIGN_BOTTOM);
+            if (c_oAscAlignShapeType.ALIGN_LEFT == level) {
+                this.put_ShapesAlign(c_oAscAlignShapeType.ALIGN_LEFT);
+            } else if (c_oAscAlignShapeType.ALIGN_CENTER == level) {
+                this.put_ShapesAlign(c_oAscAlignShapeType.ALIGN_CENTER);
+            } else if (c_oAscAlignShapeType.ALIGN_RIGHT == level) {
+                this.put_ShapesAlign(c_oAscAlignShapeType.ALIGN_RIGHT);
+            } else if (c_oAscAlignShapeType.ALIGN_TOP == level) {
+                this.put_ShapesAlign(c_oAscAlignShapeType.ALIGN_TOP);
+            } else if (c_oAscAlignShapeType.ALIGN_MIDDLE == level) {
+                this.put_ShapesAlign(c_oAscAlignShapeType.ALIGN_MIDDLE);
+            } else if (c_oAscAlignShapeType.ALIGN_BOTTOM == level) {
+                this.put_ShapesAlign(c_oAscAlignShapeType.ALIGN_BOTTOM);
             } else if (6 == level) {
                 this.DistributeHorizontally();
             } else if (7 == level) {
@@ -1355,7 +1370,7 @@ Asc['asc_docs_api'].prototype["Call_Menu_Event"] = function(type, _params)
         case 8125: //ASC_PRESENTATIONS_EVENT_TYPE_PASTE_CONTENT_TYPE
         {
             if(_params[0]){
-                var oPasteProcessor = new oPasteProcessor(this, false, false, false);
+                var oPasteProcessor = new AscCommon.PasteProcessor(this, false, false, false);
                 var aContent = AscFormat.ExecuteNoHistory(function(){
                     return oPasteProcessor._readPresentationSelectedContent2(_params[0]);
                 }, this, []);
@@ -1453,6 +1468,25 @@ Asc['asc_docs_api'].prototype["Call_Menu_Event"] = function(type, _params)
         {
             this.asc_setDocumentPassword(_params[0]);
             break;
+        }
+      
+        case 22004: // ASC_EVENT_TYPE_SPELLCHECK_MESSAGE
+        {
+            var json = JSON.parse(_params[0]);
+            if (json && json["spellCheckData"]) {
+                if (this.SpellCheckApi) {
+                    this.SpellCheckApi.onSpellCheck(json["spellCheckData"]);
+                }
+            }
+            break;
+        }
+
+        case 22005: // ASC_EVENT_TYPE_SPELLCHECK_TURN_ON
+        {
+            var status = parseInt(_params[0]);
+            if (status !== undefined) {
+                this.asc_setSpellCheck(status == 0 ? false : true);
+            } 
         }
 
         default:

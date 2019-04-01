@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -3141,23 +3141,7 @@ function OfflineEditor () {
     // main
     
     this.beforeOpen = function() {
-        
-        var offlineEditor = this;
-        
-        function __selectDrawingObjectRange(drawing, worksheet) {
-            worksheet.cleanSelection();
-            worksheet.endEditChart();
-            
-            if(!drawing.bbox || drawing.bbox.worksheet !== worksheet.model)
-                return;
-            
-            var BB = drawing.bbox.seriesBBox;
-            var range = window["Asc"].Range(BB.c1, BB.r1, BB.c2, BB.r2, true);
-            
-            worksheet.setChartRange(range);
-            worksheet._drawSelection();
-        }
-        
+
         window['AscFormat'].DrawingArea.prototype.drawSelection = function(drawingDocument) {
             
             AscCommon.g_oTextMeasurer.Flush();
@@ -3185,7 +3169,7 @@ function OfflineEditor () {
             if(selected_objects.length === 1 && selected_objects[0].getObjectType() === AscDFH.historyitem_type_ChartSpace)
             {
                 chart = selected_objects[0];
-                __selectDrawingObjectRange(chart, this.worksheet);
+                this.worksheet.objectRender.selectDrawingObjectRange(chart);
             }
             for ( var i = 0; i < this.frozenPlaces.length; i++ ) {
                 
@@ -3886,22 +3870,15 @@ function OfflineEditor () {
         
         window.g_file_path = "native_open_file";
         window.NATIVE_DOCUMENT_TYPE = "";
-        
-        var apiConfig = {};
-        if (this.translate) {
-            var t = JSON.parse(this.translate);
-            if (t) {
-                apiConfig['translate'] = {
-                    'Diagram Title' : t['diagrammtitle'],
-                    'X Axis' : t['xaxis'],
-                    'Y Axis' : t['yaxis'],
-                    'Series' : t['series'],
-                    'Your text here' : t['art']
-                };
-            }
+  
+        var translations = this.initSettings["translations"];
+        if (undefined != translations && null != translations && translations.length > 0) {
+            translations = JSON.parse(translations)
+        } else {
+            translations = "";
         }
-        
-        _api = new window["Asc"]["spreadsheet_api"](apiConfig);
+
+        _api = new window["Asc"]["spreadsheet_api"](translations);
         
         AscCommon.g_clipboardBase.Init(_api);
         
@@ -4339,6 +4316,7 @@ function OfflineEditor () {
         _null_object.height = height * ratio;
         
         var worksheet = _api.wb.getWorksheet();
+        worksheet._recalculate();
         var region = this._updateRegion(worksheet, x, y, width * ratio, height * ratio);
         var colRowHeaders = _api.asc_getSheetViewSettings();
         
@@ -4824,7 +4802,7 @@ function OfflineEditor () {
                 oCustomStyle = cellStylesAll.getCustomStyleByBuiltinId(oStyle.BuiltinId);
                 
                 window["native"]["BeginDrawDefaultStyle"](oStyle.Name, styleIndex);
-                this.drawStyle(oGraphics, stringRenderer, oCustomStyle || oStyle, oStyle.Name, styleIndex);
+                this.drawStyle(oGraphics, stringRenderer, oCustomStyle || oStyle, AscCommon.translateManager.getValue(oStyle.Name), styleIndex);
                 window["native"]["EndDrawStyle"]();
                 ++styleIndex;
             }
@@ -4841,17 +4819,19 @@ function OfflineEditor () {
                 }
                 
                 window["native"]["BeginDrawDocumentStyle"](oStyle.Name, styleIndex);
-                this.drawStyle(oGraphics, stringRenderer, oStyle, oStyle.Name, styleIndex);
+                this.drawStyle(oGraphics, stringRenderer, oStyle, AscCommon.translateManager.getValue(oStyle.Name), styleIndex);
                 window["native"]["EndDrawStyle"]();
                 ++styleIndex;
             }
         };
         AscCommonExcel.asc_CStylesPainter.prototype.drawStyle = function (oGraphics, sr, oStyle, sStyleName) {
-            
-            var oColor = oStyle.getFill();
-            if (null !== oColor) {
-                oGraphics.setFillStyle(oColor);
-                oGraphics.fillRect(0, 0, this.styleThumbnailWidthPt, this.styleThumbnailHeightPt);
+
+            if (oStyle.ApplyFill) {
+                var oColor = oStyle.getFillColor();
+                if (null !== oColor) {
+                    oGraphics.setFillStyle(oColor);
+                    oGraphics.fillRect(0, 0, this.styleThumbnailWidthPt, this.styleThumbnailHeightPt);
+                }
             }
             
             var drawBorder = function (b, x1, y1, x2, y2) {
@@ -4865,12 +4845,14 @@ function OfflineEditor () {
                     oGraphics.stroke();
                 }
             };
-            
-            var oBorders = oStyle.getBorder();
-            drawBorder(oBorders.l, 0, 0, 0, this.styleThumbnailHeightPt); // left
-            drawBorder(oBorders.r, this.styleThumbnailWidthPt - 0.25, 0, this.styleThumbnailWidthPt - 0.25, this.styleThumbnailHeightPt);     // right
-            drawBorder(oBorders.t, 0, 0, this.styleThumbnailWidthPt, 0); // up
-            drawBorder(oBorders.b, 0, this.styleThumbnailHeightPt - 0.25, this.styleThumbnailWidthPt,  this.styleThumbnailHeightPt - 0.25);   // down
+
+            if (oStyle.ApplyBorder) {
+                var oBorders = oStyle.getBorder();
+                drawBorder(oBorders.l, 0, 0, 0, this.styleThumbnailHeightPt); // left
+                drawBorder(oBorders.r, this.styleThumbnailWidthPt - 0.25, 0, this.styleThumbnailWidthPt - 0.25, this.styleThumbnailHeightPt);     // right
+                drawBorder(oBorders.t, 0, 0, this.styleThumbnailWidthPt, 0); // up
+                drawBorder(oBorders.b, 0, this.styleThumbnailHeightPt - 0.25, this.styleThumbnailWidthPt,  this.styleThumbnailHeightPt - 0.25);   // down
+            }
             
             // Draw text
             var format = oStyle.getFont().clone();
@@ -5075,7 +5057,7 @@ function OfflineEditor () {
                     compiledStylesArr[i][j] = curStyle;
                     
                     //fill
-                    color = curStyle && curStyle.fill && curStyle.fill.bg;
+                    color = curStyle && curStyle.fill && curStyle.fill.bg();
                     if(color)
                     {
                         calculateRect(color, j * stepX, i * stepY, stepX, stepY);
@@ -6193,8 +6175,6 @@ window["native"]["offline_calculate_complete_range"] = function(x, y, w, h) {
             ws._getColLeft(range.c2) + ws._getColumnWidth(range.c2),
             ws._getRowTop(range.r2)  + ws._getRowHeight(range.r1)];
 }
-
-window["native"]["offline_set_translate"] = function(translate) {_s.translate = translate;}
 
 window["native"]["offline_apply_event"] = function(type,params) {
     var _borderOptions = Asc.c_oAscBorderOptions;

@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -2431,7 +2431,10 @@ CTable.prototype.GetTableOffsetCorrection = function()
 {
 	var X = 0;
 
-	if (true === this.Parent.IsTableCellContent())
+	if (true === this.Parent.IsTableCellContent()
+		|| this.bPresentation
+		|| !this.LogicDocument
+		|| this.LogicDocument.GetCompatibilityMode() >= document_compatibility_mode_Word15)
 		return 0;
 
 	var Row     = this.Content[0];
@@ -2471,7 +2474,10 @@ CTable.prototype.GetRightTableOffsetCorrection = function()
 {
 	var X = 0;
 
-	if (true === this.Parent.IsTableCellContent())
+	if (true === this.Parent.IsTableCellContent()
+		|| this.bPresentation
+		|| !this.LogicDocument
+		|| this.LogicDocument.GetCompatibilityMode() >= document_compatibility_mode_Word15)
 		return 0;
 
 	var Row         = this.Content[0];
@@ -3767,27 +3773,7 @@ CTable.prototype.SelectTable = function(Type)
 				Grid_end   = Grid_start + this.CurCell.Get_GridSpan() - 1;
 			}
 
-
-			for (var CurRow = 0; CurRow < this.Content.length; CurRow++)
-			{
-				var Row         = this.Content[CurRow];
-				var Cells_Count = Row.Get_CellsCount();
-
-				for (var CurCell = 0; CurCell < Cells_Count; CurCell++)
-				{
-					var Cell   = Row.Get_Cell(CurCell);
-					var Vmerge = Cell.GetVMerge();
-					if (vmerge_Continue === Vmerge)
-						continue;
-
-					var StartGridCol = Row.Get_CellInfo(CurCell).StartGridCol;
-					var EndGridCol   = StartGridCol + Cell.Get_GridSpan() - 1;
-
-					if (EndGridCol >= Grid_start && StartGridCol <= Grid_end)
-						NewSelectionData.push({Cell : CurCell, Row : CurRow});
-				}
-			}
-
+			this.private_GetColumnByGridRange(Grid_start, Grid_end, NewSelectionData);
 			break;
 		}
 
@@ -9383,7 +9369,7 @@ CTable.prototype.AddTableRow = function(bBefore, isCheckInnerTable)
 				{
 					var oTempPara = arrAllParagraphs[nParaIndex];
 					oTempPara.SetDirectParaPr(oFirstPara.GetDirectParaPr(true));
-					oTempPara.SetDirectTextPr(oFirstPara.Get_FirstRunPr(), false);
+					oTempPara.SetDirectTextPr(oFirstPara.GetFirstRunPr(), false);
 				}
 			}
 
@@ -9910,7 +9896,7 @@ CTable.prototype.AddTableColumn = function(bBefore)
 
 				// Скопируем текстовые настройки
 				var FirstPara = NextCell.Content.Get_FirstParagraph();
-				var TextPr    = FirstPara.Get_FirstRunPr();
+				var TextPr    = FirstPara.GetFirstRunPr();
 				NewCell.Content.Set_ApplyToAll(true);
 
 				// Добавляем стиль во все параграфы
@@ -9992,7 +9978,7 @@ CTable.prototype.AddTableColumn = function(bBefore)
 
 				// Скопируем текстовые настройки
 				var FirstPara = NextCell.Content.Get_FirstParagraph();
-				var TextPr    = FirstPara.Get_FirstRunPr();
+				var TextPr    = FirstPara.GetFirstRunPr();
 				NewCell.Content.Set_ApplyToAll(true);
 
 				// Добавляем стиль во все параграфы
@@ -11970,16 +11956,6 @@ CTable.prototype.GetRowsCountInHeader = function()
 
 	return nRowsInHeader;
 };
-CTable.prototype.GetTopElement = function()
-{
-    if (!this.Parent)
-        return null;
-
-    if (true === this.Parent.Is_TopDocument(false))
-        return this;
-
-    return this.Parent.GetTopElement();
-};
 CTable.prototype.Get_RowsCount = function()
 {
     return this.Content.length;
@@ -12050,11 +12026,11 @@ CTable.prototype.GetStyleFromFormatting = function()
     }
     return null;
 };
-CTable.prototype.Set_ReviewType = function(ReviewType)
+CTable.prototype.SetReviewType = function(ReviewType)
 {
 
 };
-CTable.prototype.Get_ReviewType = function()
+CTable.prototype.GetReviewType = function()
 {
     return reviewtype_Common;
 };
@@ -14122,6 +14098,68 @@ CTable.prototype.GetPlaceHolderObject = function()
 
 	return this.CurCell.GetContent().GetPlaceHolderObject();
 };
+/**
+ * Получаем колонку в виде массива ячеек
+ * @returns {[CTableCell]}
+ */
+CTable.prototype.GetColumn = function(nCurCell, nCurRow)
+{
+	if (null === nCurRow || undefined === nCurRow)
+		nCurRow = 0;
+
+	var oRow = this.GetRow(nCurRow);
+	if (!oRow)
+		return [];
+
+	if (nCurCell < 0)
+		nCurCell = 0;
+
+	if (nCurCell >= oRow.GetCellsCount())
+		nCurCell = oRow.GetCellsCount() - 1;
+
+	var oCell = oRow.GetCell(nCurCell);
+	if (!oCell)
+		return [];
+
+	var nGridStart = oRow.GetCellInfo(nCurCell).StartGridCol;
+	var nGridEnd   = nGridStart + oCell.GetGridSpan() - 1;
+
+	var arrCells = [];
+	var arrPoses = this.private_GetColumnByGridRange(nGridStart, nGridEnd);
+	for (var nIndex = 0, nCount = arrPoses.length; nIndex < nCount; ++nIndex)
+	{
+		var oPos = arrPoses[nIndex];
+
+		arrCells.push(this.GetRow(oPos.Row).GetCell(oPos.Cell));
+	}
+
+	return arrCells;
+};
+CTable.prototype.private_GetColumnByGridRange = function(nGridStart, nGridEnd, arrPos)
+{
+	if (!arrPos)
+		arrPos = [];
+
+	for (var nCurRow = 0, nRowsCount = this.GetRowsCount(); nCurRow < nRowsCount; ++nCurRow)
+	{
+		var oRow = this.GetRow(nCurRow);
+		for (var nCurCell = 0, nCellsCount = oRow.GetCellsCount(); nCurCell < nCellsCount; ++nCurCell)
+		{
+			var oCell = oRow.GetCell(nCurCell);
+			if (vmerge_Continue === oCell.GetVMerge())
+				continue;
+
+			var nStartGridCol = oRow.GetCellInfo(nCurCell).StartGridCol;
+			var nEndGridCol   = nStartGridCol + oCell.GetGridSpan() - 1;
+
+			if (nEndGridCol >= nGridStart && nStartGridCol <= nGridEnd)
+				arrPos.push({Cell : nCurCell, Row : nCurRow});
+		}
+	}
+
+	return arrPos;
+};
+
 //----------------------------------------------------------------------------------------------------------------------
 // Класс  CTableLook
 //----------------------------------------------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -141,7 +141,7 @@ CMathBaseText.prototype.IsJustDraw = function()
     return false;
 };
 // For ParaRun
-CMathBaseText.prototype.Is_Punctuation = function()
+CMathBaseText.prototype.IsPunctuation = function()
 {
     var bPunc     = 1 === AscCommon.g_aPunctuation[this.value],
         bMathSign = this.value ==  0x2217 || this.value == 0x2212;
@@ -726,11 +726,15 @@ CMathText.prototype.Measure = function(oMeasure, TextPr, InfoMathText)
             //g_oTextMeasurer.SetTextPr(InfoTextPr.CurrentTextPr, InfoTextPr.Theme);
         }
         else if(InfoMathText.CurrType == MathTextInfo_NormalText)
-        {
-            var FontKoef = InfoMathText.GetFontKoef(this.FontSlot);
+		{
+			letter                    = this.value;
+			this.RecalcInfo.StyleCode = letter;
+			InfoMathText.bApostrophe  = false;
 
-            g_oTextMeasurer.SetFontSlot(this.FontSlot, FontKoef);
-        }
+			var FontKoef = InfoMathText.GetFontKoef(this.FontSlot);
+
+			g_oTextMeasurer.SetFontSlot(this.FontSlot, FontKoef);
+		}
 
         this.RecalcInfo.bApostrophe   = InfoMathText.bApostrophe;
         this.RecalcInfo.bSpaceSpecial = letter == 0x2061;

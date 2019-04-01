@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -478,7 +478,7 @@ CArrowDrawer.prototype.drawArrow = function ( type, mode, ctx, w, h ) {
             }
             else{
                 ctx.fillStyle = this.ColorBackNone;
-				ctx.fillRect( x1 + xDeltaBORDER >> 0, y1 + yDeltaBORDER >> 0, strokeW, strokeH );
+				ctx.fillRect( x + xDeltaBORDER >> 0, y + yDeltaBORDER >> 0, strokeW, strokeH );
                 ctx.beginPath();
                 ctx.drawImage( img, x + xDeltaIMG, y + yDeltaIMG, this.SizeW, this.SizeH );
                 if ( this.IsDrawBorders ) {
@@ -505,7 +505,7 @@ CArrowDrawer.prototype.drawArrow = function ( type, mode, ctx, w, h ) {
             }
             else{
                 ctx.fillStyle = this.ColorBackStable;
-				ctx.fillRect( x1 + xDeltaBORDER >> 0, y1 + yDeltaBORDER >> 0, strokeW, strokeH );
+				ctx.fillRect( x + xDeltaBORDER >> 0, y + yDeltaBORDER >> 0, strokeW, strokeH );
                 ctx.beginPath();
                 ctx.drawImage( img, x + xDeltaIMG, y + yDeltaIMG, this.SizeW, this.SizeH );
                 ctx.strokeStyle = this.ColorBackStable;
@@ -536,7 +536,7 @@ CArrowDrawer.prototype.drawArrow = function ( type, mode, ctx, w, h ) {
                 ctx.beginPath();
                 ctx.fillStyle = this.ColorBackOver;
 
-				ctx.fillRect( x1 + xDeltaBORDER >> 0, y1 + yDeltaBORDER >> 0, strokeW, strokeH );
+				ctx.fillRect( x + xDeltaBORDER >> 0, y + yDeltaBORDER >> 0, strokeW, strokeH );
                 ctx.drawImage( img, x + xDeltaIMG, y + yDeltaIMG, this.SizeW, this.SizeH );
                 if ( this.IsDrawBorders ) {
                     ctx.strokeStyle = this.ColorBorderOver;
@@ -551,7 +551,7 @@ CArrowDrawer.prototype.drawArrow = function ( type, mode, ctx, w, h ) {
         {
             ctx.beginPath();
             ctx.fillStyle = this.ColorBackActive;
-			ctx.fillRect( x1 + xDeltaBORDER >> 0, y1 + yDeltaBORDER >> 0, strokeW, strokeH );
+			ctx.fillRect( x + xDeltaBORDER >> 0, y + yDeltaBORDER >> 0, strokeW, strokeH );
 
             if ( !this.IsNeedInvertOnActive ) {
                 ctx.drawImage( img, x + xDeltaIMG, y + yDeltaIMG, this.SizeW, this.SizeH );

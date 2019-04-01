@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -3050,8 +3050,31 @@ CParagraphRecalculateStateWrap.prototype =
 
         if ( para_Numbering === NumberingType )
 		{
+			var oReviewInfo = this.Paragraph.GetReviewInfo();
+			var nReviewType = this.Paragraph.GetReviewType();
+
+			var isHavePrChange = this.Paragraph.HavePrChange();
+			var oPrevNumPr     = this.Paragraph.GetPrChangeNumPr();
+
 			var NumPr = ParaPr.NumPr;
-			if (undefined === NumPr || undefined === NumPr.NumId || 0 === NumPr.NumId || "0" === NumPr.NumId || ( undefined !== Para.Get_SectionPr() && true === Para.IsEmpty() ))
+
+			var isHaveNumbering = false;
+			if ((undefined === Para.Get_SectionPr()
+				|| true !== Para.IsEmpty())
+				&& ((NumPr
+				&& undefined !== NumPr.NumId
+				&& 0 !== NumPr.NumId
+				&& "0" !== NumPr.NumId)
+				|| (oPrevNumPr
+				&& undefined !== oPrevNumPr.NumId
+				&& undefined !== oPrevNumPr.Lvl
+				&& 0 !== oPrevNumPr.NumId
+				&& "0" !== oPrevNumPr.NumId)))
+			{
+				isHaveNumbering = true;
+			}
+
+			if (!isHaveNumbering || (!NumPr && !oPrevNumPr))
 			{
 				// Так мы обнуляем все рассчитанные ширины данного элемента
 				NumberingItem.Measure(g_oTextMeasurer, undefined);
@@ -3059,17 +3082,79 @@ CParagraphRecalculateStateWrap.prototype =
 			else
 			{
 				var oNumbering  = Para.Parent.GetNumbering();
-				var oNumLvl     = oNumbering.GetNum(NumPr.NumId).GetLvl(NumPr.Lvl);
-				var nNumSuff    = oNumLvl.GetSuff();
-				var nNumJc      = oNumLvl.GetJc();
-				var oNumInfo    = Para.Parent.CalculateNumberingValues(Para, NumPr);
-				var oNumTextPr  = Para.Get_CompiledPr2(false).TextPr.Copy();
+
+				var oNumLvl     = null;
+
+				if (NumPr)
+					oNumLvl = oNumbering.GetNum(NumPr.NumId).GetLvl(NumPr.Lvl);
+				else if (oPrevNumPr)
+					oNumLvl = oNumbering.GetNum(oPrevNumPr.NumId).GetLvl(oPrevNumPr.Lvl);
+
+				var oNumTextPr = Para.Get_CompiledPr2(false).TextPr.Copy();
 				oNumTextPr.Merge(Para.TextPr.Value);
 				oNumTextPr.Merge(oNumLvl.GetTextPr());
-
+				var nNumSuff   = oNumLvl.GetSuff();
+				var nNumJc     = oNumLvl.GetJc();
 
 				// Здесь измеряется только ширина символов нумерации, без суффикса
-				NumberingItem.Measure(g_oTextMeasurer, oNumbering, oNumInfo, oNumTextPr, NumPr, Para.Get_Theme());
+				if ((!isHavePrChange && NumPr) || (oPrevNumPr && NumPr && oPrevNumPr.NumId === NumPr.NumId && oPrevNumPr.Lvl === NumPr.Lvl))
+				{
+					var arrNumInfo  = Para.Parent.CalculateNumberingValues(Para, NumPr, true);
+					var nLvl = NumPr.Lvl;
+					if (arrNumInfo[0][nLvl] !== arrNumInfo[1][nLvl])
+					{
+						if (reviewtype_Common === nReviewType)
+						{
+							NumberingItem.Measure(g_oTextMeasurer, oNumbering, oNumTextPr, Para.Get_Theme(), arrNumInfo[0], NumPr, arrNumInfo[1], NumPr);
+						}
+						else
+						{
+							if (reviewtype_Remove === nReviewType && oReviewInfo.GetPrevAdded())
+							{
+								NumberingItem.Measure(g_oTextMeasurer, oNumbering, oNumTextPr, Para.Get_Theme(), undefined, undefined, undefined, undefined);
+							}
+							else if (reviewtype_Remove === nReviewType)
+							{
+								NumberingItem.Measure(g_oTextMeasurer, oNumbering, oNumTextPr, Para.Get_Theme(), undefined, undefined, arrNumInfo[1], NumPr);
+							}
+							else
+							{
+								NumberingItem.Measure(g_oTextMeasurer, oNumbering, oNumTextPr, Para.Get_Theme(), arrNumInfo[0], NumPr, undefined, undefined);
+							}
+						}
+					}
+					else
+					{
+						NumberingItem.Measure(g_oTextMeasurer, oNumbering, oNumTextPr, Para.Get_Theme(), arrNumInfo[0], NumPr);
+					}
+				}
+				else if (oPrevNumPr && !NumPr)
+				{
+					var arrNumInfo2 = Para.Parent.CalculateNumberingValues(Para, oPrevNumPr, true);
+					NumberingItem.Measure(g_oTextMeasurer, oNumbering, oNumTextPr, Para.Get_Theme(), undefined, undefined, arrNumInfo2[1], oPrevNumPr);
+				}
+				else if (isHavePrChange && !oPrevNumPr && NumPr)
+				{
+					if (reviewtype_Remove === nReviewType)
+					{
+						NumberingItem.Measure(g_oTextMeasurer, oNumbering, oNumTextPr, Para.Get_Theme(), undefined, undefined, undefined, undefined);
+					}
+					else
+					{
+						var arrNumInfo = Para.Parent.CalculateNumberingValues(Para, NumPr, true);
+						NumberingItem.Measure(g_oTextMeasurer, oNumbering, oNumTextPr, Para.Get_Theme(), arrNumInfo[0], NumPr, undefined, undefined);
+					}
+				}
+				else if (oPrevNumPr && NumPr)
+				{
+					var arrNumInfo  = Para.Parent.CalculateNumberingValues(Para, NumPr, true);
+					var arrNumInfo2 = Para.Parent.CalculateNumberingValues(Para, oPrevNumPr, true);
+					NumberingItem.Measure(g_oTextMeasurer, oNumbering, oNumTextPr, Para.Get_Theme(), arrNumInfo[0], NumPr, arrNumInfo2[1], oPrevNumPr);
+				}
+				else
+				{
+					// Такого быть не должно
+				}
 
 				// При рассчете высоты строки, если у нас параграф со списком, то размер символа
 				// в списке влияет только на высоту строки над Baseline, но не влияет на высоту строки

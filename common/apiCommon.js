@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -2619,15 +2619,21 @@
 			this.ShapeProperties = v;
 		},
 
-		asc_getOriginSize: function (api) {
-			if (window['AscFormat'].isRealNumber(this.oleWidth) && window['AscFormat'].isRealNumber(this.oleHeight)) {
+		asc_getOriginSize: function (api)
+		{
+			if (window['AscFormat'].isRealNumber(this.oleWidth) && window['AscFormat'].isRealNumber(this.oleHeight))
+			{
 				return new asc_CImageSize(this.oleWidth, this.oleHeight, true);
 			}
-			if(this.ImageUrl === null)
+			if (this.ImageUrl === null)
 			{
 				return new asc_CImageSize(50, 50, false);
 			}
-			var _section_select = api.WordControl.m_oLogicDocument.Get_PageSizesByDrawingObjects();
+			var _section_select;
+			if(api.WordControl && api.WordControl.m_oLogicDocument)
+			{
+				_section_select = api.WordControl.m_oLogicDocument.Get_PageSizesByDrawingObjects();
+			}
 			var _page_width = AscCommon.Page_Width;
 			var _page_height = AscCommon.Page_Height;
 			var _page_x_left_margin = AscCommon.X_Left_Margin;
@@ -2635,36 +2641,59 @@
 			var _page_x_right_margin = AscCommon.X_Right_Margin;
 			var _page_y_bottom_margin = AscCommon.Y_Bottom_Margin;
 
-			if (_section_select) {
-          if (_section_select.W) {
-              _page_width = _section_select.W;
-          }
+			if (_section_select)
+			{
+				if (_section_select.W)
+				{
+					_page_width = _section_select.W;
+				}
 
-          if (_section_select.H) {
-              _page_height = _section_select.H;
-          }
+				if (_section_select.H)
+				{
+					_page_height = _section_select.H;
+				}
 			}
 
+			var origW = 0;
+			var origH = 0;
 			var _image = api.ImageLoader.map_image_index[AscCommon.getFullImageSrc2(this.ImageUrl)];
-			if (_image != undefined && _image.Image != null && _image.Status == window['AscFonts'].ImageLoadStatus.Complete) {
+			if (_image != undefined && _image.Image != null && _image.Status == window['AscFonts'].ImageLoadStatus.Complete)
+			{
+				origW = _image.Image.width;
+				origH = _image.Image.height;
+			}
+			else if (window["AscDesktopEditor"] && window["AscDesktopEditor"]["GetImageOriginalSize"])
+			{
+				var _size = window["AscDesktopEditor"]["GetImageOriginalSize"](this.ImageUrl);
+				if (_size.W != 0 && _size.H != 0)
+				{
+					origW = _size.W;
+					origH = _size.H;
+				}
+			}
+
+			if (origW != 0 && origH != 0)
+			{
 				var _w = Math.max(1, _page_width - (_page_x_left_margin + _page_x_right_margin));
 				var _h = Math.max(1, _page_height - (_page_y_top_margin + _page_y_bottom_margin));
 
 				var bIsCorrect = false;
-				if (_image.Image != null) {
-					var __w = Math.max((_image.Image.width * AscCommon.g_dKoef_pix_to_mm), 1);
-					var __h = Math.max((_image.Image.height * AscCommon.g_dKoef_pix_to_mm), 1);
 
-					var dKoef = Math.max(__w / _w, __h / _h);
-					if (dKoef > 1) {
-						_w = Math.max(5, __w / dKoef);
-						_h = Math.max(5, __h / dKoef);
+				var __w = Math.max((origW * AscCommon.g_dKoef_pix_to_mm), 1);
+				var __h = Math.max((origH * AscCommon.g_dKoef_pix_to_mm), 1);
 
-						bIsCorrect = true;
-					} else {
-						_w = __w;
-						_h = __h;
-					}
+				var dKoef = Math.max(__w / _w, __h / _h);
+				if (dKoef > 1)
+				{
+					_w = Math.max(5, __w / dKoef);
+					_h = Math.max(5, __h / dKoef);
+
+					bIsCorrect = true;
+				}
+				else
+				{
+					_w = __w;
+					_h = __h;
 				}
 
 				return new asc_CImageSize(_w, _h, bIsCorrect);
@@ -3635,8 +3664,8 @@
 		};
 		this.DrawOnRenderer = function(renderer, w, h)
 		{
-			var wMM = this.width * g_dKoef_pix_to_mm / this.zoom;
-			var hMM = this.height * g_dKoef_pix_to_mm / this.zoom;
+			var wMM = this.width * AscCommon.g_dKoef_pix_to_mm / this.zoom;
+			var hMM = this.height * AscCommon.g_dKoef_pix_to_mm / this.zoom;
 			var x = (w - wMM) / 2;
 			var y = (h - hMM) / 2;
 
@@ -3786,8 +3815,8 @@
 
 				var w_mm = 210;
 				var h_mm = 297;
-				var w_px = AscCommon.AscBrowser.convertToRetinaValue(w_mm * g_dKoef_mm_to_pix * this.zoom, true);
-				var h_px = AscCommon.AscBrowser.convertToRetinaValue(h_mm * g_dKoef_mm_to_pix * this.zoom, true);
+				var w_px = AscCommon.AscBrowser.convertToRetinaValue(w_mm * AscCommon.g_dKoef_mm_to_pix * this.zoom, true);
+				var h_px = AscCommon.AscBrowser.convertToRetinaValue(h_mm * AscCommon.g_dKoef_mm_to_pix * this.zoom, true);
 
 				_bounds_cheker.init(w_px, h_px, w_mm, h_mm);
 				_bounds_cheker.transform(1,0,0,1,0,0);
@@ -3833,43 +3862,6 @@
 			}, this, [obj]);
 		};
 	}
-	window.TEST_WATERMARK_STRING = "\
-	{\
-		\"transparent\" : 0.3,\
-		\"type\" : \"rect\",\
-		\"width\" : 100,\
-		\"height\" : 100,\
-		\"rotate\" : -45,\
-		\"margins\" : [ 10, 10, 10, 10 ],\
-		\"fill\" : [255, 0, 0],\
-		\"stroke-width\" : 1,\
-		\"stroke\" : [0, 0, 255],\
-		\"align\" : 1,\
-		\
-		\"paragraphs\" : [\
-		{\
-			\"align\" : 2,\
-			\"fill\" : [255, 0, 0],\
-			\"linespacing\" : 1,\
-			\
-			\"runs\" : [\
-				{\
-					\"text\" : \"Do not steal, %user_name%!\",\
-					\"fill\" : [0, 0, 0],\
-					\"font-family\" : \"Arial\",\
-					\"font-size\" : 40,\
-					\"bold\" : true,\
-					\"italic\" : false,\
-					\"strikeout\" : false,\
-					\"underline\" : false\
-				},\
-				{\
-					\"text\" : \"<%br%>\"\
-				}\
-			]\
-		}\
-	]\
-	}";
 
 	// ----------------------------- plugins ------------------------------- //
 	function CPluginVariation()
@@ -3883,6 +3875,7 @@
 		this.isViewer       = false;
 		this.EditorsSupport = ["word", "cell", "slide"];
 
+		this.isSystem	  = false;
 		this.isVisual     = false;      // визуальный ли
 		this.isModal      = false;      // модальное ли окно (используется только для визуального)
 		this.isInsideMode = false;      // отрисовка не в окне а внутри редактора (в панели) (используется только для визуального немодального)
@@ -3928,6 +3921,14 @@
 		this.icons = value;
 	};
 
+	CPluginVariation.prototype["get_System"]         = function()
+	{
+		return this.isSystem;
+	};
+	CPluginVariation.prototype["set_System"]         = function(value)
+	{
+		this.isSystem = value;
+	};
 	CPluginVariation.prototype["get_Viewer"]         = function()
 	{
 		return this.isViewer;
@@ -4054,6 +4055,7 @@
 		_object["isViewer"]       = this.isViewer;
 		_object["EditorsSupport"] = this.EditorsSupport;
 
+		_object["isSystem"]     = this.isSystem;
 		_object["isVisual"]     = this.isVisual;
 		_object["isModal"]      = this.isModal;
 		_object["isInsideMode"] = this.isInsideMode;

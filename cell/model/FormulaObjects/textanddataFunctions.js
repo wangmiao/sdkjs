@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -63,7 +63,7 @@ function (window, undefined) {
 		cTRIM, cUNICHAR, cUNICODE, cUPPER, cVALUE);
 
 	cFormulaFunctionGroup['NotRealised'] = cFormulaFunctionGroup['NotRealised'] || [];
-	cFormulaFunctionGroup['NotRealised'].push(cASC, cBAHTTEXT, cJIS, cPHONETIC);
+	cFormulaFunctionGroup['NotRealised'].push(cBAHTTEXT, cJIS, cPHONETIC);
 
 	/**
 	 * @constructor
@@ -75,6 +75,54 @@ function (window, undefined) {
 	cASC.prototype = Object.create(cBaseFunction.prototype);
 	cASC.prototype.constructor = cASC;
 	cASC.prototype.name = 'ASC';
+	cASC.prototype.argumentsMin = 1;
+	cASC.prototype.argumentsMax = 1;
+	cASC.prototype.Calculate = function (arg) {
+		var arg0 = arg[0];
+
+		var calcAsc = function(str) {
+			var res = '';
+			var fullWidthFrom = 0xFF00;
+			var fullWidthTo = 0xFFEF;
+
+			for (var i = 0; i < str.length; i++) {
+				var nCh = str[i].charCodeAt(0);
+				if (nCh >= fullWidthFrom && nCh <= fullWidthTo) {
+					nCh = 0xFF & (nCh + 0x20);
+				}
+				res += String.fromCharCode(nCh);
+			}
+
+			return new cString(res);
+		};
+
+		if (arg0 instanceof cArea || arg0 instanceof cArea3D) {
+			arg0 = arg0.cross(arguments[1]).tocString();
+		} else if (arg0 instanceof cArray) {
+			var ret = new cArray();
+			arg0.foreach(function (elem, r, c) {
+				var _elem = elem.tocString();
+				if (!ret.array[r]) {
+					ret.addRow();
+				}
+
+				if (_elem instanceof cError) {
+					ret.addElement(_elem.toString());
+				} else {
+					ret.addElement(calcAsc(_elem));
+				}
+			});
+			return ret;
+		}
+
+		arg0 = arg0.tocString();
+
+		if (arg0 instanceof cError) {
+			return arg0;
+		}
+
+		return calcAsc(arg0.toString());
+	};
 
 	/**
 	 * @constructor
@@ -280,7 +328,7 @@ function (window, undefined) {
 				for (var j = 0; j < _arrVal.length; j++) {
 					var _arrElem = _arrVal[j].tocString();
 					if (cElementType.error === _arrElem.type) {
-						return arrVal[j];
+						return _arrVal[j];
 					} else {
 						arg0 = new cString(arg0.toString().concat(_arrElem));
 					}
@@ -855,6 +903,54 @@ function (window, undefined) {
 	cJIS.prototype = Object.create(cBaseFunction.prototype);
 	cJIS.prototype.constructor = cJIS;
 	cJIS.prototype.name = 'JIS';
+	cJIS.prototype.argumentsMin = 1;
+	cJIS.prototype.argumentsMax = 1;
+	cJIS.prototype.Calculate = function (arg) {
+		var arg0 = arg[0];
+
+		var calc = function(str) {
+			var res = '';
+			var fullWidthFrom = 0xFF00;
+			var fullWidthTo = 0xFFEF;
+
+			for (var i = 0; i < str.length; i++) {
+				var nCh = str[i].charCodeAt(0);
+				if (!(nCh >= fullWidthFrom && nCh <= fullWidthTo)) {
+					nCh = nCh - 0x20 + 0xff00;
+				}
+				res += String.fromCharCode(nCh);
+			}
+
+			return new cString(res);
+		};
+
+		if (arg0 instanceof cArea || arg0 instanceof cArea3D) {
+			arg0 = arg0.cross(arguments[1]).tocString();
+		} else if (arg0 instanceof cArray) {
+			var ret = new cArray();
+			arg0.foreach(function (elem, r, c) {
+				var _elem = elem.tocString();
+				if (!ret.array[r]) {
+					ret.addRow();
+				}
+
+				if (_elem instanceof cError) {
+					ret.addElement(_elem.toString());
+				} else {
+					ret.addElement(calc(_elem));
+				}
+			});
+			return ret;
+		}
+
+		arg0 = arg0.tocString();
+
+		if (arg0 instanceof cError) {
+			return arg0;
+		}
+
+		return calc(arg0.toString());
+	};
 
 	/**
 	 * @constructor

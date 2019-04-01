@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -154,7 +154,7 @@ CFieldInstructionFORMULA.prototype.Calculate = function(oLogicDocument)
 {
 	this.ErrStr = null;
 	this.ResultStr = null;
-	this.private_Calculate();
+	this.private_Calculate(oLogicDocument);
 	if(this.Error)
 	{
 		this.ErrStr = this.GetErrorStr(this.Error);
@@ -184,9 +184,18 @@ CFieldInstructionFORMULA.prototype.Calculate = function(oLogicDocument)
 };
 
 
-CFieldInstructionFORMULA.prototype.private_Calculate = function ()
+CFieldInstructionFORMULA.prototype.private_Calculate = function (oLogicDocument)
 {
-	var oParser = new AscCommonWord.CFormulaParser(",", ".");//TODO: take list separator and digits separator from settings
+	var sListSeparator = ",";
+	var sDigitSeparator = ".";
+	if(oLogicDocument && oLogicDocument.Settings){
+		var oSettings = oLogicDocument.Settings;
+		if(oSettings.DecimalSymbol && oSettings.ListSeparator && oSettings.DecimalSymbol !== oSettings.ListSeparator){
+			sListSeparator = oSettings.ListSeparator;
+			sDigitSeparator = oSettings.DecimalSymbol;
+		}
+	}
+	var oParser = new AscCommonWord.CFormulaParser(sListSeparator, sDigitSeparator);
 	oParser.parse(this.Formula, this.ParentContent);
 
 	this.SetParseQueue(oParser.parseQueue);
@@ -854,7 +863,7 @@ CFieldInstructionParser.prototype.private_ReadFORMULA = function()
 	var oFormat;
 	if(null !== sFormat)
 	{
-        oFormat = AscCommon.oNumFormatCache.get(sFormat);
+        oFormat = AscCommon.oNumFormatCache.get(sFormat, true);
         this.Result.SetFormat(oFormat);
 	}
 	this.Result.SetFormula(sFormula);

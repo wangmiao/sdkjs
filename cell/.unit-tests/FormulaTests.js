@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -452,7 +452,7 @@ $( function () {
 			if(!dNotSupportAreaArg) {
 				strictEqual( false, true);
 			}
-			console.log("func: " + func + " don't return area array");
+			consoleLog("func: " + func + " don't return area array");
 		}
 
 		oParser = new parserFormula( func + "({1,2,-3})", "A1", ws );
@@ -536,7 +536,7 @@ $( function () {
 				if(!(dNotSupportAreaArg || returnOnlyValue)) {
 					strictEqual( false, true);
 				}
-				console.log("func: " + func + " don't return area array");
+				consoleLog("func: " + func + " don't return area array");
 			}
 
 			oParser = new parserFormula( func + randomArgStrArr, "A1", ws );
@@ -551,7 +551,7 @@ $( function () {
 				if(!returnOnlyValue) {
 					strictEqual( false, true);
 				}
-				console.log("func: " + func + " don't return array");
+				consoleLog("func: " + func + " don't return array");
 			}
 		}
 	}
@@ -598,6 +598,9 @@ $( function () {
 		}
 	}
 
+	function consoleLog(val) {
+		//console.log(val);
+	}
 
     var c_msPerDay = AscCommonExcel.c_msPerDay;
     var parserFormula = AscCommonExcel.parserFormula;
@@ -676,7 +679,21 @@ $( function () {
         ok( oParser.parse() );
         strictEqual( oParser.calculate().getValue(), 6 );
     } );
-	
+
+	test( "Test: \"Asc\"", function () {
+		oParser = new parserFormula( 'ASC("ｔｅＳｔ")', "A1", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "teSt" );
+
+		oParser = new parserFormula( 'ASC("デジタル")', "A1", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "デジタル" );
+
+		oParser = new parserFormula( 'ASC("￯")', "A1", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "" );
+	} );
+
 	test( "Test: \"Cross\"", function () {
 
 		ws.getRange2( "A7" ).setValue( "1" );
@@ -2138,7 +2155,7 @@ $( function () {
 		//testArrayFormula2("CHOOSE", 2, 9);
 	} );
 
-	test( "Test: \"CHOOSE\"", function () {
+	test( "Test: \"BETA.INV\"", function () {
 		ws.getRange2( "A2" ).setValue( "0.685470581" );
 		ws.getRange2( "A3" ).setValue( "8" );
 		ws.getRange2( "A4" ).setValue( "10" );
@@ -2150,6 +2167,20 @@ $( function () {
 		strictEqual( oParser.calculate().getValue().toFixed(1) - 0, 2, "BETA.INV(A2,A3,A4,A5,A6)" );
 
 		testArrayFormula2("BETA.INV", 3, 5);
+	} );
+
+	test( "Test: \"BETAINV\"", function () {
+		ws.getRange2( "A2" ).setValue( "0.685470581" );
+		ws.getRange2( "A3" ).setValue( "8" );
+		ws.getRange2( "A4" ).setValue( "10" );
+		ws.getRange2( "A5" ).setValue( "1" );
+		ws.getRange2( "A6" ).setValue( "3" );
+
+		oParser = new parserFormula( "BETAINV(A2,A3,A4,A5,A6)", "A1", ws );
+		ok( oParser.parse(), "BETAINV(A2,A3,A4,A5,A6)" );
+		strictEqual( oParser.calculate().getValue().toFixed(1) - 0, 2, "BETAINV(A2,A3,A4,A5,A6)" );
+
+		testArrayFormula2("BETAINV", 3, 5);
 	} );
 
 	test( "Test: \"BETA.DIST\"", function () {
@@ -2579,6 +2610,19 @@ $( function () {
 		oParser = new parserFormula( "DAYS(A2,A3)", "A1", ws );
 		ok( oParser.parse() );
 		strictEqual( oParser.calculate().getValue(), 364 );
+
+		oParser = new parserFormula( "DAYS(A2,A3)", "A1", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 364 );
+
+		oParser = new parserFormula( 'DAYS("2008-03-03","2008-03-01")', "A1", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( 'DAYS("2008-03-01","2008-03-03")', "A1", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), -2 );
+
 
 		testArrayFormula2("DAYS", 2, 2);
 	} );
@@ -3787,6 +3831,39 @@ $( function () {
 		oParser = new parserFormula("WORKDAY(DATE(2018,4,29),0,{\"5-1-2018\", \"5-2-2018\",\"5-3-2018\"})", "A2", ws);
 		ok(oParser.parse());
 		strictEqual(oParser.calculate().getValue(), 43219);
+
+		oParser = new parserFormula("WORKDAY({1,2,3},{1,2})", "A2", ws);
+		ok(oParser.parse());
+		strictEqual(oParser.calculate().getValue(), 2);
+
+		oParser = new parserFormula("WORKDAY({1,2,3},1)", "A2", ws);
+		ok(oParser.parse());
+		strictEqual(oParser.calculate().getValue(), 2);
+
+		oParser = new parserFormula("WORKDAY(1,{1,2})", "A2", ws);
+		ok(oParser.parse());
+		strictEqual(oParser.calculate().getValue(), 2);
+
+		//todo ms выдаёт ошибки
+		/*ws.getRange2( "A101" ).setValue( "1" );
+		ws.getRange2( "B101" ).setValue( "3.123" );
+		ws.getRange2( "C101" ).setValue( "-4" );
+
+		oParser = new parserFormula("WORKDAY(A101:B101,A101:B101)", "A2", ws);
+		ok(oParser.parse());
+		strictEqual(oParser.calculate().getValue(), "#VALUE!");
+
+		oParser = new parserFormula("WORKDAY(A101,A101:B101)", "A2", ws);
+		ok(oParser.parse());
+		strictEqual(oParser.calculate().getValue(), "#VALUE!");
+
+		oParser = new parserFormula("WORKDAY(A101:B101,A101)", "A2", ws);
+		ok(oParser.parse());
+		strictEqual(oParser.calculate().getValue(), "#VALUE!");
+
+		oParser = new parserFormula("WORKDAY(A101,A101)", "A2", ws);
+		ok(oParser.parse());
+		strictEqual(oParser.calculate().getValue(), 2);*/
 	});
 
 	test( "Test: \"WORKDAY.INTL\"", function () {
@@ -3854,6 +3931,26 @@ $( function () {
 		oParser = new parserFormula( "TIME(A3,B3,C3)", "A2", ws );
 		ok( oParser.parse() );
 		strictEqual( oParser.calculate().getValue().toFixed(7) - 0, 0.7001157 );
+
+		oParser = new parserFormula( "TIME(1,1,1)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue().toFixed(7) - 0, 0.0423727 );
+
+		oParser = new parserFormula( "TIME(1.34,1,1)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue().toFixed(7) - 0, 0.0423727 );
+
+		oParser = new parserFormula( "TIME(1.34,1.456,1)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue().toFixed(7) - 0, 0.0423727 );
+
+		oParser = new parserFormula( "TIME(1.34,1.456,1.9)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue().toFixed(7) - 0, 0.0423727 );
+
+		oParser = new parserFormula( "TIME(-1.34,1.456,1.9)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#NUM!" );
 
 		testArrayFormula2("TIME", 3, 3);
 	} );
@@ -4315,9 +4412,9 @@ $( function () {
 		ok( oParser.parse() );
 		strictEqual( oParser.calculate().getValue(), 6 );
 
-		oParser = new parserFormula( "SUMPRODUCT(({1,2,3})*({TRUE;TRUE;TRUE;TRUE}))", "A2", ws );
+		/*oParser = new parserFormula( "SUMPRODUCT(({1,2,3})*({TRUE;TRUE;TRUE;TRUE}))", "A2", ws );
 		ok( oParser.parse() );
-		strictEqual( oParser.calculate().getValue(), 24 );
+		strictEqual( oParser.calculate().getValue(), 24 );*/
 
 		oParser = new parserFormula( "SUMPRODUCT({TRUE,TRUE,FALSE})", "A2", ws );
 		ok( oParser.parse() );
@@ -4383,6 +4480,28 @@ $( function () {
 		ok( oParser.parse() );
 		ok( oParser.assemble() == "SUMPRODUCT((A101:A105)*((B101:B105)=1))+SUMPRODUCT((A101:A104)*((B101:B104)=1))+SUMPRODUCT((A101:A103)*((B101:B103)=1))" );
 		strictEqual( oParser.calculate().getValue(), 58 );
+
+		oParser = new parserFormula( "SUMPRODUCT(({3})*({TRUE,TRUE,TRUE,TRUE}))", "A2", ws );
+		ok( oParser.parse() );
+		ok( oParser.assemble() == "SUMPRODUCT(({3})*({TRUE,TRUE,TRUE,TRUE}))" );
+		strictEqual( oParser.calculate().getValue(), 12 );
+
+		oParser = new parserFormula( "SUMPRODUCT(({3;2;2;2})*({TRUE;TRUE;TRUE;TRUE}))", "A2", ws );
+		ok( oParser.parse() );
+		ok( oParser.assemble() == "SUMPRODUCT(({3;2;2;2})*({TRUE;TRUE;TRUE;TRUE}))" );
+		strictEqual( oParser.calculate().getValue(), 9 );
+
+		oParser = new parserFormula( "SUMPRODUCT(--ISNUMBER({5;6;7;1;2;3;4}))", "A2", ws );
+		ok( oParser.parse() );
+		ok( oParser.assemble() == "SUMPRODUCT(--ISNUMBER({5;6;7;1;2;3;4}))" );
+		strictEqual( oParser.calculate().getValue(), 7 );
+
+		oParser = new parserFormula( "SUMPRODUCT(--ISNUMBER(SEARCH({5;6;7;1;2;3;4},123)))", "A2", ws );
+		ok( oParser.parse() );
+		ok( oParser.assemble() == "SUMPRODUCT(--ISNUMBER(SEARCH({5;6;7;1;2;3;4},123)))" );
+		strictEqual( oParser.calculate().getValue(), 3 );
+
+
 
 		testArrayFormula2("SUMPRODUCT", 1, 8, null, true);
     } );
@@ -4700,6 +4819,59 @@ $( function () {
 		oParser = new parserFormula( 'XOR(3>12,4<6)', "A2", ws );
 		ok( oParser.parse(), 'XOR(3>12,4<6)' );
 		strictEqual( oParser.calculate().getValue(), "TRUE", 'XOR(3>12,4<6)' );
+
+		//area - specific for xor function
+		//all empty - false result
+		ws.getRange2( "A101" ).setValue( "5" );
+		ws.getRange2( "A102" ).setValue( "6" );
+		ws.getRange2( "A103" ).setValue( "test1" );
+		ws.getRange2( "A104" ).setValue( "" );
+		ws.getRange2( "A105" ).setValue( "false" );
+
+		ws.getRange2( "B101" ).setValue( "1" );
+		ws.getRange2( "B102" ).setValue( "1" );
+		ws.getRange2( "B103" ).setValue( "test2" );
+		ws.getRange2( "B104" ).setValue( "" );
+		ws.getRange2( "B105" ).setValue( "false" );
+
+		ws.getRange2( "B106" ).setValue( "#VALUE!" );
+
+		oParser = new parserFormula( 'XOR(A101:B102)', "A2", ws );
+		ok( oParser.parse(), 'XOR(A101:B102)' );
+		strictEqual( oParser.calculate().getValue(), "FALSE" );
+
+		oParser = new parserFormula( 'XOR(A101:B103)', "A2", ws );
+		ok( oParser.parse(), 'XOR(A101:B103)' );
+		strictEqual( oParser.calculate().getValue(), "FALSE" );
+
+		oParser = new parserFormula( 'XOR(A101:A103)', "A2", ws );
+		ok( oParser.parse(), 'XOR(A101:A103)' );
+		strictEqual( oParser.calculate().getValue(), "TRUE" );
+
+		oParser = new parserFormula( 'XOR(A101:A104)', "A2", ws );
+		ok( oParser.parse(), 'XOR(A101:A104)' );
+		strictEqual( oParser.calculate().getValue(), "FALSE" );
+
+		oParser = new parserFormula( 'XOR(A104:B104)', "A2", ws );
+		ok( oParser.parse(), 'XOR(A104:B104)' );
+		strictEqual( oParser.calculate().getValue(), "#VALUE!" );
+
+		oParser = new parserFormula( 'XOR(A101:B104)', "A2", ws );
+		ok( oParser.parse(), 'XOR(A101:B104)' );
+		strictEqual( oParser.calculate().getValue(), "FALSE" );
+
+		oParser = new parserFormula( 'XOR(A101:B105)', "A2", ws );
+		ok( oParser.parse(), 'XOR(A101:B105)' );
+		strictEqual( oParser.calculate().getValue(), "FALSE" );
+
+		oParser = new parserFormula( 'XOR(A101:A105)', "A2", ws );
+		ok( oParser.parse(), 'XOR(A101:A105)' );
+		strictEqual( oParser.calculate().getValue(), "TRUE" );
+
+		oParser = new parserFormula( 'XOR(B101:A106)', "A2", ws );
+		ok( oParser.parse(), 'XOR(B101:A106)' );
+		strictEqual( oParser.calculate().getValue(), "#VALUE!" );
+
 
 		testArrayFormula2("XOR", 1, 8, null, true);
 	} );
@@ -5688,6 +5860,10 @@ $( function () {
 		ws.getRange2( "CC7" ).setValue( "'true'" );
 		ws.getRange2( "CC8" ).setValue( "" );
 
+		/*oParser = new parserFormula( "COUNTIF(CC1:CC8,\"<\"&\"F007\")", "C2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 1 );*/
+
 		oParser = new parserFormula( "COUNTIF(CC1:CC7, TRUE())", "C2", ws );
 		ok( oParser.parse() );
 		strictEqual( oParser.calculate().getValue(), 3 );
@@ -5754,6 +5930,37 @@ $( function () {
 		strictEqual( oParser.calculate().getValue(), 1 );
 
 		wb.dependencyFormulas.lockRecal();
+
+		ws.getRange2( "A22" ).setValue( "apples" );
+		ws.getRange2( "A23" ).setValue( "" );
+		ws.getRange2( "A24" ).setValue( "oranges" );
+		ws.getRange2( "A25" ).setValue( "peaches" );
+		ws.getRange2( "A26" ).setValue( "" );
+		ws.getRange2( "A27" ).setValue( "apples" );
+
+		oParser = new parserFormula( 'COUNTIF(A22:A27,"*es")', "C2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 4 );
+
+		oParser = new parserFormula( 'COUNTIF(A22:A27,"?????es")', "C2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( 'COUNTIF(A22:A27,"*")', "C2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 4 );
+
+		oParser = new parserFormula( 'COUNTIF(A22:A27,"<>"&"***")', "C2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( 'COUNTIF(A22:A27,"<>"&"*")', "C2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( 'COUNTIF(A22:A27,"<>"&"?")', "C2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 6 );
 
 		testArrayFormula2("COUNTIF", 2, 2)
 	} );
@@ -8021,6 +8228,26 @@ $( function () {
         ok( oParser.parse() );
         strictEqual( oParser.calculate().getValue(), _var( [10.5, 12.4, 19.4] ) );
 
+		oParser = new parserFormula( "VAR(1)", "A1", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#DIV/0!" );
+
+		oParser = new parserFormula( "VAR({1})", "A1", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#DIV/0!" );
+
+		ws.getRange2( "A202" ).setValue( "1345" );
+		ws.getRange2( "A203" ).setValue( "" );
+		ws.getRange2( "A204" ).setValue( "" );
+
+		oParser = new parserFormula( "VAR(A202)", "A1", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#DIV/0!" );
+
+		oParser = new parserFormula( "VAR(A202:A204)", "A1", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#DIV/0!" );
+
     } );
 
 	test( "Test: \"VAR.P\"", function () {
@@ -8121,6 +8348,55 @@ $( function () {
         ok( oParser.parse() );
         strictEqual( oParser.calculate().getValue(), "c" );
 
+
+		/*oParser = new parserFormula( "HLOOKUP(1,{1,2,3;2,3,4},2)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( "HLOOKUP(1,{1,2,3;2,3,4},3,1)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
+		oParser = new parserFormula( "HLOOKUP(1,{1,2,3;2,3,4},3,0)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
+		oParser = new parserFormula( "HLOOKUP({2,3,4},{1,2,3;2,3,4},2)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 3 );
+
+		oParser = new parserFormula( "HLOOKUP({2,3,4},{1,2,3;2,3,4},{4,5,6})", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
+		oParser = new parserFormula( "HLOOKUP({2,3,4},{1,2,3;2,3,4},{1,5,6})", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( "HLOOKUP({2,3,4},{1,2,3;2,3,4;6,7,8},{1,5,6})", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( "HLOOKUP({5,3,4},{1,2,3;2,3,4;6,7,8},{1,5,6})", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 3 );
+
+		oParser = new parserFormula( "HLOOKUP(4,{1,2,3;2,3,4;6,7,8},2)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 4 );
+
+		oParser = new parserFormula( "HLOOKUP(4,{1,2,3;2,3,4;6,7,8},3)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 8 );
+
+		oParser = new parserFormula( "HLOOKUP(4,{1,2,3;2,3,4;6,7,8},5)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
+		oParser = new parserFormula( "HLOOKUP({2,3,4},{1,2,3;2,3,4;6,7,8},1)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );*/
+
     } );
 
     test( "Test: \"VLOOKUP\"", function () {
@@ -8149,6 +8425,54 @@ $( function () {
         oParser = new parserFormula( "VLOOKUP(2,A502:C510,2,TRUE)", "A2", ws );
         ok( oParser.parse() );
         strictEqual( oParser.calculate().getValue(), 1.71 );
+
+		oParser = new parserFormula( "VLOOKUP(1,{1,2,3;2,3,4},2)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( "VLOOKUP(1,{1,2,3;2,3,4},3,1)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 3 );
+
+		oParser = new parserFormula( "VLOOKUP(1,{1,2,3;2,3,4},3,0)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 3 );
+
+		oParser = new parserFormula( "VLOOKUP({2,3,4},{1,2,3;2,3,4},2)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 3 );
+
+		oParser = new parserFormula( "VLOOKUP({2,3,4},{1,2,3;2,3,4},{4,5,6})", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
+		oParser = new parserFormula( "VLOOKUP({2,3,4},{1,2,3;2,3,4},{1,5,6})", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( "VLOOKUP({2,3,4},{1,2,3;2,3,4;6,7,8},{1,5,6})", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( "VLOOKUP({5,3,4},{1,2,3;2,3,4;6,7,8},{1,5,6})", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
+
+		oParser = new parserFormula( "VLOOKUP(4,{1,2,3;2,3,4;6,7,8},2)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 3 );
+
+		oParser = new parserFormula( "VLOOKUP(4,{1,2,3;2,3,4;6,7,8},3)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 4 );
+
+		oParser = new parserFormula( "VLOOKUP(4,{1,2,3;2,3,4;6,7,8},5)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
+		oParser = new parserFormula( "VLOOKUP({2,3,4},{1,2,3;2,3,4;6,7,8},1)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), 2 );
 
     } );
 
@@ -8290,9 +8614,40 @@ $( function () {
         ok( oParser.parse() );
         strictEqual( oParser.calculate().getValue(), "Lemons" );
 
+		//данная функция возвращает area а далее уже в функции simplifyRefType находится резальтат
+		// - пересечение а ячейкой, где располагается формула
         oParser = new parserFormula( "INDEX(A651:C655,,2)", "A2", ws );
         ok( oParser.parse() );
-        strictEqual( oParser.calculate().getValue().getValue(), 6 );
+        var parent =  AscCommonExcel.g_oRangeCache.getAscRange(oParser.parent);
+        parent = {nCol: parent.c1, nRow: parent.r1, ws: ws};
+        strictEqual( oParser.simplifyRefType(oParser.calculate(), parent).getValue(), "#VALUE!" );
+
+		oParser = new parserFormula( "INDEX(A651:C655,,2)", "D651", ws );
+		ok( oParser.parse() );
+		parent =  AscCommonExcel.g_oRangeCache.getAscRange(oParser.parent);
+		parent = {nCol: parent.c1, nRow: parent.r1, ws: ws};
+		strictEqual( oParser.simplifyRefType(oParser.calculate(), parent).getValue(), 6 );
+
+		oParser = new parserFormula( "INDEX(A651:C655,,2)", "D652", ws );
+		ok( oParser.parse() );
+		parent =  AscCommonExcel.g_oRangeCache.getAscRange(oParser.parent);
+		parent = {nCol: parent.c1, nRow: parent.r1, ws: ws};
+		strictEqual( oParser.simplifyRefType(oParser.calculate(), parent).getValue(), 7 );
+
+		oParser = new parserFormula( "INDEX(A651:C655,,3)", "E652", ws );
+		ok( oParser.parse() );
+		parent =  AscCommonExcel.g_oRangeCache.getAscRange(oParser.parent);
+		parent = {nCol: parent.c1, nRow: parent.r1, ws: ws};
+		strictEqual( oParser.simplifyRefType(oParser.calculate(), parent).getValue(), 12 );
+
+		oParser = new parserFormula( "INDEX(A651:C655,,4)", "E652", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
+		oParser = new parserFormula( "INDEX(A651:C655,,14)", "E652", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
 
         oParser = new parserFormula( "INDEX(A651:C655,3,2)", "A2", ws );
         ok( oParser.parse() );
@@ -8330,9 +8685,61 @@ $( function () {
 		ok( oParser.parse() );
 		strictEqual( oParser.calculate().getValue(), "#REF!" );
 
+		oParser = new parserFormula( "INDEX(A651:C652,1)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
+		oParser = new parserFormula( "INDEX(A651:C652,2)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
+		oParser = new parserFormula( "INDEX(A651:C652,0)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
+
+		oParser = new parserFormula( "INDEX(A651:C651,1,1,1)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue().getValue(), 1 );
+
+		oParser = new parserFormula( "INDEX(A651:C651,1,1,2)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#REF!" );
     } );
 
-    test( "Test: \"OFFSET\"", function () {
+	test( "Test: \"INDIRECT\"", function () {
+
+		ws.getRange2( "A22" ).setValue( "B22" );
+		ws.getRange2( "B22" ).setValue( "1.333" );
+
+		ws.getRange2( "A23" ).setValue( "B23" );
+		ws.getRange2( "B23" ).setValue( "45" );
+
+		ws.getRange2( "A24" ).setValue( "George" );
+		ws.getRange2( "B24" ).setValue( "10" );
+
+		ws.getRange2( "A25" ).setValue( "25" );
+		ws.getRange2( "B25" ).setValue( "62" );
+
+
+		oParser = new parserFormula( "INDIRECT(A22)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue().getValue(), 1.333 );
+
+		oParser = new parserFormula( "INDIRECT(A23)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue().getValue(), 45 );
+
+		/*oParser = new parserFormula( "INDIRECT(A24)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue().getValue(), 10 );*/
+
+		oParser = new parserFormula( 'INDIRECT("B"&A25)', "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue().getValue(), 62 );
+	} );
+
+
+	test( "Test: \"OFFSET\"", function () {
 
         ws.getRange2( "C150" ).setValue( "1" );
         ws.getRange2( "D150" ).setValue( "2" );
@@ -10177,6 +10584,10 @@ $( function () {
         oParser = new parserFormula( "VDB(2400,300,10*12,6,18)", "A2", ws );
         ok( oParser.parse() );
         strictEqual( oParser.calculate().getValue(), vdb(2400,300,10*12,6,18) );
+
+		oParser = new parserFormula( "VDB(0,0,0,0,0)", "A2", ws );
+		ok( oParser.parse() );
+		strictEqual( oParser.calculate().getValue(), "#DIV/0!" );
 
         testArrayFormula2("VDB", 5, 7);
     } );

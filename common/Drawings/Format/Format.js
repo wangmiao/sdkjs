@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -2157,6 +2157,15 @@ function CreateUniColorRGB(r, g, b)
     var ret = new CUniColor();
     ret.setColor(new CRGBColor());
     ret.color.setColor(r, g, b);
+    return ret;
+}
+
+function CreateUniColorRGB2(color)
+{
+    color = color || AscCommonExcel.createRgbColor(255, 255, 255);
+    var ret = new CUniColor();
+    ret.setColor(new CRGBColor());
+    ret.color.setColor(ret.RGBA.R = color.getR(), ret.RGBA.G = color.getG(), ret.RGBA.B = color.getB());
     return ret;
 }
 
@@ -4357,8 +4366,9 @@ EndArrow.prototype =
         return arrow && arrow.type == this.type &&  arrow.len == this.len && arrow.w  == this.w;
     },
 
-    GetWidth: function(size, _max)
+    GetWidth: function(_size, _max)
     {
+        var size = Math.max(_size, _max ? _max : 2.5);
         var _ret = 3 * size;
         if (null != this.w)
         {
@@ -4374,10 +4384,11 @@ EndArrow.prototype =
                     break;
             }
         }
-        return Math.max(_ret, _max ? _max : 7);
+        return _ret;
     },
-    GetLen: function(size, _max)
+    GetLen: function(_size, _max)
     {
+        var size = Math.max(_size, _max ? _max : 2);
         var _ret = 3 * size;
         if (null != this.len)
         {
@@ -4393,7 +4404,7 @@ EndArrow.prototype =
                     break;
             }
         }
-        return Math.max(_ret, _max ? _max : 7);
+        return _ret;
     },
 
     getObjectType: function()
@@ -4890,11 +4901,6 @@ DefaultShapeDefinition.prototype=
 };
 
 
-
-function CHyperlink(){
-
-}
-
 function CNvPr()
 {
     this.id = 0;
@@ -5111,6 +5117,10 @@ NvPr.prototype =
         if(this.ph != null)
         {
             duplicate.setPh(this.ph.createDuplicate());
+        }
+        if(this.unimedia != null)
+        {
+            duplicate.setUniMedia(this.unimedia.createDuplicate());
         }
         return duplicate;
     },
@@ -10063,7 +10073,7 @@ function CreateAscShapeProp(shape)
     if(shape.textBoxContent)
     {
         var body_pr = shape.bodyPr;
-        paddings = new asc_CPaddings();
+        paddings = new Asc.asc_CPaddings();
         if(typeof body_pr.lIns === "number")
             paddings.Left = body_pr.lIns;
         else
@@ -10573,8 +10583,8 @@ function CorrectUniColor(asc_color, unicolor, flag)
         var oUniFill = new AscFormat.CUniFill();
         oUniFill.fill = new AscFormat.CPattFill();
         oUniFill.fill.ftype = AscCommon.global_hatch_offsets[sPatternType];
-        oUniFill.fill.fgClr = FgColor.Unicolor;
-        oUniFill.fill.bgClr = BgColor.Unicolor;
+        oUniFill.fill.fgClr = FgColor && FgColor.Unicolor;
+        oUniFill.fill.bgClr = BgColor && BgColor.Unicolor;
         return oUniFill;
     }
 
@@ -10689,7 +10699,7 @@ function CorrectUniColor(asc_color, unicolor, flag)
             if(verAxis)
             {
                 if(!verAxis.scaling)
-                    verAxis.setScaling(new CScaling());
+                    verAxis.setScaling(new AscFormat.CScaling());
                 var scaling = verAxis.scaling;
                 if(bIsMinMax){
                     scaling.setOrientation(AscFormat.ORIENTATION_MIN_MAX);
@@ -10706,7 +10716,7 @@ function CorrectUniColor(asc_color, unicolor, flag)
             var horAxis = oChartSpace.chart.plotArea.getHorizontalAxis();
             if(horAxis){
                 if(!horAxis.scaling)
-                    horAxis.setScaling(new CScaling());
+                    horAxis.setScaling(new AscFormat.CScaling());
                 var scaling = horAxis.scaling;
                 if(bIsMinMax){
                     scaling.setOrientation(AscFormat.ORIENTATION_MIN_MAX);
@@ -11061,6 +11071,7 @@ function CorrectUniColor(asc_color, unicolor, flag)
     window['AscFormat'].CSchemeColor = CSchemeColor;
     window['AscFormat'].CUniColor = CUniColor;
     window['AscFormat'].CreateUniColorRGB = CreateUniColorRGB;
+    window['AscFormat'].CreateUniColorRGB2 = CreateUniColorRGB2;
     window['AscFormat'].CreteSolidFillRGB = CreteSolidFillRGB;
     window['AscFormat'].CreateSolidFillRGBA = CreateSolidFillRGBA;
     window['AscFormat'].CSrcRect = CSrcRect;

@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -1329,11 +1329,11 @@ ParaDrawing.prototype.GetPosCorrection = function()
 		}
 		if(bCell || this.Is_Inline() || this.PositionH.Align)
 		{
-			DiffX = AscFormat.getValOrDefault(oEffectExtent.L, 0.0) - (xc - extX / 2) + oBounds.l;
+			DiffX = AscFormat.getValOrDefault(oEffectExtent.L, 0.0) - (xc - extX / 2) + (this.PositionH.Align ? 0 : oBounds.l);
 		}
 		if(/*bCell ||*/ this.Is_Inline() || this.PositionV.Align)
 		{
-			DiffY = AscFormat.getValOrDefault(oEffectExtent.T, 0.0) - (yc - extY / 2) + oBounds.t;
+			DiffY = AscFormat.getValOrDefault(oEffectExtent.T, 0.0) - (yc - extY / 2) + (this.PositionV.Align ? 0 : oBounds.t);
 		}
 	}
 	return {DiffX: DiffX, DiffY: DiffY, ExtX: extX, ExtY: extY, Rot: rot};
@@ -1618,7 +1618,7 @@ ParaDrawing.prototype.Add_ToDocument = function(NearPos, bRecalculate, RunPr, Ru
 		DrawingRun.Set_Pr(RunPr.Copy());
 
 	if (Run)
-		DrawingRun.Set_ReviewTypeWithInfo(Run.Get_ReviewType(), Run.Get_ReviewInfo());
+		DrawingRun.SetReviewTypeWithInfo(Run.GetReviewType(), Run.GetReviewInfo());
 
 	Para.Add_ToContent(0, DrawingRun);
 
@@ -2158,7 +2158,10 @@ ParaDrawing.prototype.GetAllParagraphs = function(Props, ParaArray)
 ParaDrawing.prototype.GetAllDocContents = function(aDocContents)
 {
 	var _ret = Array.isArray(aDocContents) ? aDocContents : [];
-	this.GraphicObj.getAllDocContents(_ret);
+	if(this.GraphicObj)
+	{
+		this.GraphicObj.getAllDocContents(_ret);
+	}
 	return _ret;
 };
 ParaDrawing.prototype.getTableProps = function()

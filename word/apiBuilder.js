@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -1139,7 +1139,16 @@
 	 */
 	Api.prototype.CreateBlockLvlSdt = function()
 	{
-		return new ApiBlockLvlSdt(new CBlockLvlSdt());
+		return new ApiBlockLvlSdt(new CBlockLevelSdt());
+	};
+
+	/**
+	 * Saves changes to the specified document.
+	 * @typeofeditors ["CDE"]
+	 * @memberof Api
+	 */
+	Api.prototype.Save = function () {
+		this.SaveAfterMacros = true;
 	};
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -1801,7 +1810,7 @@
 		if (!oNum)
 			return null;
 
-		return new ApiNumberingLevel(oNumbering, oNumPr.Lvl);
+		return new ApiNumberingLevel(oNum, oNumPr.Lvl);
 	};
 	/**
 	 * Specifies that the current paragraph references a numbering definition instance in the current document.
@@ -4860,13 +4869,13 @@
 	 */
 	ApiInlineLvlSdt.prototype.SetLock = function(sLockType)
 	{
-		var nLock = sdtlock_Unlocked;
+		var nLock = c_oAscSdtLockType.Unlocked;
 		if ("contentLocked" === sLockType)
-			nLock = sdtlock_ContentLocked;
+			nLock = c_oAscSdtLockType.ContentLocked;
 		else if ("sdtContentLocked" === sLockType)
-			nLock = sdtlock_SdtContentLocked;
+			nLock = c_oAscSdtLockType.SdtContentLocked;
 		else if ("sdtLocked" === sLockType)
-			nLock = sdtlock_SdtLocked;
+			nLock = c_oAscSdtLockType.SdtLocked;
 
 		this.Sdt.SetContentControlLock(nLock);
 	};
@@ -4880,11 +4889,11 @@
 
 		var sResult = "unlocked";
 
-		if (sdtlock_ContentLocked === nLock)
+		if (c_oAscSdtLockType.ContentLocked === nLock)
 			sResult = "contentLocked";
-		else if (sdtlock_SdtContentLocked === nLock)
+		else if (c_oAscSdtLockType.SdtContentLocked === nLock)
 			sResult = "sdtContentLocked";
-		else if (sdtlock_SdtLocked === nLock)
+		else if (c_oAscSdtLockType.SdtLocked === nLock)
 			sResult = "sdtLocked";
 
 		return sResult;
@@ -5024,13 +5033,13 @@
 	 */
 	ApiBlockLvlSdt.prototype.SetLock = function(sLockType)
 	{
-		var nLock = sdtlock_Unlocked;
+		var nLock = c_oAscSdtLockType.Unlocked;
 		if ("contentLocked" === sLockType)
-			nLock = sdtlock_ContentLocked;
+			nLock = c_oAscSdtLockType.ContentLocked;
 		else if ("sdtContentLocked" === sLockType)
-			nLock = sdtlock_SdtContentLocked;
+			nLock = c_oAscSdtLockType.SdtContentLocked;
 		else if ("sdtLocked" === sLockType)
-			nLock = sdtlock_SdtLocked;
+			nLock = c_oAscSdtLockType.SdtLocked;
 
 		this.Sdt.SetContentControlLock(nLock);
 	};
@@ -5044,11 +5053,11 @@
 
 		var sResult = "unlocked";
 
-		if (sdtlock_ContentLocked === nLock)
+		if (c_oAscSdtLockType.ContentLocked === nLock)
 			sResult = "contentLocked";
-		else if (sdtlock_SdtContentLocked === nLock)
+		else if (c_oAscSdtLockType.SdtContentLocked === nLock)
 			sResult = "sdtContentLocked";
-		else if (sdtlock_SdtLocked === nLock)
+		else if (c_oAscSdtLockType.SdtLocked === nLock)
 			sResult = "sdtLocked";
 
 		return sResult;
@@ -5134,6 +5143,7 @@
 	Api.prototype["CreateNumbering"]                 = Api.prototype.CreateNumbering;
 	Api.prototype["CreateInlineLvlSdt"]              = Api.prototype.CreateInlineLvlSdt;
 	Api.prototype["CreateBlockLvlSdt"]               = Api.prototype.CreateBlockLvlSdt;
+	Api.prototype["Save"]               			 = Api.prototype.Save;
 
 	ApiUnsupported.prototype["GetClassType"]         = ApiUnsupported.prototype.GetClassType;
 
@@ -5689,7 +5699,7 @@
 		oTextFill2.transparent = 127;
 
 		var MainLogicDocument = (editor && editor.WordControl && editor.WordControl.m_oLogicDocument ? editor && editor.WordControl && editor.WordControl.m_oLogicDocument : null);
-		var TrackRevisions = (MainLogicDocument ? MainLogicDocument.Is_TrackRevisions() : false);
+		var TrackRevisions = (MainLogicDocument ? MainLogicDocument.IsTrackRevisions() : false);
 
 		if (MainLogicDocument && true === TrackRevisions)
 			MainLogicDocument.Set_TrackRevisions(false);

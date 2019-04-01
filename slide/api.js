@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -63,6 +63,7 @@
 	var c_oAscFill              = Asc.c_oAscFill;
 	var asc_CShapeFill          = Asc.asc_CShapeFill;
 	var asc_CFillBlip           = Asc.asc_CFillBlip;
+    var c_oAscFontRenderingModeType = Asc.c_oAscFontRenderingModeType;
 
 	function CAscSlideProps()
 	{
@@ -602,7 +603,6 @@
 		this.isPageBreakBefore    = false;
 		this.isKeepLinesTogether  = false;
 		this.isPresentationEditor = true;
-		this.bAlignBySelected     = false;
 		this.bSelectedSlidesTheme = false;
 
 		this.isPaintFormat              = AscCommon.c_oAscFormatPainterState.kOff;
@@ -616,6 +616,7 @@
 		this.isShapeImageChangeUrl = false;
 		this.isSlideImageChangeUrl = false;
 		this.textureType = null;
+        this.tmpFontRenderingMode = null;
 
 		this.isPasteFonts_Images = false;
 
@@ -1044,7 +1045,7 @@
             };
 
 			this.SpellCheckApi.spellCheck = function (spellData) {
-                window["AscDesktopEditor"]["SpellCheck"](spellData);
+                window["AscDesktopEditor"]["SpellCheck"](JSON.stringify(spellData));
             };
             this.SpellCheckApi.disconnect = function () {
             };
@@ -2333,7 +2334,7 @@ background-repeat: no-repeat;\
 		var _headers = [];
 		for (var i = 0; i < headers.length; i++)
 		{
-			_headers[i] = new CHeader(headers[i]);
+			_headers[i] = new Asc.CHeader(headers[i]);
 		}
 
 		this.sendEvent("asc_onReturnHeaders", _headers);
@@ -2383,7 +2384,7 @@ background-repeat: no-repeat;\
 
 	asc_docs_api.prototype.sync_ReplaceAllCallback = function(ReplaceCount, OverallCount)
 	{
-		this.sendEvent("asc_onReplaceAll", ReplaceCount, OverallCount);
+		this.sendEvent("asc_onReplaceAll", OverallCount, ReplaceCount);
 	};
 
 	asc_docs_api.prototype.sync_SearchEndCallback = function()
@@ -2573,16 +2574,6 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype.FontSizeOut                = function()
 	{
 		this.WordControl.m_oLogicDocument.IncreaseDecreaseFontSize(false);
-	};
-
-	asc_docs_api.prototype.put_AlignBySelect = function(val)
-	{
-		this.bAlignBySelected = val;
-	};
-
-	asc_docs_api.prototype.get_AlignBySelect = function()
-	{
-		return this.bAlignBySelected;
 	};
 
 	/*callbacks*/
@@ -3480,7 +3471,6 @@ background-repeat: no-repeat;\
 	};
 	asc_docs_api.prototype.sync_HeadersAndFootersPropCallback = function(hafProp)
 	{
-		this.SelectedObjectsStack[this.SelectedObjectsStack.length] = new asc_CSelectedObject(c_oAscTypeSelectElement.Header, new CHeaderProp(hafProp));
 	};
 
 	/*----------------------------------------------------------------*/
@@ -4037,6 +4027,35 @@ background-repeat: no-repeat;\
     };
     //-------------------------------------------------------
 
+
+
+	asc_docs_api.prototype.asc_canEditCrop = function()
+	{
+
+		return this.WordControl.m_oLogicDocument.canStartImageCrop();
+	};
+
+	asc_docs_api.prototype.asc_startEditCrop = function()
+	{
+		return this.WordControl.m_oLogicDocument.startImageCrop();
+	};
+
+	asc_docs_api.prototype.asc_endEditCrop = function()
+	{
+		return this.WordControl.m_oLogicDocument.endImageCrop();
+	};
+
+	asc_docs_api.prototype.asc_cropFit = function()
+	{
+		return this.WordControl.m_oLogicDocument.cropFit();
+	};
+
+	asc_docs_api.prototype.asc_cropFill = function()
+	{
+		return this.WordControl.m_oLogicDocument.cropFill();
+	};
+
+
 	asc_docs_api.prototype.AddTextArt = function(nStyle)
 	{
 		if (editor.WordControl.m_oLogicDocument.Document_Is_SelectionLocked(changestype_Drawing_Props) === false)
@@ -4077,7 +4096,7 @@ background-repeat: no-repeat;\
 			}
 		}
 	};
-	asc_docs_api.prototype.AddImageUrl  = function(url)
+	asc_docs_api.prototype.AddImageUrl  = function(url, imgProp, withAuthorization)
 	{
 		if (g_oDocumentUrls.getLocal(url))
 		{
@@ -4091,7 +4110,7 @@ background-repeat: no-repeat;\
                 if (data && data[0])
                     t.AddImageUrlAction(data[0].url);
 
-            }, false);
+            }, false, undefined, withAuthorization);
 		}
 	};
 
@@ -5124,6 +5143,44 @@ background-repeat: no-repeat;\
 		}
 	};
 
+
+	asc_docs_api.prototype.asc_AddVideo = function(sImageUrlLocal, sVideoUrl)
+	{
+		var oApi = this;
+		var sImageUrl = AscCommon.g_oDocumentUrls.getImageUrl(sImageUrlLocal);
+		this.ImageLoader.LoadImagesWithCallback([sImageUrl], function(){
+			var _image = oApi.ImageLoader.LoadImage(sImageUrl, 1);
+			if (!_image || !_image.Image)
+				return;
+
+			var oImageObject = {};
+			oImageObject.src = sImageUrl;
+			oImageObject.Image = {};
+			oImageObject.Image.width = _image.Image.width;
+			oImageObject.Image.height = _image.Image.height;
+			oImageObject.videoUrl = sVideoUrl;
+			oApi.WordControl.m_oLogicDocument.addImages([oImageObject]);
+		});
+	};
+	asc_docs_api.prototype.asc_AddAudio = function(sImageUrlLocal, sAudioUrl)
+	{
+		var oApi = this;
+        var sImageUrl = AscCommon.g_oDocumentUrls.getImageUrl(sImageUrlLocal);
+		this.ImageLoader.LoadImagesWithCallback([sImageUrl], function(){
+			var _image = oApi.ImageLoader.LoadImage(sImageUrl, 1);
+            if (!_image || !_image.Image)
+                return;
+
+			var oImageObject = {};
+			oImageObject.src = sImageUrl;
+			oImageObject.Image = {};
+			oImageObject.Image.width = 50;
+			oImageObject.Image.height = 50;
+			oImageObject.audioUrl = sAudioUrl;
+			oApi.WordControl.m_oLogicDocument.addImages([oImageObject]);
+		});
+	};
+
 	//----------------------------------------------------------------------------------------------------------------------
 	// Работаем с формулами
 	//----------------------------------------------------------------------------------------------------------------------
@@ -5665,18 +5722,6 @@ background-repeat: no-repeat;\
         }
     };
 
-    asc_docs_api.prototype.spellCheck = function(rdata)
-    {
-        // ToDo проверка на подключение
-        switch (rdata.type)
-        {
-            case "spell":
-            case "suggest":
-                this.SpellCheckApi.spellCheck(JSON.stringify(rdata));
-                break;
-        }
-    };
-
 	asc_docs_api.prototype.sync_shapePropCallback = function(pr)
 	{
 		var obj = AscFormat.CreateAscShapePropFromProp(pr);
@@ -6039,82 +6084,94 @@ background-repeat: no-repeat;\
 		this.WordControl.m_oLogicDocument.changeLayout(_array, this.WordControl.MasterLayouts, layout_index);
 	};
 
-	asc_docs_api.prototype.put_ShapesAlign        = function(type)
+	asc_docs_api.prototype.put_ShapesAlign = function(type, alignType)
 	{
+		if(!AscFormat.isRealNumber(alignType))
+		{
+			alignType = Asc.c_oAscObjectsAlignType.Slide;
+		}
 		switch (type)
 		{
 			case c_oAscAlignShapeType.ALIGN_LEFT:
 			{
-				this.shapes_alignLeft();
+				this.shapes_alignLeft(alignType);
 				break;
 			}
 			case c_oAscAlignShapeType.ALIGN_RIGHT:
 			{
-				this.shapes_alignRight();
+				this.shapes_alignRight(alignType);
 				break;
 			}
 			case c_oAscAlignShapeType.ALIGN_TOP:
 			{
-				this.shapes_alignTop();
+				this.shapes_alignTop(alignType);
 				break;
 			}
 			case c_oAscAlignShapeType.ALIGN_BOTTOM:
 			{
-				this.shapes_alignBottom();
+				this.shapes_alignBottom(alignType);
 				break;
 			}
 			case c_oAscAlignShapeType.ALIGN_CENTER:
 			{
-				this.shapes_alignCenter();
+				this.shapes_alignCenter(alignType);
 				break;
 			}
 			case c_oAscAlignShapeType.ALIGN_MIDDLE:
 			{
-				this.shapes_alignMiddle();
+				this.shapes_alignMiddle(alignType);
 				break;
 			}
 			default:
 				break;
 		}
 	};
-	asc_docs_api.prototype.DistributeHorizontally = function()
+	asc_docs_api.prototype.DistributeHorizontally = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.distributeHor();
+		if(!AscFormat.isRealNumber(alignType))
+		{
+			alignType = Asc.c_oAscObjectsAlignType.Slide;
+		}
+		this.WordControl.m_oLogicDocument.distributeHor(alignType);
 	};
-	asc_docs_api.prototype.DistributeVertically   = function()
+	asc_docs_api.prototype.DistributeVertically   = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.distributeVer();
+		if(!AscFormat.isRealNumber(alignType))
+		{
+			alignType = Asc.c_oAscObjectsAlignType.Slide;
+		}
+		this.WordControl.m_oLogicDocument.distributeVer(alignType);
 	};
-	asc_docs_api.prototype.shapes_alignLeft       = function()
+	asc_docs_api.prototype.shapes_alignLeft       = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.alignLeft();
-	};
-
-	asc_docs_api.prototype.shapes_alignRight = function()
-	{
-		this.WordControl.m_oLogicDocument.alignRight();
-	};
-
-	asc_docs_api.prototype.shapes_alignTop = function()
-	{
-		this.WordControl.m_oLogicDocument.alignTop();
-
+		this.WordControl.m_oLogicDocument.alignLeft(alignType);
 	};
 
-	asc_docs_api.prototype.shapes_alignBottom = function()
+	asc_docs_api.prototype.shapes_alignRight = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.alignBottom();
+		this.WordControl.m_oLogicDocument.alignRight(alignType);
+	};
+
+	asc_docs_api.prototype.shapes_alignTop = function(alignType)
+	{
+		this.WordControl.m_oLogicDocument.alignTop(alignType);
 
 	};
 
-	asc_docs_api.prototype.shapes_alignCenter = function()
+	asc_docs_api.prototype.shapes_alignBottom = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.alignCenter();
+		this.WordControl.m_oLogicDocument.alignBottom(alignType);
+
 	};
 
-	asc_docs_api.prototype.shapes_alignMiddle = function()
+	asc_docs_api.prototype.shapes_alignCenter = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.alignMiddle();
+		this.WordControl.m_oLogicDocument.alignCenter(alignType);
+	};
+
+	asc_docs_api.prototype.shapes_alignMiddle = function(alignType)
+	{
+		this.WordControl.m_oLogicDocument.alignMiddle(alignType);
 	};
 
 	asc_docs_api.prototype.shapes_bringToFront = function()
@@ -6694,6 +6751,28 @@ background-repeat: no-repeat;\
 	{
 	};
 
+	asc_docs_api.prototype.asc_getSelectedDrawingObjectsCount = function()
+	{
+		if(!this.WordControl)
+		{
+			return 0;
+		}
+		if(!this.WordControl.m_oLogicDocument)
+		{
+			return 0;
+		}
+		return this.WordControl.m_oLogicDocument.getSelectedDrawingObjectsCount();
+	};
+	asc_docs_api.prototype.asc_canStartImageCrop = function(){
+
+	};
+	asc_docs_api.prototype.asc_startImageCrop = function(){
+
+	};
+	asc_docs_api.prototype.asc_endImageCrop = function(){
+
+	};
+
 	//-----------------------------------------------------------------
 	// События контекстного меню
 	//-----------------------------------------------------------------
@@ -6790,6 +6869,10 @@ background-repeat: no-repeat;\
 		this.CreateComponents();
 		this.WordControl.Init();
 
+        if (this.tmpFontRenderingMode)
+        {
+            this.SetFontRenderingMode(this.tmpFontRenderingMode);
+        }
 		if (this.tmpThemesPath)
 		{
 			this.SetThemesPath(this.tmpThemesPath);
@@ -6926,6 +7009,29 @@ background-repeat: no-repeat;\
 		}, fCallback, null, oAdditionalData, dataContainer);
 	};
 
+    asc_docs_api.prototype.SetFontRenderingMode         = function(mode)
+    {
+        if (!this.isLoadFullApi)
+        {
+            this.tmpFontRenderingMode = mode;
+            return;
+        }
+
+        if (c_oAscFontRenderingModeType.noHinting === mode)
+            AscCommon.g_fontManager.SetHintsProps(false, false);
+        else if (c_oAscFontRenderingModeType.hinting === mode)
+            AscCommon.g_fontManager.SetHintsProps(true, false);
+        else if (c_oAscFontRenderingModeType.hintingAndSubpixeling === mode)
+            AscCommon.g_fontManager.SetHintsProps(true, true);
+
+        if (AscCommon.g_fontManager2 !== undefined && AscCommon.g_fontManager2 !== null)
+            AscCommon.g_fontManager2.ClearFontsRasterCache();
+
+        this.WordControl.m_oDrawingDocument.ClearCachePages();
+
+        if (this.bInit_word_control)
+            this.WordControl.OnScroll();
+    };
 
 
 	asc_docs_api.prototype.asc_Recalculate = function(bIsUpdateInterface)
@@ -7373,6 +7479,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['Help']                                = asc_docs_api.prototype.Help;
 	asc_docs_api.prototype['startGetDocInfo']                     = asc_docs_api.prototype.startGetDocInfo;
 	asc_docs_api.prototype['asc_setAdvancedOptions']              = asc_docs_api.prototype.asc_setAdvancedOptions;
+    asc_docs_api.prototype['SetFontRenderingMode']                = asc_docs_api.prototype.SetFontRenderingMode;
 	asc_docs_api.prototype['stopGetDocInfo']                      = asc_docs_api.prototype.stopGetDocInfo;
 	asc_docs_api.prototype['sync_DocInfoCallback']                = asc_docs_api.prototype.sync_DocInfoCallback;
 	asc_docs_api.prototype['sync_GetDocInfoStartCallback']        = asc_docs_api.prototype.sync_GetDocInfoStartCallback;
@@ -7424,8 +7531,6 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['put_LineSpacingBeforeAfter']          = asc_docs_api.prototype.put_LineSpacingBeforeAfter;
 	asc_docs_api.prototype['FontSizeIn']                          = asc_docs_api.prototype.FontSizeIn;
 	asc_docs_api.prototype['FontSizeOut']                         = asc_docs_api.prototype.FontSizeOut;
-	asc_docs_api.prototype['put_AlignBySelect']                   = asc_docs_api.prototype.put_AlignBySelect;
-	asc_docs_api.prototype['get_AlignBySelect']                   = asc_docs_api.prototype.get_AlignBySelect;
 	asc_docs_api.prototype['sync_BoldCallBack']                   = asc_docs_api.prototype.sync_BoldCallBack;
 	asc_docs_api.prototype['sync_ItalicCallBack']                 = asc_docs_api.prototype.sync_ItalicCallBack;
 	asc_docs_api.prototype['sync_UnderlineCallBack']              = asc_docs_api.prototype.sync_UnderlineCallBack;
@@ -7529,6 +7634,11 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['asc_addImage']                        = asc_docs_api.prototype.asc_addImage;
 	asc_docs_api.prototype['StartAddShape']                       = asc_docs_api.prototype.StartAddShape;
 	asc_docs_api.prototype['AddTextArt']                          = asc_docs_api.prototype.AddTextArt;
+	asc_docs_api.prototype['asc_canEditCrop']                     = asc_docs_api.prototype.asc_canEditCrop;
+	asc_docs_api.prototype['asc_startEditCrop']                   = asc_docs_api.prototype.asc_startEditCrop;
+	asc_docs_api.prototype['asc_endEditCrop']                     = asc_docs_api.prototype.asc_endEditCrop;
+	asc_docs_api.prototype['asc_cropFit']                         = asc_docs_api.prototype.asc_cropFit;
+	asc_docs_api.prototype['asc_cropFill']                        = asc_docs_api.prototype.asc_cropFill;
 	asc_docs_api.prototype['canGroup']                            = asc_docs_api.prototype.canGroup;
 	asc_docs_api.prototype['canUnGroup']                          = asc_docs_api.prototype.canUnGroup;
 	asc_docs_api.prototype['AddImageUrl']                         = asc_docs_api.prototype.AddImageUrl;
@@ -7693,6 +7803,10 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['asc_getChartPreviews']                = asc_docs_api.prototype.asc_getChartPreviews;
 	asc_docs_api.prototype['asc_getTextArtPreviews']              = asc_docs_api.prototype.asc_getTextArtPreviews;
 	asc_docs_api.prototype['sync_closeChartEditor']               = asc_docs_api.prototype.sync_closeChartEditor;
+	asc_docs_api.prototype['asc_getSelectedDrawingObjectsCount']  = asc_docs_api.prototype.asc_getSelectedDrawingObjectsCount;
+	asc_docs_api.prototype['asc_canStartImageCrop']               = asc_docs_api.prototype.asc_canStartImageCrop;
+	asc_docs_api.prototype['asc_startImageCrop']                  = asc_docs_api.prototype.asc_startImageCrop;
+	asc_docs_api.prototype['asc_endImageCrop']                    = asc_docs_api.prototype.asc_endImageCrop;
 	asc_docs_api.prototype['asc_stopSaving']                      = asc_docs_api.prototype.asc_stopSaving;
 	asc_docs_api.prototype['asc_continueSaving']                  = asc_docs_api.prototype.asc_continueSaving;
 	asc_docs_api.prototype['asc_undoAllChanges']                  = asc_docs_api.prototype.asc_undoAllChanges;
@@ -7719,6 +7833,9 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype["asc_getCurrentFocusObject"]           = asc_docs_api.prototype.asc_getCurrentFocusObject;
 	asc_docs_api.prototype["asc_AddMath"]           			  = asc_docs_api.prototype.asc_AddMath;
 	asc_docs_api.prototype["asc_SetMathProps"]           		  = asc_docs_api.prototype.asc_SetMathProps;
+
+	asc_docs_api.prototype["asc_AddVideo"]           		  = asc_docs_api.prototype.asc_AddVideo;
+	asc_docs_api.prototype["asc_AddAudio"]           		  = asc_docs_api.prototype.asc_AddAudio;
 
     asc_docs_api.prototype['sendEvent']								= asc_docs_api.prototype.sendEvent;
 

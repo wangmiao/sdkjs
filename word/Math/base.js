@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -177,7 +177,7 @@ function CMathBase(bInside)
     this.ReviewInfo = new CReviewInfo();
 
     var Api = editor;
-    if (Api && !Api.isPresentationEditor && Api.WordControl && Api.WordControl.m_oLogicDocument && true === Api.WordControl.m_oLogicDocument.Is_TrackRevisions())
+    if (Api && !Api.isPresentationEditor && Api.WordControl && Api.WordControl.m_oLogicDocument && true === Api.WordControl.m_oLogicDocument.IsTrackRevisions())
     {
         this.ReviewType = reviewtype_Add;
         this.ReviewInfo.Update();
@@ -1872,7 +1872,7 @@ CMathBase.prototype.Draw_Lines = function(PDSL)
     var aStrikeout  = PDSL.Strikeout;
     var aDStrikeout = PDSL.DStrikeout;
 
-    var ReviewType = this.Get_ReviewType();
+    var ReviewType = this.GetReviewType();
     var bAddReview = reviewtype_Add === ReviewType ? true : false;
     var bRemReview = reviewtype_Remove === ReviewType ? true : false;
     var ReviewColor = null;
@@ -2003,9 +2003,9 @@ CMathBase.prototype.Make_ShdColor = function(PDSE, CurTextPr)
         }
     }
 
-    if (reviewtype_Common !== this.Get_ReviewType())
+    if (reviewtype_Common !== this.GetReviewType())
     {
-        var ReviewColor = this.Get_ReviewColor();
+        var ReviewColor = this.GetReviewColor();
         pGraphics.p_color(ReviewColor.r, ReviewColor.g, ReviewColor.b, 255);
         pGraphics.b_color1(ReviewColor.r, ReviewColor.g, ReviewColor.b, 255);
     }
@@ -2519,16 +2519,16 @@ CMathBase.prototype.raw_SetReviewType = function(Type, Info)
     this.ReviewInfo = Info;
     this.private_UpdateTrackRevisions();
 };
-CMathBase.prototype.Get_ReviewType = function()
+CMathBase.prototype.GetReviewType = function()
 {
     if (this.Id)
         return this.ReviewType;
-    else if (this.Parent && this.Parent.Get_ReviewType)
-        return this.Parent.Get_ReviewType();
+    else if (this.Parent && this.Parent.GetReviewType)
+        return this.Parent.GetReviewType();
 
     return reviewtype_Common;
 };
-CMathBase.prototype.Get_ReviewColor = function()
+CMathBase.prototype.GetReviewColor = function()
 {
     if (this.Id)
     {
@@ -2537,20 +2537,20 @@ CMathBase.prototype.Get_ReviewColor = function()
         else
             return new CDocumentColor(255, 0, 0);
     }
-    else if (this.Parent && this.Parent.Get_ReviewColor)
+    else if (this.Parent && this.Parent.GetReviewColor)
     {
-        return this.Parent.Get_ReviewColor();
+        return this.Parent.GetReviewColor();
     }
 
     return REVIEW_COLOR;
 };
-CMathBase.prototype.Set_ReviewType = function(Type, isSetToContent)
+CMathBase.prototype.SetReviewType = function(Type, isSetToContent)
 {
 	if (!this.Id)
 		return;
 
 	if (false !== isSetToContent)
-		CParagraphContentWithParagraphLikeContent.prototype.Set_ReviewType.apply(this, arguments);
+		CParagraphContentWithParagraphLikeContent.prototype.SetReviewType.apply(this, arguments);
 
 	if (Type !== this.ReviewType)
 	{
@@ -2561,19 +2561,19 @@ CMathBase.prototype.Set_ReviewType = function(Type, isSetToContent)
 		this.raw_SetReviewType(Type, NewInfo);
 	}
 };
-CMathBase.prototype.Set_ReviewTypeWithInfo = function(ReviewType, ReviewInfo)
+CMathBase.prototype.SetReviewTypeWithInfo = function(ReviewType, ReviewInfo)
 {
 	if (!this.Id)
 		return;
 
-	CParagraphContentWithParagraphLikeContent.prototype.Set_ReviewTypeWithInfo.apply(this, arguments);
+	CParagraphContentWithParagraphLikeContent.prototype.SetReviewTypeWithInfo.apply(this, arguments);
 
 	History.Add(new CChangesMathBaseReviewType(this, {Type : this.ReviewType, Info : this.ReviewInfo}, {Type : ReviewType, Info : ReviewInfo}));
 	this.raw_SetReviewType(ReviewType, ReviewInfo);
 };
 CMathBase.prototype.Check_RevisionsChanges = function(Checker, ContentPos, Depth)
 {
-    var ReviewType = this.Get_ReviewType();
+    var ReviewType = this.GetReviewType();
 
     if (true !== Checker.Is_CheckOnlyTextPr())
     {
@@ -2629,7 +2629,7 @@ CMathBase.prototype.AcceptRevisionChanges = function(Type, bAll)
     var ReviewType = this.ReviewType;
     if (reviewtype_Add === ReviewType && (undefined === Type || c_oAscRevisionsChangeType.TextAdd === Type))
     {
-        this.Set_ReviewType(reviewtype_Common, false);
+        this.SetReviewType(reviewtype_Common, false);
     }
     else if (reviewtype_Remove === ReviewType && (undefined === Type || c_oAscRevisionsChangeType.TextRem === Type))
     {
@@ -2638,7 +2638,7 @@ CMathBase.prototype.AcceptRevisionChanges = function(Type, bAll)
 
         if (!Parent || -1 === PosInParent)
         {
-            this.Set_ReviewType(reviewtype_Common, false);
+            this.SetReviewType(reviewtype_Common, false);
         }
         else
         {
@@ -2654,7 +2654,7 @@ CMathBase.prototype.RejectRevisionChanges = function(Type, bAll)
     var ReviewType = this.ReviewType;
     if (reviewtype_Remove === ReviewType && (undefined === Type || c_oAscRevisionsChangeType.TextRem === Type))
     {
-        this.Set_ReviewType(reviewtype_Common, false);
+        this.SetReviewType(reviewtype_Common, false);
     }
     else if (reviewtype_Add === ReviewType && (undefined === Type || c_oAscRevisionsChangeType.TextAdd === Type))
     {
@@ -2663,7 +2663,7 @@ CMathBase.prototype.RejectRevisionChanges = function(Type, bAll)
 
         if (!Parent || -1 === PosInParent)
         {
-            this.Set_ReviewType(reviewtype_Common, false);
+            this.SetReviewType(reviewtype_Common, false);
         }
         else
         {

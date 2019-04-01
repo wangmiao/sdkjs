@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -409,7 +409,7 @@ CComplexField.prototype.Update = function(isCreateHistoryPoint, isNeedRecalculat
 };
 CComplexField.prototype.private_UpdateFORMULA = function()
 {
-	this.Instruction.Calculate();
+	this.Instruction.Calculate(this.LogicDocument);
 	if(this.Instruction.ErrStr !== null)
 	{
 		var oSelectedContent = new CSelectedContent();
@@ -959,6 +959,30 @@ CComplexField.prototype.SetPr = function(oPr)
 	var oRun      = this.BeginChar.GetRun();
 	var nInRunPos = oRun.GetElementPosition(this.BeginChar) + 1;
 	oRun.AddInstrText(sNewInstruction, nInRunPos);
+};
+/**
+ * Изменяем строку инструкции у поля
+ * @param {string} sNewInstruction
+ */
+CComplexField.prototype.ChangeInstruction = function(sNewInstruction)
+{
+	if (!this.IsValid())
+		return;
+
+	var oDocument = this.GetTopDocumentContent();
+	if (!oDocument)
+		return;
+
+	this.SelectFieldCode();
+	oDocument.Remove();
+
+	var oRun      = this.BeginChar.GetRun();
+	var nInRunPos = oRun.GetElementPosition(this.BeginChar) + 1;
+	oRun.AddInstrText(sNewInstruction, nInRunPos);
+
+	this.Instruction     = null;
+	this.InstructionLine = sNewInstruction;
+	this.private_UpdateInstruction();
 };
 
 //--------------------------------------------------------export----------------------------------------------------

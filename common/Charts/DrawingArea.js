@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -670,6 +670,9 @@ DrawingArea.prototype.reinitRanges = function() {
 };
 
 DrawingArea.prototype.drawSelection = function(drawingDocument) {
+	if (window["IS_NATIVE_EDITOR"]) {
+		AscCommon.g_oTextMeasurer.Flush();
+	}
 
     var canvas = this.worksheet.objectRender.getDrawingCanvas();
     var shapeCtx = canvas.shapeCtx;
@@ -683,7 +686,7 @@ DrawingArea.prototype.drawSelection = function(drawingDocument) {
 
     this.worksheet.overlayCtx.clear();
     this.worksheet.overlayGraphicCtx.clear();
-    this.worksheet._drawCollaborativeElements();
+    this.worksheet._drawCollaborativeElements(autoShapeTrack);
 
     if ( !this.worksheet.objectRender.controller.selectedObjects.length && !this.api.isStartAddShape )
         this.worksheet._drawSelection();
@@ -695,9 +698,6 @@ DrawingArea.prototype.drawSelection = function(drawingDocument) {
     {
         chart = selected_objects[0];
         this.worksheet.objectRender.selectDrawingObjectRange(chart);
-        //shapeOverlayCtx.ClearMode = true;
-        ////selected_objects[0].draw(shapeOverlayCtx);
-        //shapeOverlayCtx.ClearMode = false;
     }
     for ( var i = 0; i < this.frozenPlaces.length; i++ ) {
 
@@ -707,11 +707,14 @@ DrawingArea.prototype.drawSelection = function(drawingDocument) {
         this.frozenPlaces[i].clip(shapeOverlayCtx);
 
 		if (drawingDocument.m_bIsSelection) {
-			drawingDocument.SelectionMatrix = null;
-			trackOverlay.m_oControl.HtmlElement.style.display = "block";
+			if (!window["IS_NATIVE_EDITOR"]) {
+				drawingDocument.SelectionMatrix = null;
+				trackOverlay.m_oControl.HtmlElement.style.display = "block";
 
-			if (null == trackOverlay.m_oContext)
-				trackOverlay.m_oContext = trackOverlay.m_oControl.HtmlElement.getContext('2d');
+				if (null == trackOverlay.m_oContext) {
+					trackOverlay.m_oContext = trackOverlay.m_oControl.HtmlElement.getContext('2d');
+				}
+			}
 
 			drawingDocument.private_StartDrawSelection(trackOverlay);
 			this.worksheet.objectRender.controller.drawTextSelection();

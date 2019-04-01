@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -72,7 +72,15 @@ CBlockLevelSdt.prototype.constructor = CBlockLevelSdt;
 CBlockLevelSdt.prototype.Copy = function(Parent)
 {
 	var oNew = new CBlockLevelSdt(this.LogicDocument, Parent ? Parent : this.Parent);
-	oNew.Content.Copy2(this.Content);
+
+	if (!this.IsPlaceHolder())
+	{
+		oNew.private_ReplacePlaceHolderWithContent();
+		oNew.Content.Copy2(this.Content);
+		if (oNew.IsEmpty())
+			oNew.private_ReplaceContentWithPlaceHolder();
+	}
+
 	oNew.SetPr(this.Pr);
 	return oNew;
 };
@@ -489,7 +497,9 @@ CBlockLevelSdt.prototype.Remove = function(nCount, bOnlyText, bRemoveOnlySelecti
 
 	var bResult = this.Content.Remove(nCount, bOnlyText, bRemoveOnlySelection, bOnAddText, isWord);
 
-	if (this.IsEmpty() && !bOnAddText)
+	if (this.IsEmpty()
+		&& !bOnAddText
+		&& this.CanBeEdited())
 	{
 		this.private_ReplaceContentWithPlaceHolder();
 		return true;
@@ -503,7 +513,9 @@ CBlockLevelSdt.prototype.Is_Empty = function()
 };
 CBlockLevelSdt.prototype.Add = function(oParaItem)
 {
-	this.private_ReplacePlaceHolderWithContent();
+	if (oParaItem && oParaItem.Type !== para_TextPr)
+		this.private_ReplacePlaceHolderWithContent();
+
 	return this.Content.AddToParagraph(oParaItem);
 };
 CBlockLevelSdt.prototype.PreDelete = function()
@@ -1081,13 +1093,6 @@ CBlockLevelSdt.prototype.Get_SectPr = function()
 
 	return null;
 };
-CBlockLevelSdt.prototype.GetTopElement = function()
-{
-	if (true === this.Parent.Is_TopDocument(false))
-		return this;
-
-	return this.Parent.GetTopElement();
-};
 CBlockLevelSdt.prototype.GetMargins = function()
 {
 	return this.Parent.GetMargins();
@@ -1403,7 +1408,15 @@ CBlockLevelSdt.prototype.IsLastTableCellInRow = function(isSelection)
  */
 CBlockLevelSdt.prototype.CanBeDeleted = function()
 {
-	return (c_oAscSdtLockType.Unlocked === this.Pr.Lock || c_oAscSdtLockType.ContentLocked === this.Pr.Lock);
+	return (undefined === this.Pr.Lock || c_oAscSdtLockType.Unlocked === this.Pr.Lock || c_oAscSdtLockType.ContentLocked === this.Pr.Lock);
+};
+/**
+ * Можно ли редактировать данный контейнер
+ * @returns {boolean}
+ */
+CBlockLevelSdt.prototype.CanBeEdited = function()
+{
+	return (undefined === this.Pr.Lock || c_oAscSdtLockType.Unlocked === this.Pr.Lock || c_oAscSdtLockType.SdtLocked === this.Pr.Lock);
 };
 /**
  * Активен PlaceHolder сейчас или нет
@@ -1418,10 +1431,24 @@ CBlockLevelSdt.prototype.private_ReplacePlaceHolderWithContent = function()
 	if (!this.IsPlaceHolder())
 		return;
 
+	var oTextPr = null;
+	if (this.Content.GetElementsCount() && this.Content.GetElement(0).IsParagraph())
+	{
+		this.Content.GetElement(0).MoveCursorToStartPos();
+		oTextPr = this.Content.GetElement(0).GetFirstRunPr();
+	}
+
 	this.Content.RemoveFromContent(0, this.Content.GetElementsCount(), false);
 
 	var oParagraph = new Paragraph(this.LogicDocument ? this.LogicDocument.GetDrawingDocument() : null, this.Content, false);
 	oParagraph.Correct_Content();
+
+	if (oTextPr)
+	{
+		oParagraph.SelectAll();
+		oParagraph.ApplyTextPr(oTextPr);
+		oParagraph.RemoveSelection();
+	}
 
 	this.Content.AddToContent(0, oParagraph);
 	this.Content.RemoveSelection();
@@ -1449,6 +1476,10 @@ CBlockLevelSdt.prototype.GetAllFields = function(isUseSelection, arrFields)
 		return arrFields ? arrFields : [];
 
 	return this.Content.GetAllFields(isUseSelection, arrFields);
+};
+CBlockLevelSdt.prototype.ReplacePlaceHolderWithContent = function()
+{
+	return this.private_ReplacePlaceHolderWithContent();
 };
 //--------------------------------------------------------export--------------------------------------------------------
 window['AscCommonWord'] = window['AscCommonWord'] || {};

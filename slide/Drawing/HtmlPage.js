@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -412,7 +412,8 @@ function CEditorPage(api)
 	{
 		var off = jQuery("#" + this.Name).offset();
 
-        if (undefined !== window["AscDesktopEditor"] && 0 == off.top)
+		// почему-то иногда неправильно определяется "top" (возвращается ноль)
+        if (!this.m_oApi.isEmbedVersion && !this.m_oApi.isMobileVersion && off && (0 == off.top))
             return;
 
 		if (off)
@@ -695,7 +696,7 @@ function CEditorPage(api)
 
 
 			styleContent += "";
-			styleContent += ".btn-text-default { position: absolute; background: #fff; border: 1px solid #cfcfcf; border-radius: 2px; color: #444444; font-size: 11px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; height: 20px; cursor: pointer; }";
+			styleContent += ".btn-text-default { position: absolute; background: #fff; border: 1px solid #cfcfcf; border-radius: 2px; color: #444444; font-size: 11px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; height: 22px; cursor: pointer; }";
 			styleContent += ".btn-text-default-img { background-repeat: no-repeat; position: absolute; background: transparent; border: none; color: #444444; font-size: 11px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; height: 22px; cursor: pointer; }";
 			styleContent += ".btn-text-default-img:focus { outline: 0; outline-offset: 0; } .btn-text-default-img:hover { background-color: #d8dadc; }";
 			styleContent += ".btn-text-default-img:active, .btn-text-default.active { background-color: #7d858c !important; color: white; -webkit-box-shadow: none; box-shadow: none; }";
@@ -735,8 +736,8 @@ function CEditorPage(api)
 			var _buttonsContent = "";
 			_buttonsContent += "<label class=\"block_elem_no_select\" id=\"dem_id_time\" style=\"color:#666666;text-shadow: none;white-space: nowrap;font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11px; position:absolute; left:10px; bottom: 7px;\">00:00:00</label>";
 			_buttonsContent += "<button class=\"btn-text-default-img\" id=\"dem_id_play\" style=\"left: 60px; bottom: 3px; width: 20px; height: 20px;\"><span class=\"btn-play back_image_buttons\" id=\"dem_id_play_span\" style=\"width:100%;height:100%;\"></span></button>";
-			_buttonsContent += ("<button class=\"btn-text-default\"     id=\"dem_id_reset\" style=\"left: 85px; bottom: 3px; \">" + this.reporterTranslates[0] + "</button>");
-			_buttonsContent += ("<button class=\"btn-text-default\"     id=\"dem_id_end\" style=\"right: 10px; bottom: 3px; \">" + this.reporterTranslates[2] + "</button>");
+			_buttonsContent += ("<button class=\"btn-text-default\"     id=\"dem_id_reset\" style=\"left: 85px; bottom: 2px; \">" + this.reporterTranslates[0] + "</button>");
+			_buttonsContent += ("<button class=\"btn-text-default\"     id=\"dem_id_end\" style=\"right: 10px; bottom: 2px; \">" + this.reporterTranslates[2] + "</button>");
 
 			_buttonsContent += "<button class=\"btn-text-default-img\" id=\"dem_id_prev\"  style=\"left: 150px; bottom: 3px; width: 20px; height: 20px;\"><span class=\"btn-prev back_image_buttons\" style=\"width:100%;height:100%;\"></span></button>";
 			_buttonsContent += "<button class=\"btn-text-default-img\" id=\"dem_id_next\"  style=\"left: 170px; bottom: 3px; width: 20px; height: 20px;\"><span class=\"btn-next back_image_buttons\" style=\"width:100%;height:100%;\"></span></button>";
@@ -2180,6 +2181,16 @@ function CEditorPage(api)
 			if (pos.Page == -1)
 				return;
 
+			var ret = oWordControl.m_oDrawingDocument.checkMouseDown_Drawing(pos);
+			if (ret === true)
+			{
+				if (-1 == oWordControl.m_oTimerScrollSelect)
+					oWordControl.m_oTimerScrollSelect = setInterval(oWordControl.SelectWheel, 20);
+
+				AscCommon.stopEvent(e);
+				return;
+			}
+
 			oWordControl.StartUpdateOverlay();
 			oWordControl.m_oDrawingDocument.m_lCurrentPage = pos.Page;
 			oWordControl.m_oLogicDocument.OnMouseDown(global_mouseEvent, pos.X, pos.Y, pos.Page);
@@ -2230,7 +2241,19 @@ function CEditorPage(api)
 		if (oWordControl.m_oDrawingDocument.m_sLockedCursorType != "")
 			oWordControl.m_oDrawingDocument.SetCursorType("default");
 
+		if (oWordControl.m_oDrawingDocument.InlineTextTrackEnabled)
+		{
+			var pos2 = oWordControl.m_oDrawingDocument.ConvertCoordsToCursorWR(pos.X, pos.Y, pos.Page, undefined, true);
+			if (pos2.Y > oWordControl.m_oNotesContainer.AbsolutePosition.T * g_dKoef_mm_to_pix)
+				return;
+		}
+
 		oWordControl.StartUpdateOverlay();
+
+		var is_drawing = oWordControl.m_oDrawingDocument.checkMouseMove_Drawing(pos);
+		if (is_drawing === true)
+			return;
+
 		oWordControl.m_oLogicDocument.OnMouseMove(global_mouseEvent, pos.X, pos.Y, pos.Page);
 		oWordControl.EndUpdateOverlay();
 	};
@@ -2248,6 +2271,11 @@ function CEditorPage(api)
 			return;
 
 		oWordControl.StartUpdateOverlay();
+
+		var is_drawing = oWordControl.m_oDrawingDocument.checkMouseMove_Drawing(pos);
+		if (is_drawing === true)
+			return;
+
 		oWordControl.m_oLogicDocument.OnMouseMove(global_mouseEvent, pos.X, pos.Y, pos.Page);
 		oWordControl.EndUpdateOverlay();
 	};
@@ -2305,7 +2333,26 @@ function CEditorPage(api)
 
 		oWordControl.m_bIsMouseUpSend = true;
 
+		if (oWordControl.m_oDrawingDocument.InlineTextTrackEnabled)
+		{
+			var pos2 = oWordControl.m_oDrawingDocument.ConvertCoordsToCursorWR(pos.X, pos.Y, pos.Page, undefined, true);
+			if (pos2.Y > oWordControl.m_oNotesContainer.AbsolutePosition.T * g_dKoef_mm_to_pix)
+				return;
+		}
+
 		oWordControl.StartUpdateOverlay();
+
+		var is_drawing = oWordControl.m_oDrawingDocument.checkMouseUp_Drawing(pos);
+		if (is_drawing === true)
+			return;
+
+		var is_drawing_on_up = oWordControl.m_oDrawingDocument.checkMouseDown_DrawingOnUp(pos);
+		if (is_drawing_on_up)
+		{
+			// не посылаем в документ.
+			return;
+		}
+
 		oWordControl.m_oLogicDocument.OnMouseUp(global_mouseEvent, pos.X, pos.Y, pos.Page);
 
 		oWordControl.m_bIsMouseUpSend = false;
@@ -2359,7 +2406,7 @@ function CEditorPage(api)
 		var oWordControl = oThis;
 
 		if (oWordControl.DemonstrationManager.Mode)
-			return oWordControl.DemonstrationManager.onMouseUp(e);
+			return oWordControl.DemonstrationManager.onMouseUp({ pageX:0, pageY:0 });
 
 		//---
 		global_mouseEvent.X = x;
@@ -2414,6 +2461,9 @@ function CEditorPage(api)
 			if (false === window["AscDesktopEditor"]["CheckNeedWheel"]())
 				return;
 		}
+
+		if (global_mouseEvent.IsLocked)
+			return;
 
 		if (oThis.DemonstrationManager.Mode)
 		{
@@ -3445,6 +3495,18 @@ function CEditorPage(api)
 			}
 		}
 
+		if (drDoc.InlineTextTrackEnabled && null != drDoc.InlineTextTrack)
+		{
+			var _oldPage        = drDoc.AutoShapesTrack.PageIndex;
+			var _oldCurPageInfo = drDoc.AutoShapesTrack.CurrentPageInfo;
+
+			drDoc.AutoShapesTrack.PageIndex = drDoc.InlineTextTrackPage;
+			drDoc.AutoShapesTrack.DrawInlineMoveCursor(drDoc.InlineTextTrack.X, drDoc.InlineTextTrack.Y, drDoc.InlineTextTrack.Height, drDoc.InlineTextTrack.transform, drDoc.InlineTextInNotes ? overlayNotes : null);
+
+			drDoc.AutoShapesTrack.PageIndex       = _oldPage;
+			drDoc.AutoShapesTrack.CurrentPageInfo = _oldCurPageInfo;
+		}
+
 		drDoc.DrawHorVerAnchor();
 
 		return true;
@@ -3526,6 +3588,9 @@ function CEditorPage(api)
 
 		if (this.m_bDocumentPlaceChangedEnabled)
 			this.m_oApi.sendEvent("asc_onDocumentPlaceChanged");
+
+		// remove media
+		this.m_oApi.hideVideoControl();
 	};
 
 	this.OnPaint = function()
@@ -4102,6 +4167,11 @@ function CEditorPage(api)
 				this.m_oApi.DemonstrationGoToSlide(lPageNum);
 			}
 			//return;
+		}
+
+		if (this.DemonstrationManager.Mode && !isReporterUpdateSlide)
+		{
+            return this.m_oApi.DemonstrationGoToSlide(lPageNum);
 		}
 
 		var drDoc = this.m_oDrawingDocument;

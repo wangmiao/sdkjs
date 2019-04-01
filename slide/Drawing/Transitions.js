@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -2966,6 +2966,12 @@ function CDemonstrationManager(htmlpage)
 
     this.StartSlide = function(is_transition_use, is_first_play)
     {
+        oThis.HtmlPage.m_oApi.hideVideoControl();
+        if (oThis.Canvas)
+        {
+            oThis.Canvas.style.cursor = "default";
+        }
+
         oThis.StopTransition();
 
         if (oThis.SlideNum == oThis.SlidesCount)
@@ -3015,6 +3021,7 @@ function CDemonstrationManager(htmlpage)
 
     this.StartSlideBackward = function()
     {
+        oThis.HtmlPage.m_oApi.hideVideoControl();
         var _is_transition = oThis.Transition.IsPlaying();
         oThis.StopTransition();
 
@@ -3504,9 +3511,49 @@ function CDemonstrationManager(htmlpage)
         return false;
     }
 
+    this.documentMouseInfo = function(e)
+    {
+        var transition = oThis.Transition;
+        if ((oThis.SlideNum >= 0 && oThis.SlideNum < oThis.SlidesCount) && (!transition || !transition.IsPlaying()))
+        {
+            AscCommon.check_MouseDownEvent(e, false);
+
+            var _w = transition.Rect.w;
+            var _h = transition.Rect.h;
+            var _w_mm = oThis.HtmlPage.m_oLogicDocument.Width;
+            var _h_mm = oThis.HtmlPage.m_oLogicDocument.Height;
+
+            var _x = global_mouseEvent.X - transition.Rect.x;
+            var _y = global_mouseEvent.Y - transition.Rect.y;
+
+            if (oThis.HtmlPage.m_oApi.isReporterMode)
+            {
+                _x -= ((oThis.HtmlPage.m_oMainParent.AbsolutePosition.L * g_dKoef_mm_to_pix) >> 0);
+            }
+
+            _x = _x * _w_mm / _w;
+            _y = _y * _h_mm / _h;
+
+            return { x : _x, y : _y, page : oThis.SlideNum };
+        }
+        return null;
+    }
+
     this.onMouseDown = function(e)
     {
-		oThis.isMouseDown = true;
+        var documentMI = oThis.documentMouseInfo(e);
+        if (documentMI)
+        {
+            var ret = oThis.HtmlPage.m_oLogicDocument.OnMouseDown(global_mouseEvent, documentMI.x, documentMI.y, documentMI.page);
+            if (ret == keydownresult_PreventAll)
+            {
+                // mouse up will not sended!!!
+                oThis.HtmlPage.m_oLogicDocument.OnMouseUp(global_mouseEvent, documentMI.x, documentMI.y, documentMI.page);
+                return;
+            }
+        }
+
+        oThis.isMouseDown = true;
         e.preventDefault();
         return false;
     }
@@ -3526,8 +3573,13 @@ function CDemonstrationManager(htmlpage)
 
     this.onMouseMove = function(e)
     {
-        if (!oThis.HtmlPage.m_oApi.isReporterMode)
-            return;
+        if (true)
+        {
+            var documentMI = oThis.documentMouseInfo(e);
+            if (documentMI)
+                oThis.HtmlPage.m_oLogicDocument.OnMouseMove(global_mouseEvent, documentMI.x, documentMI.y, documentMI.page);
+        }
+
 		if (!oThis.HtmlPage.reporterPointer)
 			return;
 
@@ -3592,6 +3644,14 @@ function CDemonstrationManager(htmlpage)
 			AscCommon.stopEvent(e);
 			return false;
 		}
+
+        var documentMI = oThis.documentMouseInfo(e);
+        if (documentMI)
+        {
+            var ret = oThis.HtmlPage.m_oLogicDocument.OnMouseUp(global_mouseEvent, documentMI.x, documentMI.y, documentMI.page);
+            if (ret == keydownresult_PreventAll)
+                return;
+        }
 
         // next slide
         oThis.CorrectSlideNum();

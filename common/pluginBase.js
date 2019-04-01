@@ -37,8 +37,9 @@
             if (type == "init")
                 window.Asc.plugin.info = pluginData;
 
-            if (!window.Asc.plugin.tr)
+            if (!window.Asc.plugin.tr || !window.Asc.plugin.tr_init)
             {
+				window.Asc.plugin.tr_init = true;
                 window.Asc.plugin.tr = function(val) {
                     if (!window.Asc.plugin.translateManager || !window.Asc.plugin.translateManager[val])
                         return val;
@@ -46,35 +47,47 @@
                 };
             }
 
-            if (window.Asc.plugin.info.lang != g_language)
+            var newLang = "";
+            if (window.Asc.plugin.info)
+                newLang = window.Asc.plugin.info.lang;
+            if (newLang == "" || newLang != g_language)
             {
-                g_language = window.Asc.plugin.info.lang;
+                g_language = newLang;
+                if (g_language == "en-EN" || g_language == "")
+				{
+					window.Asc.plugin.translateManager = {};
+					if (window.Asc.plugin.onTranslate)
+						window.Asc.plugin.onTranslate();
+				}
+				else
+				{
+					var _client = new XMLHttpRequest();
+					_client.open("GET", "./translations/" + g_language + ".json");
 
-                var _client = new XMLHttpRequest();
-                _client.open("GET", "./translations/" + g_language + ".json");
-
-                _client.onreadystatechange = function() {
-                    if (_client.readyState == 4 && (_client.status == 200 || location.href.indexOf("file:") == 0))
-                    {
-                        try
-                        {
-                            window.Asc.plugin.translateManager = JSON.parse(_client.responseText);
-                            if (window.Asc.plugin.onTranslate)
-                                window.Asc.plugin.onTranslate();
-                        }
-                        catch (err)
-                        {
-                        }
-                    }
-                };
-                _client.send();
+					_client.onreadystatechange = function ()
+					{
+						if (_client.readyState == 4 && (_client.status == 200 || location.href.indexOf("file:") == 0))
+						{
+							try
+							{
+								window.Asc.plugin.translateManager = JSON.parse(_client.responseText);
+								if (window.Asc.plugin.onTranslate)
+									window.Asc.plugin.onTranslate();
+							}
+							catch (err)
+							{
+							}
+						}
+					};
+					_client.send();
+				}
             }
 
             switch (type)
             {
                 case "init":
                 {
-                    window.Asc.plugin.executeCommand = function(type, data)
+                    window.Asc.plugin.executeCommand = function(type, data, callback)
                     {
                         window.Asc.plugin.info.type = type;
                         window.Asc.plugin.info.data = data;
@@ -88,6 +101,8 @@
                         {
                             _message = JSON.stringify({ type : data });
                         }
+
+                        window.Asc.plugin.onCallCommandCallback = callback;
                         window.plugin_sendMessage(_message);
                     };
 
@@ -150,12 +165,12 @@
                         window.plugin_sendMessage(_message);
                     };
 
-                    window.Asc.plugin.callCommand = function(func, isClose, isCalc)
+                    window.Asc.plugin.callCommand = function(func, isClose, isCalc, callback)
 					{
 						var _txtFunc = "var Asc = {}; Asc.scope = " + JSON.stringify(window.Asc.scope) + "; var scope = Asc.scope; (" + func.toString() + ")();";
 						var _type = (isClose === true) ? "close" : "command";
 						window.Asc.plugin.info.recalculate = (false === isCalc) ? false : true;
-						window.Asc.plugin.executeCommand(_type, _txtFunc);
+						window.Asc.plugin.executeCommand(_type, _txtFunc, callback);
 					};
 
                     window.Asc.plugin.callModule = function(url, callback, isClose)
@@ -243,7 +258,12 @@
                 }
 				case "onCommandCallback":
 				{
-					if (window.Asc.plugin.onCommandCallback)
+                    if (window.Asc.plugin.onCallCommandCallback)
+                    {
+                        window.Asc.plugin.onCallCommandCallback();
+                        window.Asc.plugin.onCallCommandCallback = null;
+                    }
+                    else if (window.Asc.plugin.onCommandCallback)
 						window.Asc.plugin.onCommandCallback();
 					break;
 				}

@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -1296,6 +1296,21 @@
 			case c_oAscFileType.MOBI:
 				return 'mobi';
 				break;
+			case c_oAscFileType.DOCM:
+				return 'docm';
+				break;
+			case c_oAscFileType.DOTX:
+				return 'dotx';
+				break;
+			case c_oAscFileType.DOTM:
+				return 'dotm';
+				break;
+			case c_oAscFileType.FODT:
+				return 'fodt';
+				break;
+			case c_oAscFileType.OTT:
+				return 'ott';
+				break;
 			case c_oAscFileType.DOCY:
 				return 'doct';
 				break;
@@ -1318,6 +1333,21 @@
 			case c_oAscFileType.CSV:
 				return 'csv';
 				break;
+			case c_oAscFileType.XLSM:
+				return 'xlsm';
+				break;
+			case c_oAscFileType.XLTX:
+				return 'xltx';
+				break;
+			case c_oAscFileType.XLTM:
+				return 'xltm';
+				break;
+			case c_oAscFileType.FODS:
+				return 'fods';
+				break;
+			case c_oAscFileType.OTS:
+				return 'ots';
+				break;
 			case c_oAscFileType.XLSY:
 				return 'xlst';
 				break;
@@ -1330,6 +1360,27 @@
 				break;
 			case c_oAscFileType.ODP:
 				return 'odp';
+				break;
+			case c_oAscFileType.PPSX:
+				return 'ppsx';
+				break;
+			case c_oAscFileType.PPTM:
+				return 'pptm';
+				break;
+			case c_oAscFileType.PPSM:
+				return 'ppsm';
+				break;
+			case c_oAscFileType.POTX:
+				return 'potx';
+				break;
+			case c_oAscFileType.POTM:
+				return 'potm';
+				break;
+			case c_oAscFileType.FODP:
+				return 'fodp';
+				break;
+			case c_oAscFileType.OTP:
+				return 'otp';
 				break;
 		}
 		return '';
@@ -2668,8 +2719,11 @@
 			else if (Asc.c_oAscSelectionDialogType.FormatTable === dialogType)
 			{
 				// ToDo убрать эту проверку, заменить на более грамотную после правки функции _searchFilters
-				if (true === wb.getWorksheet().model.autoFilters.isRangeIntersectionTableOrFilter(range))
+				if (true === wb.getWorksheet().model.autoFilters.isRangeIntersectionTableOrFilter(range)) {
 					return Asc.c_oAscError.ID.AutoFilterDataRangeError;
+				} else if (wb.getWorksheet().intersectionFormulaArray(range, true, true)) {
+					return Asc.c_oAscError.ID.MultiCellsInTablesFormulaArray;
+				}
 			}
 			else if (Asc.c_oAscSelectionDialogType.FormatTableChangeRange === dialogType)
 			{
@@ -3344,6 +3398,30 @@
 		//https://bugs.chromium.org/p/v8/issues/detail?id=2869
 		return (' ' + s).substr(1);
 	}
+	function readValAttr(attr){
+		if(attr()){
+			var val = attr()["val"];
+			return val ? val : null;
+		}
+		return null;
+	}
+	function getNumFromXml(val) {
+		return val ? val - 0 : null;
+	}
+	function getColorFromXml(attr) {
+		if(attr()){
+			var vals = attr();
+			if(null != vals["theme"]) {
+				return AscCommonExcel.g_oColorManager.getThemeColor(getNumFromXml(vals["theme"]), getNumFromXml(vals["tint"]));
+			} else if(null != vals["rgb"]){
+				return new AscCommonExcel.RgbColor(0x00ffffff & getNumFromXml(vals["rgb"]));
+			}
+		}
+		return null;
+	}
+	function getBoolFromXml(val) {
+		return "0" !== val && "false" !== val && "off" !== val;
+	}
 
 	function CUserCacheColor(nColor)
 	{
@@ -3781,11 +3859,11 @@
 		{
 			if (_api.ImageLoader.map_image_index[_guid])
 				return;
-			var _obj = { Image : (this.Valid ? this.ImageValid : this.ImageInvalid), Status : ImageLoadStatus.Complete, src : _guid };
+			var _obj = { Image : (this.Valid ? this.ImageValid : this.ImageInvalid), Status : AscFonts.ImageLoadStatus.Complete, src : _guid };
 			_api.ImageLoader.map_image_index[_guid] = _obj;
 		};
 
-		this.Unregister = function(api, _guid)
+		this.Unregister = function(_api, _guid)
 		{
 			if (_api.ImageLoader.map_image_index[_guid])
 				delete _api.ImageLoader.map_image_index[_guid];
@@ -4358,6 +4436,10 @@
 	window["AscCommon"].getUserColorById = getUserColorById;
 	window["AscCommon"].isNullOrEmptyString = isNullOrEmptyString;
 	window["AscCommon"].unleakString = unleakString;
+	window["AscCommon"].readValAttr = readValAttr;
+	window["AscCommon"].getNumFromXml = getNumFromXml;
+	window["AscCommon"].getColorFromXml = getColorFromXml;
+	window["AscCommon"].getBoolFromXml = getBoolFromXml;
 	window["AscCommon"].initStreamFromResponse = initStreamFromResponse;
 
 	window["AscCommon"].DocumentUrls = DocumentUrls;
@@ -4372,6 +4454,7 @@
 	window["AscCommon"].LatinNumberingToInt = LatinNumberingToInt;
 
 	window["AscCommon"].loadSdk = loadSdk;
+    window["AscCommon"].loadScript = loadScript;
 	window["AscCommon"].getAltGr = getAltGr;
 	window["AscCommon"].getColorThemeByIndex = getColorThemeByIndex;
 	window["AscCommon"].isEastAsianScript = isEastAsianScript;
@@ -4668,8 +4751,10 @@ window["buildCryptoFile_End"] = function(url, error, hash, password)
 						"accounts": httpRequest.responseText ? JSON.parse(httpRequest.responseText) : undefined,
 						"hash": hash,
 						"password" : password,
-						"type": "share"
+						"type": "share",
+						"docinfo" : _editor.currentDocumentInfoNext
 					};
+					_editor.currentDocumentInfoNext = undefined;
 
 					window["AscDesktopEditor"]["sendSystemMessage"](data);
 					window["AscDesktopEditor"]["CallInAllWindows"]("function(){ if (window.DesktopUpdateFile) { window.DesktopUpdateFile(undefined); } }");

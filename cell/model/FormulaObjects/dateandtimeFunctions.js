@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -835,25 +835,59 @@
 		var oArguments = this._prepareArguments(arg, arguments[1], true);
 		var argClone = oArguments.args;
 
-		argClone[0] = argClone[0].tocNumber();
-		argClone[1] = argClone[1].tocNumber();
+		var calulateDay = function(curArg) {
+			var val;
+			if (curArg instanceof cArray) {
+				curArg = curArg.getElement(0);
+			} else if (curArg instanceof cArea || curArg instanceof cArea3D) {
+				curArg = curArg.cross(arguments[1]).tocNumber();
+				val = curArg.tocNumber().getValue();
+			}
 
-		var argError;
-		if (argError = this._checkErrorArg(argClone)) {
-			return argError;
-		}
+			if (curArg instanceof cError) {
+				return curArg;
+			} else if (curArg instanceof cNumber || curArg instanceof cBool || curArg instanceof cEmpty) {
+				val = curArg.tocNumber().getValue();
+			} else if (curArg instanceof cRef || curArg instanceof cRef3D) {
+				val = curArg.getValue().tocNumber();
+				if (val instanceof cNumber || val instanceof cBool || curArg instanceof cEmpty) {
+					val = curArg.tocNumber().getValue();
+				} else {
+					return new cError(cErrorType.wrong_value_type);
+				}
+			} else if (curArg instanceof cString) {
+				val = curArg.tocNumber();
+				if (val instanceof cError || val instanceof cEmpty) {
+					var d = new cDate(curArg.getValue());
+					if (isNaN(d)) {
+						return new cError(cErrorType.wrong_value_type);
+					} else {
+						val = Math.floor(( d.getTime() / 1000 - d.getTimezoneOffset() * 60 ) / c_sPerDay +
+							( AscCommonExcel.c_DateCorrectConst + (AscCommon.bDate1904 ? 0 : 1) ));
+					}
+				} else {
+					val = curArg.tocNumber().getValue();
+				}
+			}
+
+			return val;
+		};
 
 		var calulateDays = function (argArray) {
-			var val = argArray[0];
-			var val1 = argArray[1];
-			if (val < 0 || val1 < 0) {
+			var val = calulateDay(argArray[0]);
+			var val1 = calulateDay(argArray[1]);
+			if(val instanceof cError) {
+				return val;
+			} else if(val1 instanceof cError) {
+				return val1;
+			} else if (val < 0 || val1 < 0) {
 				return new cError(cErrorType.not_numeric);
 			} else {
 				return new cNumber(val - val1);
 			}
 		};
 
-		return this._findArrayInNumberArguments(oArguments, calulateDays);
+		return calulateDays(argClone);
 	};
 
 	/**
@@ -1633,11 +1667,16 @@
 			return second;
 		}
 
-		hour = hour.getValue();
-		minute = minute.getValue();
-		second = second.getValue();
+		//LO - не округляет. ms - округляет.
+		hour = parseInt(hour.getValue());
+		minute = parseInt(minute.getValue());
+		second = parseInt(second.getValue());
 
 		var v = (hour * 60 * 60 + minute * 60 + second) / c_sPerDay;
+		if(v < 0) {
+			return new cError(cErrorType.not_numeric);
+		}
+
 		var res = new cNumber(v - Math.floor(v));
 		res.numFormat = 18;
 		return res;
@@ -1882,7 +1921,7 @@
 	cWORKDAY.prototype.arrayIndexes = {2: 1};
 	cWORKDAY.prototype.Calculate = function (arg) {
 		var t = this;
-		var oArguments = this._prepareArguments([arg[0], arg[1]], arguments[1]);
+		var oArguments = this._prepareArguments([arg[0], arg[1]], arguments[1], true);
 		var argClone = oArguments.args;
 
 		argClone[0] = argClone[0].tocNumber();
@@ -1921,6 +1960,10 @@
 
 			return currentDate;
 		};
+
+		if(undefined === arg1.getValue()) {
+			return new cError(cErrorType.not_numeric);
+		}
 
 		var date = calcDate(val0, arg1.getValue(), holidays);
 		var val = date.getExcelDate();

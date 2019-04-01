@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -42,7 +42,8 @@ function (window, undefined) {
     
     var sFrozenImageUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAKCAYAAAB10jRKAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAHBhaW50Lm5ldCA0LjAuMTZEaa/1AAAAJElEQVQYV2MAAjUQoQIiFECEDIiQABHCIIIPRHCBCDYgZmACABohANImre1SAAAAAElFTkSuQmCC';
     //var sFrozenImageUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAADCAQAAAD41K0JAAAAD0lEQVR42mNgEGJmAAJmAACcABmX0vttAAAAAElFTkSuQmCC';
-    var sFrozenImageRotUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAABCAYAAADn9T9+AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAHBhaW50Lm5ldCA0LjAuMTZEaa/1AAAAGklEQVQYV2NkYGBQA+J/QPwHCf+GYiif4Q8AnJAJBNqB9DYAAAAASUVORK5CYII='
+    var sFrozenImageRotUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAABCAYAAADn9T9+AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAZdEVYdFNvZnR3YXJlAHBhaW50Lm5ldCA0LjAuMTZEaa/1AAAAGklEQVQYV2NkYGBQA+J/QPwHCf+GYiif4Q8AnJAJBNqB9DYAAAAASUVORK5CYII=';
+    var sDownIncline = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bWFzayBpZD0icGF0aC0xLWluc2lkZS0xIiBmaWxsPSJ3aGl0ZSI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xNSA2TDE1IDE1TDYgMTVMMSAxMEw2LjExMDg2IDEwTDAuOTk5OTUgNC44ODkwOUw0Ljg4OTA0IDFMMTAgNi4xMTA5NkwxMCAwLjk5OTk5OUwxNSA2WiIvPjwvbWFzaz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTE1IDZMMTUgMTVMNiAxNUwxIDEwTDYuMTEwODYgMTBMMC45OTk5NSA0Ljg4OTA5TDQuODg5MDQgMUwxMCA2LjExMDk2TDEwIDAuOTk5OTk5TDE1IDZaIiBmaWxsPSIjRUFDMjgyIi8+PHBhdGggZD0iTTE1IDE1TDE1IDE2TDE2IDE2TDE2IDE1TDE1IDE1Wk0xNSA2TDE2IDZMMTYgNS41ODU3OUwxNS43MDcxIDUuMjkyODlMMTUgNlpNNiAxNUw1LjI5Mjg5IDE1LjcwNzFMNS41ODU3OSAxNkw2IDE2TDYgMTVaTTEgMTBMMSA5TC0xLjQxNDIxIDlMMC4yOTI4OTMgMTAuNzA3MUwxIDEwWk02LjExMDg2IDEwTDYuMTEwODYgMTFMOC41MjUwNyAxMUw2LjgxNzk3IDkuMjkyODlMNi4xMTA4NiAxMFpNMC45OTk5NSA0Ljg4OTA5TDAuMjkyODQ0IDQuMTgxOThMLTAuNDE0MjYzIDQuODg5MDlMMC4yOTI4NDQgNS41OTYxOUwwLjk5OTk1IDQuODg5MDlaTTQuODg5MDQgMUw1LjU5NjE0IDAuMjkyODkzTDQuODg5MDQgLTAuNDE0MjE0TDQuMTgxOTMgMC4yOTI4OTNMNC44ODkwNCAxWk0xMCA2LjExMDk2TDkuMjkyODkgNi44MTgwN0wxMSA4LjUyNTE4TDExIDYuMTEwOTZMMTAgNi4xMTA5NlpNMTAgMC45OTk5OTlMMTAuNzA3MSAwLjI5Mjg5M0w5IC0xLjQxNDIxTDkgMC45OTk5OTlMMTAgMC45OTk5OTlaTTE2IDE1TDE2IDZMMTQgNkwxNCAxNUwxNiAxNVpNNiAxNkwxNSAxNkwxNSAxNEw2IDE0TDYgMTZaTTAuMjkyODkzIDEwLjcwNzFMNS4yOTI4OSAxNS43MDcxTDYuNzA3MTEgMTQuMjkyOUwxLjcwNzExIDkuMjkyODlMMC4yOTI4OTMgMTAuNzA3MVpNNi4xMTA4NiA5TDEgOUwxIDExTDYuMTEwODYgMTFMNi4xMTA4NiA5Wk02LjgxNzk3IDkuMjkyODlMMS43MDcwNiA0LjE4MTk4TDAuMjkyODQ0IDUuNTk2MTlMNS40MDM3NSAxMC43MDcxTDYuODE3OTcgOS4yOTI4OVpNMS43MDcwNiA1LjU5NjE5TDUuNTk2MTQgMS43MDcxMUw0LjE4MTkzIDAuMjkyODkzTDAuMjkyODQ0IDQuMTgxOThMMS43MDcwNiA1LjU5NjE5Wk00LjE4MTkzIDEuNzA3MTFMOS4yOTI4OSA2LjgxODA3TDEwLjcwNzEgNS40MDM4Nkw1LjU5NjE0IDAuMjkyODkzTDQuMTgxOTMgMS43MDcxMVpNOSAwLjk5OTk5OUw5IDYuMTEwOTZMMTEgNi4xMTA5NkwxMSAwLjk5OTk5OUw5IDAuOTk5OTk5Wk0xNS43MDcxIDUuMjkyODlMMTAuNzA3MSAwLjI5Mjg5M0w5LjI5Mjg5IDEuNzA3MTFMMTQuMjkyOSA2LjcwNzExTDE1LjcwNzEgNS4yOTI4OVoiIGZpbGw9IiNBNDgwMkIiIG1hc2s9InVybCgjcGF0aC0xLWluc2lkZS0xKSIvPjwvc3ZnPg==';
 // Import
 var c_oAscCellAnchorType = AscCommon.c_oAscCellAnchorType;
 var c_oAscLockTypes = AscCommon.c_oAscLockTypes;
@@ -1266,11 +1267,7 @@ function DrawingObjects() {
 
     var drawingCtx = null;
     var overlayCtx = null;
-    var shapeCtx = null;
-    var shapeOverlayCtx = null;
 
-    var trackOverlay = null;
-    var autoShapeTrack = null;
     var scrollOffset = new ScrollOffset();
 
     var aObjects = [];
@@ -1759,24 +1756,13 @@ function DrawingObjects() {
 
         drawingCtx = currentSheet.drawingGraphicCtx;
         overlayCtx = currentSheet.overlayGraphicCtx;
-        shapeCtx = currentSheet.shapeCtx;
-        shapeOverlayCtx = currentSheet.shapeOverlayCtx;
-
-        trackOverlay = new AscCommon.COverlay();
-        trackOverlay.IsCellEditor = true;
-        trackOverlay.init( shapeOverlayCtx.m_oContext, "ws-canvas-graphic-overlay", 0, 0, shapeOverlayCtx.m_lWidthPix, shapeOverlayCtx.m_lHeightPix, shapeOverlayCtx.m_dWidthMM, shapeOverlayCtx.m_dHeightMM );
-
-        autoShapeTrack = new AscCommon.CAutoshapeTrack();
-        autoShapeTrack.init( trackOverlay, 0, 0, shapeOverlayCtx.m_lWidthPix, shapeOverlayCtx.m_lHeightPix, shapeOverlayCtx.m_dWidthMM, shapeOverlayCtx.m_dHeightMM );
-        shapeCtx.m_oAutoShapesTrack = autoShapeTrack;
-
 
         _this.objectLocker = new ObjectLocker(worksheet);
         _this.drawingArea = currentSheet.drawingArea;
         _this.drawingArea.init();
         _this.drawingDocument = currentSheet.model.DrawingDocument ? currentSheet.model.DrawingDocument : new AscCommon.CDrawingDocument(this);
         _this.drawingDocument.drawingObjects = this;
-        _this.drawingDocument.AutoShapesTrack = autoShapeTrack;
+        _this.drawingDocument.AutoShapesTrack = api.wb.autoShapeTrack;
         _this.drawingDocument.TargetHtmlElement = document.getElementById('id_target_cursor');
         _this.drawingDocument.InitGuiCanvasShape(api.shapeElementId);
         _this.controller = new AscFormat.DrawingObjectsController(_this);
@@ -1821,6 +1807,9 @@ function DrawingObjects() {
         }
         if(!Asc['editor'].ImageLoader.map_image_index[sFrozenImageRotUrl]){
             aImagesSync.push(sFrozenImageRotUrl);
+        }
+        if(!Asc['editor'].ImageLoader.map_image_index[sDownIncline]){
+            aImagesSync.push(sDownIncline);
         }
         if(aImagesSync.length > 0)
         {
@@ -1914,7 +1903,7 @@ function DrawingObjects() {
     };
 
     _this.getOverlay = function() {
-        return trackOverlay;
+        return api.wb.trackOverlay;
     };
 
     _this.OnUpdateOverlay = function() {
@@ -1931,25 +1920,6 @@ function DrawingObjects() {
 
     _this.resizeCanvas = function() {
 		_this.drawingArea.init();
-
-        var canvasWidth = drawingCtx.canvas.width;
-        var canvasHeight = drawingCtx.canvas.height;
-
-        shapeCtx.init( drawingCtx.ctx, canvasWidth, canvasHeight, (canvasWidth*25.4/drawingCtx.ppiX), (canvasHeight*25.4/drawingCtx.ppiY));
-        shapeCtx.CalculateFullTransform();
-
-
-
-
-        var overlayWidth = overlayCtx.canvas.width;
-        var overlayHeight = overlayCtx.canvas.height;
-
-        shapeOverlayCtx.init( overlayCtx.ctx, overlayWidth, overlayHeight, (overlayWidth*25.4/overlayCtx.ppiX), (overlayHeight*25.4/overlayCtx.ppiY));
-        shapeOverlayCtx.CalculateFullTransform();
-
-        trackOverlay.init( shapeOverlayCtx.m_oContext, "ws-canvas-graphic-overlay", 0, 0, overlayWidth, overlayHeight, (overlayWidth*25.4/overlayCtx.ppiX), (overlayHeight*25.4/overlayCtx.ppiY));
-        autoShapeTrack.init( trackOverlay, 0, 0,  overlayWidth, overlayHeight, (overlayWidth*25.4/overlayCtx.ppiX), (overlayHeight*25.4/overlayCtx.ppiY) );
-        autoShapeTrack.Graphics.CalculateFullTransform();
     };
 
     _this.getCanvasContext = function() {
@@ -2042,6 +2012,7 @@ function DrawingObjects() {
             }
 
             if ( aObjects.length ) {
+                var shapeCtx = api.wb.shapeCtx;
                 if (graphicOption) {
                     // Выставляем нужный диапазон для отрисовки
                     var updatedRect = { x: 0, y: 0, w: 0, h: 0 };
@@ -2273,8 +2244,8 @@ function DrawingObjects() {
             else {
                 x = worksheet._getColLeft(0);
                 y = worksheet._getRowTop(0);
-                w = shapeCtx.m_lWidthPix - x;
-                h = shapeCtx.m_lHeightPix - y;
+                w = api.wb.shapeCtx.m_lWidthPix - x;
+                h = api.wb.shapeCtx.m_lHeightPix - y;
             }
 
             canvas.m_oContext.save();
@@ -2421,6 +2392,7 @@ function DrawingObjects() {
             if (bLock !== true)
                 return;
             _this.controller.resetSelection();
+            History.Create_NewPoint();
             var dLeft = worksheet.getCellLeft(worksheet.model.selectionRange.activeCell.col, 3);
             var dTop = worksheet.getCellTop(worksheet.model.selectionRange.activeCell.row, 3);
             var oSignatureLine = AscFormat.fCreateSignatureShape(sGuid, sSigner, sSigner2, sEmail, false, worksheet.model, Width, Height, sImgUrl);
@@ -3651,7 +3623,7 @@ function DrawingObjects() {
                 oDrawing = oDrawing.group;
             }
         }
-        if(oDrawing.drawingBase){
+        if(oDrawing && oDrawing.drawingBase){
             for (var i = 0; i < aObjects.length; i++) {
                 if ( aObjects[i] === oDrawing.drawingBase )
                     return aObjects[i];
@@ -3729,7 +3701,7 @@ function DrawingObjects() {
     };
 
     _this.getDrawingCanvas = function() {
-        return { shapeCtx: shapeCtx, shapeOverlayCtx: shapeOverlayCtx, autoShapeTrack: autoShapeTrack, trackOverlay: trackOverlay };
+        return { shapeCtx: api.wb.shapeCtx, shapeOverlayCtx: api.wb.shapeOverlayCtx, autoShapeTrack: api.wb.autoShapeTrack, trackOverlay: api.wb.trackOverlay };
     };
 
     _this.convertMetric = function(val, from, to) {
@@ -4060,27 +4032,29 @@ function DrawingObjects() {
     //-----------------------------------------------------------------------------------
 
     _this.selectDrawingObjectRange = function(drawing) {
-
 		worksheet.cleanSelection();
         worksheet.endEditChart();
 
         if(!drawing.bbox || drawing.bbox.worksheet !== worksheet.model)
             return;
 
-        if(drawing.bbox.serBBox)
-        {
-            worksheet._drawElements(worksheet._drawSelectionElement,
-              asc.Range(drawing.bbox.serBBox.c1, drawing.bbox.serBBox.r1, drawing.bbox.serBBox.c2,
-                drawing.bbox.serBBox.r2, true), AscCommonExcel.selectionLineType.Selection | AscCommonExcel.selectionLineType.Resize,
-              AscCommonExcel.c_oAscFormulaRangeBorderColor[1]);
+        if (!window["IS_NATIVE_EDITOR"]) {
+            if(drawing.bbox.serBBox)
+            {
+                worksheet._drawElements(worksheet._drawSelectionElement,
+                    asc.Range(drawing.bbox.serBBox.c1, drawing.bbox.serBBox.r1, drawing.bbox.serBBox.c2,
+                        drawing.bbox.serBBox.r2, true), AscCommonExcel.selectionLineType.Selection | AscCommonExcel.selectionLineType.Resize,
+                    AscCommonExcel.c_oAscFormulaRangeBorderColor[1]);
+            }
+            if(drawing.bbox.catBBox)
+            {
+                worksheet._drawElements(worksheet._drawSelectionElement,
+                    asc.Range(drawing.bbox.catBBox.c1, drawing.bbox.catBBox.r1, drawing.bbox.catBBox.c2,
+                        drawing.bbox.catBBox.r2, true), AscCommonExcel.selectionLineType.Selection | AscCommonExcel.selectionLineType.Resize,
+                    AscCommonExcel.c_oAscFormulaRangeBorderColor[2]);
+            }
         }
-        if(drawing.bbox.catBBox)
-        {
-            worksheet._drawElements(worksheet._drawSelectionElement,
-              asc.Range(drawing.bbox.catBBox.c1, drawing.bbox.catBBox.r1, drawing.bbox.catBBox.c2,
-                drawing.bbox.catBBox.r2, true), AscCommonExcel.selectionLineType.Selection | AscCommonExcel.selectionLineType.Resize,
-              AscCommonExcel.c_oAscFormulaRangeBorderColor[2]);
-        }
+
         var BB = drawing.bbox.seriesBBox;
         var range = asc.Range(BB.c1, BB.r1, BB.c2, BB.r2, true);
         worksheet.setChartRange(range);
@@ -4148,6 +4122,18 @@ function DrawingObjects() {
 
     _this.setGraphicObjectAlign = function(alignType) {
         _this.controller.setGraphicObjectAlign(alignType);
+    };
+    _this.distributeGraphicObjectHor = function() {
+        _this.controller.distributeGraphicObjectHor();
+    };
+
+    _this.distributeGraphicObjectVer = function() {
+        _this.controller.distributeGraphicObjectVer();
+    };
+
+    _this.getSelectedDrawingObjectsCount = function() {
+        var selectedObjects = _this.controller.selection.groupSelection ? this.controller.selection.groupSelection.selectedObjects : this.controller.selectedObjects;
+        return selectedObjects.length;
     };
 
     _this.saveSizeDrawingObjects = function() {
@@ -4593,4 +4579,5 @@ ClickCounter.prototype.getClickCount = function() {
     window["AscFormat"].CSparklineView = CSparklineView;
     window["AscFormat"].sFrozenImageUrl = sFrozenImageUrl;
     window["AscFormat"].sFrozenImageRotUrl = sFrozenImageRotUrl;
+    window["AscFormat"].sDownIncline = sDownIncline;
 })(window);

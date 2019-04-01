@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -140,6 +140,12 @@
 
 		this.LastReplaceText = [];
 		this.IsLastReplaceFlag = false;
+
+		this.isNoClearOnFocus = false;
+
+		this.keyPressInput = "";
+        this.isInputHelpersPresent = false;
+        this.isInputHelpers = {};
 	}
 
 	CTextInput.prototype =
@@ -426,7 +432,7 @@
 				shiftKey : false,
 				target : null,
 				charCode : 0,
-				which : 0,
+				which : code,
 				keyCode : code,
 				code : "",
 
@@ -458,6 +464,10 @@
 			this.CompositionStart = 0;
 			this.CompositionEnd = 0;
 			this.IsComposition = false;
+
+            this.keyPressInput = "";
+			if (window.g_asc_plugins)
+				window.g_asc_plugins.onPluginEvent("onInputHelperClear");
 		},
 
 		getAreaValue : function()
@@ -776,7 +786,7 @@
 			}
 		},
 
-		emulateNativeKeyDown : function(e)
+		emulateNativeKeyDown : function(e, target)
 		{
 			var oEvent = document.createEvent('KeyboardEvent');
 
@@ -868,7 +878,7 @@
 			oEvent.metaKeyVal = e.metaKey;
 			oEvent.ctrlKeyVal = e.ctrlKey;
 
-			var _elem = _getElementKeyboardDown(this.nativeFocusElement, 3);
+			var _elem = target ? target : _getElementKeyboardDown(this.nativeFocusElement, 3);
 			_elem.dispatchEvent(oEvent);
 
 			return oEvent.defaultPrevented;
@@ -947,6 +957,41 @@
 				return false;
 			}
 
+			if (this.isInputHelpersPresent)
+			{
+                switch (e.keyCode)
+                {
+                    case 9:		// tab
+                    case 13:	// enter
+                    case 38:	// top
+                    case 40:	// bottom
+                    case 33: 	// pageup
+                    case 34: 	// pagedown
+                    case 35: 	// end
+                    case 36: 	// home
+					case 27:	// escape
+                    {
+                    	window.g_asc_plugins.onPluginEvent2("onKeyDown", { "keyCode" : e.keyCode }, this.isInputHelpers);
+
+                        AscCommon.stopEvent(e);
+                        return false;
+                    }
+                    case 32:
+                    {
+                        // send, but not prevent
+
+                        //window.g_asc_plugins.onPluginEvent2("onKeyDown", { "keyCode" : e.keyCode }, this.isInputHelpers);
+                        this.keyPressInput += " ";
+                        if (window.g_asc_plugins)
+                            window.g_asc_plugins.onPluginEvent("onInputHelperInput", { "text" : this.keyPressInput });
+                    }
+                    default:
+                        break;
+                }
+			}
+			else if (32 == e.keyCode)
+                this.keyPressInput += " ";
+
 			if (this.isSystem && this.isShow)
 			{
 				// нужно проверить на enter
@@ -1023,6 +1068,18 @@
 			switch (e.keyCode)
 			{
 				case 8:		// backspace
+                {
+                    var oldKeyPressInput = this.keyPressInput;
+                    this.clear();
+                    
+                    if (oldKeyPressInput.length > 1)
+                    {
+                        this.keyPressInput = oldKeyPressInput.substr(0, oldKeyPressInput.length - 1);
+                        if (window.g_asc_plugins)
+                            window.g_asc_plugins.onPluginEvent("onInputHelperInput", { "text" : this.keyPressInput });
+                    }
+                    return false;
+                }
 				case 9:		// tab
 				case 13:	// enter
 				case 37:	// left
@@ -1050,6 +1107,12 @@
 				default:
 					break;
 			}
+
+			if (e.keyCode == 32 && AscCommon.global_keyboardEvent.CtrlKey && !AscCommon.global_keyboardEvent.ShiftKey)
+            {
+                if (window.g_asc_plugins)
+                    window.g_asc_plugins.onPluginEvent("onClick");
+            }
 
 			return ret;
 		},
@@ -1112,6 +1175,11 @@
 				default:
 					break;
 			}
+
+			this.keyPressInput += String.fromCharCode(e.which);
+			if (window.g_asc_plugins)
+                window.g_asc_plugins.onPluginEvent("onInputHelperInput", { "text" : this.keyPressInput });
+
 
 			AscCommon.stopEvent(e);
 			return ret;
@@ -1426,8 +1494,10 @@
 				t.externalEndCompositeInput();
 			}
 
-			if (!t.isSystem)
+			if (!t.isSystem && !t.isNoClearOnFocus)
 				t.clear(true);
+
+            t.isNoClearOnFocus = false;
 
 			var _nativeFocusElementNoRemoveOnElementFocus = t.nativeFocusElementNoRemoveOnElementFocus;
 			t.nativeFocusElementNoRemoveOnElementFocus = false;

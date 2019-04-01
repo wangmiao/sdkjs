@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -134,7 +134,7 @@ AscCommon.CHistory.prototype.Have_Changes = function(IsNotUserSave, IsNoSavedNoM
 	
 window["DesktopOfflineAppDocumentApplyChanges"] = function(_changes)
 {
-	editor._coAuthoringSetChanges(_changes, new CDocumentColor( 191, 255, 199 ));
+	editor._coAuthoringSetChanges(_changes, null);
     //editor["asc_nativeApplyChanges"](_changes);
 	//editor["asc_nativeCalculateFile"]();
 };
@@ -250,7 +250,7 @@ Asc['asc_docs_api'].prototype.asc_DownloadAs = function(typeFile, bIsDownloadEve
 	this.asc_Save(false, true);
 };
 
-Asc['asc_docs_api'].prototype.AddImageUrl = function(url, imgProp)
+Asc['asc_docs_api'].prototype.AddImageUrl = function(url, imgProp, withAuthorization)
 {
 	var _url = window["AscDesktopEditor"]["LocalFileGetImageUrl"](url);
 	this.AddImageUrlAction(AscCommon.g_oDocumentUrls.getImageUrl(_url), imgProp);
