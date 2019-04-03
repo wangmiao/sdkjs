@@ -5474,6 +5474,9 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
                 // oContentElem.Content[2].MoveCursorToStartPos();
             } else {
                 this.CurPos++;
+                if (this.Content.length - 1 < this.CurPos) {
+                    this.CurPos = this.Content.length - 1;
+                }
                 Cursor++;
                 this.Content[this.CurPos].MoveCursorToStartPos();
                 // this.Content[this.CurPos].MoveCursorToEndPos();
@@ -5920,6 +5923,12 @@ AutoCorrectionControl.prototype.AutoCorrectDelimiter = function(AutoCorrectEngin
 
 CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorrect)
 {
+    var Elements = this.Elements.slice();
+    while (this.Brackets[2]) {
+        var lv = this.Brackets.length - 1;
+        this.AutoCorrectPackDelimiter(this.Brackets[lv], Elements);
+        this.Brackets.splice(lv,1);
+    }
     for(var j = 0; j < this.Brackets[1]['left'].length; j++) {
         var props = new CMathDelimiterPr();
         props.column = 1;
@@ -5930,12 +5939,14 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
         var oBase = oDelimiter.getBase();
         var TempElements = [];
         for (var i = this.Brackets[1]['right'][j].pos - 1; i>this.Brackets[1]['left'][j].pos; i--) {
-            TempElements.splice(0, 0, this.Elements[i].Element);
+            if (Elements[i]) {
+                TempElements.splice(0, 0, Elements[i].Element);
+            }
         }
 
         this.PackTextToContent(oBase, TempElements, false);
 
-        this.Shift = this.Elements.length - 1 - this.Brackets[1]['right'][j].pos;
+        this.Shift = Elements.length - 1 - this.Brackets[1]['right'][j].pos;
 
         if (0x20 == this.ActionElement.value) {
             this.Shift--;
@@ -5943,7 +5954,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
         var nRemoveCount = this.Brackets[1]['right'][j].pos - this.Brackets[1]['left'][j].pos + 1;
         if (CanMakeAutoCorrect) {
             nRemoveCount += this.Remove[0].Count;
-        } else if (0x20 == this.ActionElement.value && !this.Remove[0] && this.Brackets[1]['right'][j].pos >= (this.Elements.length - 2)) {
+        } else if (0x20 == this.ActionElement.value && !this.Remove[0] && this.Brackets[1]['right'][j].pos >= (Elements.length - 2)) {
             nRemoveCount++;
         }
         var Start = this.Brackets[1]['left'][j].pos;
@@ -5956,6 +5967,29 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
         this.Remove.unshift({Count:nRemoveCount, Start:Start});
         
         this.ReplaceContent.unshift(oDelimiter);
+    }
+};
+
+CMathAutoCorrectEngine.prototype.AutoCorrectPackDelimiter = function(data, Elements) {
+    for(var j = 0; j < data['left'].length; j++) {
+        var props = new CMathDelimiterPr();
+        props.column = 1;
+        props.begChr = data['left'][j].bracket.value;
+        props.endChr = data['right'][j].bracket.value;
+        var oDelimiter = new CDelimiter(props);
+
+        var oBase = oDelimiter.getBase();
+        var TempElements = [];
+        for (var i = data['right'][j].pos - 1; i > data['left'][j].pos; i--) {
+            if (Elements[i]) {
+                TempElements.splice(0, 0, Elements[i].Element);
+                Elements[i] = null;
+            }
+        }
+        Elements[data['right'][j].pos] = null;
+        Elements[data['left'][j].pos] = null;
+        this.PackTextToContent(oBase, TempElements, false);
+        Elements[data['left'][j].pos] = {Element : oDelimiter};
     }
 };
 AutoCorrectionControl.prototype.AutoCorrectPhantom = function(AutoCorrectEngine, CanMakeAutoCorrect)
