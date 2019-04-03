@@ -5957,13 +5957,8 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
         } else if (0x20 == this.ActionElement.value && !this.Remove[0] && this.Brackets[1]['right'][j].pos >= (Elements.length - 2)) {
             nRemoveCount++;
         }
+        this.Remove['total'] += nRemoveCount;
         var Start = this.Brackets[1]['left'][j].pos;
-        if (!this.Remove['total']) {
-            this.Remove['total'] = nRemoveCount;
-        } else {
-            Start -= this.Remove['total'];
-            this.Remove['total'] += nRemoveCount;
-        }
         this.Remove.unshift({Count:nRemoveCount, Start:Start});
         
         this.ReplaceContent.unshift(oDelimiter);
@@ -5991,6 +5986,42 @@ CMathAutoCorrectEngine.prototype.AutoCorrectPackDelimiter = function(data, Eleme
         this.PackTextToContent(oBase, TempElements, false);
         Elements[data['left'][j].pos] = {Element : oDelimiter};
     }
+};
+
+CMathAutoCorrectEngine.prototype.AutoCorrectFraction = function(TmpEl1, TmpEl2) {
+    var props = new CMathFractionPr();
+    props.Set_FromObject(this.props);
+    props.ctrPrp = this.TextPr.Copy();
+    var Fraction = new CFraction(props);
+    var oDelimiter = null;
+    var RemoveCount = TmpEl1.length + TmpEl2.length + 1;
+
+    var DenMathContent = Fraction.getDenominatorMathContent();
+    var NumMathContent = Fraction.getNumeratorMathContent();
+
+    if ( (TmpEl2 && g_MathLeftBracketAutoCorrectCharCodes[TmpEl2[0].value]) && (TmpEl1 && g_MathRightBracketAutoCorrectCharCodes[TmpEl1[TmpEl1.length - 1].value]) ) {
+        var props = new CMathDelimiterPr();
+        props.column = 1;
+        props.begChr = TmpEl2[0].value;
+        props.endChr = TmpEl1[TmpEl1.length - 1].value;
+        oDelimiter = new CDelimiter(props);
+        TmpEl2.splice(0, 1);
+        TmpEl1.splice(TmpEl1.length - 1, 1);
+        this.PackTextToContent(DenMathContent, TmpEl1, true);
+        this.PackTextToContent(NumMathContent, TmpEl2, true);
+        var oBase = oDelimiter.getBase();
+        this.PackTextToContent(oBase, [Fraction], false);
+    } else {
+        this.PackTextToContent(DenMathContent, TmpEl1, true);
+        this.PackTextToContent(NumMathContent, TmpEl2, true);
+    }
+
+    if (0x20 == this.ActionElement.value) {
+        RemoveCount++;
+    }
+    var Start = this.Elements.length - RemoveCount;
+    this.Remove.unshift({Count:RemoveCount, Start:Start});
+    this.ReplaceContent.unshift(oDelimiter || Fraction);
 };
 AutoCorrectionControl.prototype.AutoCorrectPhantom = function(AutoCorrectEngine, CanMakeAutoCorrect)
 {
@@ -6631,24 +6662,7 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
 
     switch(this.Type) {
         case MATH_FRACTION :
-            var props = new CMathFractionPr();
-            props.Set_FromObject(this.props);
-            props.ctrPrp = this.TextPr.Copy();
-            var Fraction = new CFraction(props);
-
-            var DenMathContent = Fraction.getDenominatorMathContent();
-            var NumMathContent = Fraction.getNumeratorMathContent();
-
-            this.PackTextToContent(DenMathContent, buffer.lv0, true);
-            this.PackTextToContent(NumMathContent, buffer.lv1, true);
-
-            var RemoveCount = buffer.lv0.length + buffer.lv1.length + 1;
-            if (0x20 == this.ActionElement.value) {
-                RemoveCount++;
-            }
-            var Start = this.Elements.length - RemoveCount;
-            this.Remove.unshift({Count:RemoveCount, Start:Start});
-            this.ReplaceContent.unshift(Fraction);
+            this.AutoCorrectFraction(buffer.lv0, buffer.lv1);
             return true;
         case MATH_DELIMITER :
             if(!bBrackOpen && lvBrackets === 1) {
@@ -7914,12 +7928,13 @@ function CMathAutoCorrectEngine(Elem, CurPos, ParaMath) {
     this.Delimiter		  = null;
 
     this.Remove           = [];
+    this.Remove['total']  = 0;
     this.ReplaceContent   = [];
     this.Shift 			  = 0;
 
     this.TextPr           = null;
     this.MathPr           = null;
-}
+};
 
 CMathAutoCorrectEngine.prototype.Add_Element = function(Content) {
     var nCount = this.CurElement;
