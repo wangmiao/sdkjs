@@ -5629,6 +5629,104 @@ CMathContent.prototype.private_CanAutoCorrectText = function(AutoCorrectEngine, 
     }
     return Result;
 };
+
+CMathAutoCorrectEngine.prototype.AutoCorrectText = function(Elements) {
+    var ElCount = Elements.length;
+    if (ElCount < 2) {
+        return;
+    }
+    var AutoCorrectCount = g_aAutoCorrectMathSymbols.length;
+    for (var nIndex = 0; nIndex < AutoCorrectCount; nIndex++) {
+        var AutoCorrectElement = g_aAutoCorrectMathSymbols[nIndex];
+        var CheckString = AutoCorrectElement[0];
+        var CheckStringLen = CheckString.length;
+
+        if (ElCount < CheckStringLen) {
+            continue;
+        }
+        var Found = true;
+        for (var nStringPos = 0; nStringPos < CheckStringLen; nStringPos++) {
+            var LastEl = Elements[ElCount - nStringPos - 1];
+            if (!LastEl.IsText()) {
+                Found = false;
+                break;
+            }
+            if (String.fromCharCode(LastEl.value) !== CheckString[CheckStringLen - nStringPos - 1]) {
+                Found = false;
+                break;
+            }
+        }
+        if (true === Found) {
+            var Start = ElCount - nStringPos;
+            Elements.splice(Start + 1, CheckStringLen);
+
+            var MathRun = new ParaRun(this.ParaMath.Paragraph, true);
+            MathRun.Set_Pr(this.TextPr.Copy());
+            MathRun.Set_MathPr(this.MathPr.Copy());
+            var ReplaceText = new CMathText();
+            ReplaceText.add(AutoCorrectElement[1]);
+            MathRun.Add(ReplaceText, true);
+            Elements[Start] = MathRun;
+            return;
+        }
+    }    
+};
+
+CMathAutoCorrectEngine.prototype.AutoCorrectTextFunc = function(Elements) {
+    var ElCount = Elements.length;
+    if (ElCount < 2 ) {
+        return;
+    }
+    var AutoCorrectCount = g_aAutoCorrectMathFuncSymbols.length;
+    for (var nIndex = 0; nIndex < AutoCorrectCount; nIndex++) {
+        var AutoCorrectElement = g_aAutoCorrectMathFuncSymbols[nIndex];
+        var CheckStringLen = AutoCorrectElement.length;
+        if (ElCount < CheckStringLen) {
+            continue;
+        }
+        var Found = true;
+        for (var nStringPos = 0; nStringPos < CheckStringLen; nStringPos++) {
+            var LastEl = Elements[ElCount - nStringPos - 1];
+            if (!LastEl.IsText()) {
+                Found = false;
+                break;
+            }
+            if (String.fromCharCode(LastEl.value) !== AutoCorrectElement[CheckStringLen - nStringPos - 1]) {
+                Found = false;
+                break;
+            }
+            if (nStringPos === (CheckStringLen - 1) && (ElCount - CheckStringLen) > 0) {
+                LastEl = Elements[ElCount - nStringPos - 2];
+                if ((LastEl.IsText() && LastEl.value !== 32)) {
+                    Found = false;
+                }
+            }
+        }
+        if (Found === true) {
+            var Start = ElCount - nStringPos;
+            Elements.splice(Start + 1, CheckStringLen);
+            var Pr = {ctrPrp: new CTextPr()};
+            var MathFunc = new CMathFunc(Pr);
+            var MathContent = MathFunc.getFName();
+            var MathRun = new ParaRun(this.Paragraph, true);
+            for (var nCharPos = 0, nTextLen = AutoCorrectElement.length; nCharPos < nTextLen; nCharPos++) {
+                var oText = null;
+                if (0x0026 == AutoCorrectElement.charCodeAt(nCharPos)) {
+                    oText = new CMathAmp();
+                } else {
+                    oText = new CMathText(false);
+                    oText.addTxt(AutoCorrectElement[nCharPos]);
+                }
+                MathRun.Add(oText, true);
+            }
+            MathRun.Math_Apply_Style(STY_PLAIN);
+            MathContent.Internal_Content_Add(0, MathRun);
+            Elements[Start] = MathFunc;
+            return;
+        }
+    }
+
+};
 /*CMathContent.prototype.private_AutoCorrectDelimiter = function( AutoCorrectEngine, ActionElement)
  {
  var ElCount = AutoCorrectEngine.Elements.length;
@@ -5944,6 +6042,8 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
             }
         }
 
+        this.AutoCorrectText(TempElements);
+        this.CanAutoCorrectTextFunc(TempElements);
         this.PackTextToContent(oBase, TempElements, false);
 
         this.Shift = Elements.length - 1 - this.Brackets[1]['right'][j].pos;
@@ -5983,6 +6083,8 @@ CMathAutoCorrectEngine.prototype.AutoCorrectPackDelimiter = function(data, Eleme
         }
         Elements[data['right'][j].pos] = null;
         Elements[data['left'][j].pos] = null;
+        this.AutoCorrectText(TempElements);
+        this.CanAutoCorrectTextFunc(TempElements);
         this.PackTextToContent(oBase, TempElements, false);
         Elements[data['left'][j].pos] = {Element : oDelimiter};
     }
@@ -5993,35 +6095,20 @@ CMathAutoCorrectEngine.prototype.AutoCorrectFraction = function(TmpEl1, TmpEl2) 
     props.Set_FromObject(this.props);
     props.ctrPrp = this.TextPr.Copy();
     var Fraction = new CFraction(props);
-    var oDelimiter = null;
-    var RemoveCount = TmpEl1.length + TmpEl2.length + 1;
 
     var DenMathContent = Fraction.getDenominatorMathContent();
     var NumMathContent = Fraction.getNumeratorMathContent();
 
-    if ( (TmpEl2 && g_MathLeftBracketAutoCorrectCharCodes[TmpEl2[0].value]) && (TmpEl1 && g_MathRightBracketAutoCorrectCharCodes[TmpEl1[TmpEl1.length - 1].value]) ) {
-        var props = new CMathDelimiterPr();
-        props.column = 1;
-        props.begChr = TmpEl2[0].value;
-        props.endChr = TmpEl1[TmpEl1.length - 1].value;
-        oDelimiter = new CDelimiter(props);
-        TmpEl2.splice(0, 1);
-        TmpEl1.splice(TmpEl1.length - 1, 1);
-        this.PackTextToContent(DenMathContent, TmpEl1, true);
-        this.PackTextToContent(NumMathContent, TmpEl2, true);
-        var oBase = oDelimiter.getBase();
-        this.PackTextToContent(oBase, [Fraction], false);
-    } else {
-        this.PackTextToContent(DenMathContent, TmpEl1, true);
-        this.PackTextToContent(NumMathContent, TmpEl2, true);
-    }
+    this.PackTextToContent(DenMathContent, TmpEl1, true);
+    this.PackTextToContent(NumMathContent, TmpEl2, true);
 
+    var RemoveCount = TmpEl1.length + TmpEl2.length + 1;
     if (0x20 == this.ActionElement.value) {
         RemoveCount++;
     }
     var Start = this.Elements.length - RemoveCount;
     this.Remove.unshift({Count:RemoveCount, Start:Start});
-    this.ReplaceContent.unshift(oDelimiter || Fraction);
+    this.ReplaceContent.unshift(Fraction);
 };
 AutoCorrectionControl.prototype.AutoCorrectPhantom = function(AutoCorrectEngine, CanMakeAutoCorrect)
 {
