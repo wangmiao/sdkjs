@@ -5439,7 +5439,7 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
             
             for (var nPos = End; nPos >= Start; nPos--) {
                 LastEl = AutoCorrectEngine.Elements[nPos];
-                if (undefined !== LastEl.Element.Parent && !LastEl.Element.kind) {
+                if (undefined !== LastEl.Element.Parent && LastEl.Element.kind === undefined) {
                     // if (FirstEl.Element.Parent === LastEl.Element.Parent) {
                     //     FirstEl.ContPos--;
                     // }
@@ -5453,9 +5453,11 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
             if (FirstEl.Element.Type != para_Math_Composition) {
                 var NewRun = FirstEl.Element.Parent.Split2(FirstEl.ContPos);
                 this.Internal_Content_Add(FirstElPos + 1, NewRun, false);
+                this.Internal_Content_Add(FirstElPos + 1, AutoCorrectEngine.ReplaceContent[i], false);
+            } else {
+                this.Internal_Content_Add(FirstElPos, AutoCorrectEngine.ReplaceContent[i], false);
             }
 
-            this.Internal_Content_Add(FirstElPos + 1, AutoCorrectEngine.ReplaceContent[i], false);
             this.CurPos = Cursor + 1;
 
             if (CanMakeAutoCorrectEquation && AutoCorrectEngine.Type == MATH_NARY) {
@@ -6043,7 +6045,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
         }
 
         this.AutoCorrectText(TempElements);
-        this.CanAutoCorrectTextFunc(TempElements);
+        this.AutoCorrectTextFunc(TempElements);
         this.PackTextToContent(oBase, TempElements, false);
 
         this.Shift = Elements.length - 1 - this.Brackets[1]['right'][j].pos;
@@ -6106,7 +6108,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectFraction = function(TmpEl1, TmpEl2) 
     if (0x20 == this.ActionElement.value) {
         RemoveCount++;
     }
-    var Start = this.Elements.length - RemoveCount;
+    var Start = this.Elements.length - RemoveCount - ((this.props.type) ? 1 : 0);
     this.Remove.unshift({Count:RemoveCount, Start:Start});
     this.ReplaceContent.unshift(Fraction);
 };
