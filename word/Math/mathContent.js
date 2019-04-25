@@ -6804,7 +6804,6 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             buffer[CurLvBuf].splice(0, 0, Elem);
             continue;
         } else if (g_MathRightBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //right bracket
-           
             if (!this.Brackets[lvBrackets]) {
                 this.Brackets[lvBrackets] = {};	
                 this.Brackets[lvBrackets]['left'] = [];	
@@ -6854,6 +6853,23 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 this.Type = MATH_DEGREE;
             }
             buffer[CurLvBuf].Type = DEGREE_SUPERSCRIPT;
+            CurPos--;
+            CurLvBuf++;
+            buffer[CurLvBuf] = [];
+            continue;
+        } else if (0x005F === Elem.value) { // _
+            if (g_aMathAutoCorrectDoNotDegree[this.ActionElement.value]) {
+                // return false;
+                CurPos--;
+                buffer[CurLvBuf].splice(0, 0, Elem);
+                continue;
+            }
+            //если скобки одинаковые - то степень, разные - delimiter
+            if (this.Type == MATH_RADICAL || this.Type == MATH_NARY || !this.Type) {
+                this.Kind = DEGREE_SUBSCRIPT;
+                this.Type = MATH_DEGREE;
+            }
+            buffer[CurLvBuf].Type = DEGREE_SUBSCRIPT;
             CurPos--;
             CurLvBuf++;
             buffer[CurLvBuf] = [];
@@ -8145,14 +8161,14 @@ function CMathAutoCorrectEngine(Elem, CurPos, ParaMath) {
     this.ActionElement    = Elem;                       // Элемент на которотом срабатывает автодополнение
     this.CurElement       = CurPos;                     // индекс текущего элемента, где стоит курсор
     this.Elements         = [];
-    this.Brackets         = [];                         // сейчас под вопросом нужен ли он
+    this.Brackets         = [];                         // скобки по уровням
     this.FBracketsAdd     = false;
 
     this.CollectText      = true;
     this.Type			  = null;
     this.Kind			  = null;
     this.props            = {};
-    this.ParaMath         = ParaMath;
+    this.ParaMath         = ParaMath.Copy();
     this.Delimiter		  = null;
 
     this.Remove           = [];
@@ -8161,7 +8177,7 @@ function CMathAutoCorrectEngine(Elem, CurPos, ParaMath) {
     this.Shift 			  = 0;
 
     this.TextPr           = null;
-    this.MathPr           = null;
+    this.MathPr           = ParaMath.Copy();
 };
 
 CMathAutoCorrectEngine.prototype.Add_Element = function(Content) {
