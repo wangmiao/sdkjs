@@ -369,6 +369,13 @@ function CEditorPage(api)
 	this.m_oApi = api;
 	var oThis   = this;
 
+    this.smoothWheelCorrector = new AscCommon.CMouseSmoothWheelCorrector(function(deltaX, deltaY) {
+        if (0 != deltaX)
+            oThis.m_oScrollHorApi.scrollBy(-deltaX, 0, false);
+        else if (0 != deltaY)
+            oThis.m_oScrollVerApi.scrollBy(0, -deltaY, false);
+	});
+
 	this.reporterTimerFunc = function(isReturn)
 	{
 		var _curTime = new Date().getTime();
@@ -2501,7 +2508,7 @@ function CEditorPage(api)
 		if (undefined != e.wheelDelta && e.wheelDelta != 0)
 		{
 			//delta = (e.wheelDelta > 0) ? -45 : 45;
-			delta = -45 * e.wheelDelta / 120;
+			delta = -45 * oThis.smoothWheelCorrector.get_DeltaY(e.wheelDelta) / 120;
 		}
 		else if (undefined != e.detail && e.detail != 0)
 		{
@@ -2524,22 +2531,24 @@ function CEditorPage(api)
 			if (undefined !== e.wheelDeltaY && 0 !== e.wheelDeltaY)
 			{
 				//deltaY = (e.wheelDeltaY > 0) ? -45 : 45;
-				deltaY = -45 * e.wheelDeltaY / 120;
+				deltaY = -45 * oThis.smoothWheelCorrector.get_DeltaY(e.wheelDeltaY) / 120;
 			}
 			if (undefined !== e.wheelDeltaX && 0 !== e.wheelDeltaX)
 			{
 				//deltaX = (e.wheelDeltaX > 0) ? -45 : 45;
-				deltaX = -45 * e.wheelDeltaX / 120;
+				deltaX = -45 * oThis.smoothWheelCorrector.get_DeltaX(e.wheelDeltaX) / 120;
 			}
 		}
 
 		deltaX >>= 0;
 		deltaY >>= 0;
 
-		if (0 != deltaX)
+		if (!oThis.smoothWheelCorrector.isBreakX() && 0 != deltaX)
 			oThis.m_oScrollHorApi.scrollBy(deltaX, 0, false);
-		else if (0 != deltaY)
+		else if (!oThis.smoothWheelCorrector.isBreakY() && 0 != deltaY)
 			oThis.m_oScrollVerApi.scrollBy(0, deltaY, false);
+
+        oThis.smoothWheelCorrector.checkBreak();
 
 		if (e.preventDefault)
 			e.preventDefault();
