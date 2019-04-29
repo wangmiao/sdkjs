@@ -4309,7 +4309,7 @@
 
     AscCommon.EncryptionWorker = new CEncryptionData();
 
-    function CMouseSmoothWheelCorrector(scrollFunction)
+    function CMouseSmoothWheelCorrector(t, scrollFunction)
 	{
 		this._deltaX = 0;
 		this._deltaY = 0;
@@ -4318,6 +4318,7 @@
         this._isBreakY = false;
 
         this._timeoutCorrector = -1;
+        this._api = t;
         this._scrollFunction = scrollFunction;
 
         this._normalDelta = 120;
@@ -4372,7 +4373,7 @@
 				var obj = { t : this, x : (this._isBreakX ? this._deltaX : 0), y : (this._isBreakY ? this._deltaY : 0) };
 				this._timeoutCorrector = setTimeout(function(){
                     var t = obj.t;
-					t._scrollFunction(obj.x, obj.y);
+					t._scrollFunction.call(t._api, obj.x, obj.y);
 					t._timeoutCorrector = -1;
 					t._deltaX = 0;
 					t._deltaY = 0;

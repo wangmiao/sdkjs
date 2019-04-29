@@ -369,11 +369,11 @@ function CEditorPage(api)
 	this.m_oApi = api;
 	var oThis   = this;
 
-    this.smoothWheelCorrector = new AscCommon.CMouseSmoothWheelCorrector(function(deltaX, deltaY) {
+    this.smoothWheelCorrector = new AscCommon.CMouseSmoothWheelCorrector(this, function(deltaX, deltaY) {
         if (0 != deltaX)
-            oThis.m_oScrollHorApi.scrollBy(-deltaX, 0, false);
+            this.m_oScrollHorApi.scrollBy(-deltaX, 0, false);
         else if (0 != deltaY)
-            oThis.m_oScrollVerApi.scrollBy(0, -deltaY, false);
+            this.m_oScrollVerApi.scrollBy(0, -deltaY, false);
 	});
 
 	this.reporterTimerFunc = function(isReturn)
