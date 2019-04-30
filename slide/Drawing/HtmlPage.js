@@ -1073,7 +1073,10 @@ function CEditorPage(api)
 
 		this.m_oMainContent.HtmlElement.onmousewheel = this.onMouseWhell;
 		if (this.m_oMainContent.HtmlElement.addEventListener)
-			this.m_oMainContent.HtmlElement.addEventListener("DOMMouseScroll", this.onMouseWhell, false);
+		{
+            var nameWheelEvent = "onwheel" in document.createElement("div") ? "wheel" :	document.onmousewheel !== undefined ? "mousewheel" : "DOMMouseScroll";
+            this.m_oMainContent.HtmlElement.addEventListener(nameWheelEvent, this.onMouseWhell, false);
+        }
 
 		this.m_oBody.HtmlElement.onmousewheel = function(e)
 		{
@@ -2511,12 +2514,28 @@ function CEditorPage(api)
 			//delta = (e.detail > 0) ? 45 : -45;
 			delta = 45 * e.detail / 3;
 		}
+        else if (undefined !== e.deltaY && 0 !== e.deltaY)
+        {
+            delta = 45 * e.deltaY / 3;
+        }
+
+        // Webkit
+        if (undefined !== e.wheelDeltaY && 0 !== e.wheelDeltaY)
+        {
+            //deltaY = (e.wheelDeltaY > 0) ? -45 : 45;
+            delta = -45 * e.wheelDeltaY / 120;
+        }
 
 		// New school multidimensional scroll (touchpads) deltas
 		deltaY = delta;
 
 		if (oThis.m_bIsHorScrollVisible)
 		{
+            if (undefined !== e.deltaX && 0 !== e.deltaX)
+            {
+                deltaX = 45 * e.deltaX / 3;
+            }
+
 			if (e.axis !== undefined && e.axis === e.HORIZONTAL_AXIS)
 			{
 				deltaY = 0;
@@ -2524,11 +2543,6 @@ function CEditorPage(api)
 			}
 
 			// Webkit
-			if (undefined !== e.wheelDeltaY && 0 !== e.wheelDeltaY)
-			{
-				//deltaY = (e.wheelDeltaY > 0) ? -45 : 45;
-				deltaY = -45 * e.wheelDeltaY / 120;
-			}
 			if (undefined !== e.wheelDeltaX && 0 !== e.wheelDeltaX)
 			{
 				//deltaX = (e.wheelDeltaX > 0) ? -45 : 45;
