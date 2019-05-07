@@ -5403,7 +5403,7 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
             if (0x20 === ActionElement.value) {
                 CanMakeAutoCorrect = this.private_CanAutoCorrectText(AutoCorrectEngine, true);
             } else {
-                AutoCorrectEngine.Elements.splice(AutoCorrectEngine.Elements.length - 1, 1);
+                // AutoCorrectEngine.Elements.splice(AutoCorrectEngine.Elements.length - 1, 1);
                 CanMakeAutoCorrect = this.private_CanAutoCorrectText(AutoCorrectEngine, false);
                 bCursorStepRight = true;
             }
@@ -5417,7 +5417,8 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
                 CanMakeAutoCorrectFunc = this.private_CanAutoCorrectTextFunc(AutoCorrectEngine, false);
             }
         }
-
+        // если останется вынести в отдельную функцию
+        AutoCorrectEngine.CurPos = AutoCorrectEngine.Elements.length - AutoCorrectEngine.Remove.total - 1;
         // Пробуем сделать формульную автозамену
         if (CanMakeAutoCorrectFunc === false && CanMakeAutoCorrect === false) {
             // if (CanMakeAutoCorrect || ( 0x28 != ActionElement.value && 0x5C != ActionElement.value)) {
@@ -5626,6 +5627,7 @@ CMathContent.prototype.private_CanAutoCorrectText = function(AutoCorrectEngine, 
             MathRun.Add(ReplaceText, true);
         }
         AutoCorrectEngine.Remove.push({Count:RemoveCount, Start:Start});
+        AutoCorrectEngine.Remove.total += RemoveCount;
         AutoCorrectEngine.ReplaceContent.push(MathRun);
         Result = true;
     }
@@ -5729,6 +5731,10 @@ CMathAutoCorrectEngine.prototype.AutoCorrectTextFunc = function(Elements) {
     }
 
 };
+CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements) {
+    // to do
+};
+
 /*CMathContent.prototype.private_AutoCorrectDelimiter = function( AutoCorrectEngine, ActionElement)
  {
  var ElCount = AutoCorrectEngine.Elements.length;
@@ -5836,6 +5842,7 @@ CMathContent.prototype.private_CanAutoCorrectTextFunc = function(AutoCorrectEngi
         MathRun.Math_Apply_Style(STY_PLAIN);
         MathContent.Internal_Content_Add(0, MathRun);
         AutoCorrectEngine.Remove.push({Count:RemoveCount, Start:Start});
+        AutoCorrectEngine.Remove.total += RemoveCount;
         AutoCorrectEngine.ReplaceContent.push(MathFunc);
         Result = true;
     }
@@ -5895,7 +5902,7 @@ AutoCorrectionControl.prototype.PackTextToContent = function(Element, TempElemen
         if ((TempElements[0].value === 0x0028 && TempElements[len-1].value === 0x0029) || (TempElements[0].value === 0x3016 && TempElements[len-1].value === 0x3017)) {
             // TempElements.splice(len-1,1);
             // TempElements.splice(0,1);
-            // len -= 2 ;
+            // len -= 2;
             start = 1;
             len -= 1;
         }
@@ -6047,6 +6054,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
 
         this.AutoCorrectText(TempElements);
         this.AutoCorrectTextFunc(TempElements);
+        this.AutoCorrectEquation(TempElements);
         this.PackTextToContent(oBase, TempElements, false);
 
         this.Shift = Elements.length - 1 - this.Brackets[1]['right'][j].pos;
@@ -6088,6 +6096,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectPackDelimiter = function(data, Eleme
         Elements[data['left'][j].pos] = null;
         this.AutoCorrectText(TempElements);
         this.AutoCorrectTextFunc(TempElements);
+        this.AutoCorrectEquation(TempElements);
         this.PackTextToContent(oBase, TempElements, false);
         Elements[data['left'][j].pos] = {Element : oDelimiter};
     }
@@ -6150,6 +6159,35 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDegree = function(buff) {
         oDegree = tmp;
         RemoveCount += buff[i].length + 1;
     }
+    if (0x20 == this.ActionElement.value) {
+        RemoveCount++;
+    }
+    var Start = this.Elements.length - RemoveCount;
+    this.Remove.push({Count:RemoveCount, Start:Start});
+    this.ReplaceContent.unshift(oDegree);
+};
+
+CMathAutoCorrectEngine.prototype.AutoCorrectDegreeSubSup = function(buff) {
+    var props = new CMathDegreePr();
+    props.ctrPrp = this.TextPr.Copy();
+    props.type = this.Kind;
+    var oDegree = new CDegreeSubSup(props)
+
+    var BaseContent = oDegree.Content[0];
+    var IterDnContent = oDegree.Content[1];
+    var IterUpContent = oDegree.Content[2];
+
+    if (buff[0].Type == DEGREE_SUPERSCRIPT) {
+        this.PackTextToContent(IterUpContent, buff[1], true);
+        this.PackTextToContent(IterDnContent, buff[0], true);
+    } else if (buff[0].Type == DEGREE_SUBSCRIPT) {
+        this.PackTextToContent(IterUpContent, buff[0], true);
+        this.PackTextToContent(IterDnContent, buff[1], true);
+    }
+    var BaseElems = buff[2];
+    this.PackTextToContent(BaseContent, BaseElems, false);
+
+    var RemoveCount = buff[0].length + buff[1].length + buff[2].length + 2;
     if (0x20 == this.ActionElement.value) {
         RemoveCount++;
     }
@@ -6720,7 +6758,6 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
     var CurLvBuf = 0;
     buffer[CurLvBuf] = [];
     var lvBrackets = 1;
-    var CurPos = this.Elements.length - 1;
     var bBrackOpen = false;
     var InBrackets = {
         type : null,
@@ -6728,15 +6765,15 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
         global : false,
         props : {}
     };
-    while (CurPos >= 0) {
-        var Elem = this.Elements[CurPos].Element;
+    while (this.CurPos >= 0) {
+        var Elem = this.Elements[this.CurPos].Element;
         if (Elem.value === undefined) {
             buffer[CurLvBuf].splice(0, 0, Elem);
         } else if (Elem.value === 0x002F) { // /
             if (g_aMathAutoCorrectNotDoFraction[this.ActionElement.value]) {
                 //дробь не закончена и рано еще делать автозамену
                 // return false;
-                CurPos--;
+                this.CurPos--;
                 buffer[CurLvBuf].splice(0, 0, Elem);
                 continue;
             }
@@ -6745,10 +6782,10 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 InBrackets.cur = true;
                 InBrackets.global = true;
             }
-            if (CurPos - 1 > 0) {
-                var tmp = this.Elements[CurPos-1].Element;
+            if (this.CurPos - 1 > 0) {
+                var tmp = this.Elements[this.CurPos-1].Element;
                 if (tmp.Type === para_Math_BreakOperator && tmp.value === 0x005C) { // \
-                    CurPos--;
+                    this.CurPos--;
                     CurLvBuf++;
                     buffer[CurLvBuf] = [];
                     buffer[CurLvBuf].splice(0, 0, Elem);
@@ -6759,7 +6796,7 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                             this.Type = MATH_FRACTION;
                             this.props = {type: LINEAR_FRACTION};
                         }
-                        CurPos --;
+                        this.CurPos --;
                         buffer[CurLvBuf].splice(0, 0, tmp);
                     } else {
                         if (InBrackets.cur) {
@@ -6777,7 +6814,7 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 this.Type = MATH_FRACTION;
                 this.props = {};
             }
-            CurPos--;
+            this.CurPos--;
             CurLvBuf++;
             buffer[CurLvBuf] = [];
             buffer[CurLvBuf].splice(0, 0, Elem);
@@ -6786,7 +6823,7 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             if (g_aMathAutoCorrectNotDoFraction[this.ActionElement.value]) {
                 //дробь не закончена и рано еще делать автозамену
                 // return false;
-                CurPos--;
+                this.CurPos--;
                 buffer[CurLvBuf].splice(0, 0, Elem);
                 continue;
             }
@@ -6798,7 +6835,7 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 this.Type = MATH_FRACTION;
                 this.props = {type: SKEWED_FRACTION};
             }
-            CurPos--;
+            this.CurPos--;
             CurLvBuf++;
             buffer[CurLvBuf] = [];
             buffer[CurLvBuf].splice(0, 0, Elem);
@@ -6809,7 +6846,7 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 this.Brackets[lvBrackets]['left'] = [];	
                 this.Brackets[lvBrackets]['right'] = [];
             }
-            this.Brackets[lvBrackets]['right'].push({bracket : Elem, pos: CurPos});
+            this.Brackets[lvBrackets]['right'].push({bracket : Elem, pos: this.CurPos});
             lvBrackets++;
             buffer[CurLvBuf].splice(0, 0, Elem);
             bBrackOpen = true;
@@ -6827,15 +6864,15 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             }
             if (this.Brackets[lvBrackets]['left'].length === this.Brackets[lvBrackets]['right'].length && this.Brackets[lvBrackets]['right'].length) {
                 buffer[CurLvBuf].splice(0, 0, Elem);
-                CurPos--;
+                this.CurPos--;
             } else if (this.Brackets[lvBrackets]['left'].length < this.Brackets[lvBrackets]['right'].length) {
-                this.Brackets[lvBrackets]['left'].push({bracket : Elem, pos: CurPos});
+                this.Brackets[lvBrackets]['left'].push({bracket : Elem, pos: this.CurPos});
                 bBrackOpen = false;
                 buffer[CurLvBuf].splice(0, 0, Elem);
-                CurPos--;
+                this.CurPos--;
                 // CurLvBuf++;
                 // buffer["lv" + CurLvBuf] = [];
-                if (CurPos - 1 >= 0) {
+                if (this.CurPos - 1 >= 0) {
                     //смотрим что слева от скобки и делаем елементам соответствующий тип или может это не надо
                 }
             }
@@ -6843,7 +6880,7 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
         } else if  (0x005E === Elem.value) { // ^
             if (g_aMathAutoCorrectDoNotDegree[this.ActionElement.value]) {
                 // return false;
-                CurPos--;
+                this.CurPos--;
                 buffer[CurLvBuf].splice(0, 0, Elem);
                 continue;
             }
@@ -6852,15 +6889,19 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 this.Kind = DEGREE_SUPERSCRIPT;
                 this.Type = MATH_DEGREE;
             }
+            if (this.Type == MATH_DEGREE && (buffer[CurLvBuf-1] && buffer[CurLvBuf-1].Type == DEGREE_SUBSCRIPT)) {
+                this.Kind = DEGREE_SubSup;
+                this.Type = MATH_DEGREESubSup;
+            }
             buffer[CurLvBuf].Type = DEGREE_SUPERSCRIPT;
-            CurPos--;
+            this.CurPos--;
             CurLvBuf++;
             buffer[CurLvBuf] = [];
             continue;
         } else if (0x005F === Elem.value) { // _
             if (g_aMathAutoCorrectDoNotDegree[this.ActionElement.value]) {
                 // return false;
-                CurPos--;
+                this.CurPos--;
                 buffer[CurLvBuf].splice(0, 0, Elem);
                 continue;
             }
@@ -6869,15 +6910,19 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 this.Kind = DEGREE_SUBSCRIPT;
                 this.Type = MATH_DEGREE;
             }
+            if (this.Type == MATH_DEGREE && (buffer[CurLvBuf-1] && buffer[CurLvBuf-1].Type == DEGREE_SUPERSCRIPT)) {
+                this.Kind = DEGREE_SubSup;
+                this.Type = MATH_DEGREESubSup;
+            }
             buffer[CurLvBuf].Type = DEGREE_SUBSCRIPT;
-            CurPos--;
+            this.CurPos--;
             CurLvBuf++;
             buffer[CurLvBuf] = [];
             continue;
         } else if (Elem.value === 0x0020 && !bBrackOpen) { // space
             //доделать на нулевом уровне и с открытой скобкой
             if (Elem === this.ActionElement) {
-                CurPos--;
+                this.CurPos--;
                 continue;
             }
             break;
@@ -6885,7 +6930,7 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
         else {
             buffer[CurLvBuf].splice(0, 0, Elem);
         }
-        CurPos--;
+        this.CurPos--;
     }
 
     if (InBrackets.cur) {
@@ -6914,6 +6959,9 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             return true;
         case MATH_DEGREE :
             this.AutoCorrectDegree(buffer);
+            return true;
+        case MATH_DEGREESubSup :
+            this.AutoCorrectDegreeSubSup(buffer);
             return true;
     }
 
@@ -8160,6 +8208,7 @@ CMathBracketAcc.prototype.Compare             = function()
 function CMathAutoCorrectEngine(Elem, CurPos, ParaMath) {
     this.ActionElement    = Elem;                       // Элемент на которотом срабатывает автодополнение
     this.CurElement       = CurPos;                     // индекс текущего элемента, где стоит курсор
+    this.CurPos           = null;                       // индекс элемента с которого будет начинаться автозамена
     this.Elements         = [];
     this.Brackets         = [];                         // скобки по уровням
     this.FBracketsAdd     = false;
