@@ -5731,10 +5731,221 @@ CMathAutoCorrectEngine.prototype.AutoCorrectTextFunc = function(Elements) {
     }
 
 };
-CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements) {
-    // to do
+CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
+    this.AutoCorrectText(Elements);
+    this.AutoCorrectTextFunc(Elements);
+    var CurPos = Pos || Elements.length - 1;
+    var Type = null;
+    var Kind = null;
+    var Props = null;
+    var ElPos = null;
+    var End = null;
+    while (CurPos >= 0) {
+        var Elem = Elements[CurPos];
+        if (Elem.value === undefined) {
+            CurPos--;
+            continue;
+        } else if (Elem.value === 0x002F) { // /
+            if (Type) {
+                var tmp =  [Elements.splice(ElPos+1),Elements.splice(CurPos+1)];
+                this.AutoCorrectEquation(Type,Props,tmp);
+                Elements[CurPos] = tmp;
+            } else {
+                if (CurPos - 1 > 0) {
+                    var tmp = Elements[CurPos-1];
+                    if (tmp.Type === para_Math_BreakOperator && tmp.value === 0x005C) { // \
+                        CurPos--;
+                        if (Type !== MATH_FRACTION || (Type === MATH_FRACTION && Props.type === LINEAR_FRACTION) ) {
+                            Type = MATH_FRACTION;
+                            Props = {type: LINEAR_FRACTION};
+                            ElPos = CurPos;
+                            CurPos --;
+                        } else {
+                            Props = {};
+                        }
+                        continue;
+                    }
+                }
+                Type = MATH_FRACTION;
+                Props = {};
+                ElPos = CurPos;
+            } 
+            CurPos--;
+            continue;
+        }
+        //  else if (0x2044 ===  Elem.value) { // fraction
+        //     if (g_aMathAutoCorrectNotDoFraction[this.ActionElement.value]) {
+        //         //дробь не закончена и рано еще делать автозамену
+        //         // return false;
+        //         this.CurPos--;
+        //         buffer[CurLvBuf].splice(0, 0, Elem);
+        //         continue;
+        //     }
+        //     if (bBrackOpen) {
+        //         InBrackets.type = MATH_FRACTION;
+        //         InBrackets.cur = true;
+        //         InBrackets.props = {type: SKEWED_FRACTION};
+        //     } else {
+        //         this.Type = MATH_FRACTION;
+        //         this.props = {type: SKEWED_FRACTION};
+        //     }
+        //     this.CurPos--;
+        //     CurLvBuf++;
+        //     buffer[CurLvBuf] = [];
+        //     buffer[CurLvBuf].splice(0, 0, Elem);
+        //     continue;
+        // } else if (g_MathRightBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //right bracket
+        //     if (!this.Brackets[lvBrackets]) {
+        //         this.Brackets[lvBrackets] = {};	
+        //         this.Brackets[lvBrackets]['left'] = [];	
+        //         this.Brackets[lvBrackets]['right'] = [];
+        //     }
+        //     this.Brackets[lvBrackets]['right'].push({bracket : Elem, pos: this.CurPos});
+        //     lvBrackets++;
+        //     buffer[CurLvBuf].splice(0, 0, Elem);
+        //     bBrackOpen = true;
+        //     if (this.Type === null) {
+        //         this.Type = MATH_DELIMITER;
+        //     }
+        // }  else if (g_MathLeftBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //left bracket
+        //     if (!this.Brackets[1]) { // if firs brackesk is left
+        //         // return false;
+        //         break;
+        //     }
+        //     if (lvBrackets > 1) {
+        //         lvBrackets--;
+        //     } 
+        //     if (lvBrackets == 1) {
+        //         InBrackets.cur = false;
+        //     }
+        //     if (this.Brackets[lvBrackets]['left'].length === this.Brackets[lvBrackets]['right'].length && this.Brackets[lvBrackets]['right'].length) {
+        //         buffer[CurLvBuf].splice(0, 0, Elem);
+        //         this.CurPos--;
+        //     } else if (this.Brackets[lvBrackets]['left'].length < this.Brackets[lvBrackets]['right'].length) {
+        //         this.Brackets[lvBrackets]['left'].push({bracket : Elem, pos: this.CurPos});
+        //         if (lvBrackets == 1) {
+        //             bBrackOpen = false;
+        //         }
+        //         buffer[CurLvBuf].splice(0, 0, Elem);
+        //         this.CurPos--;
+        //         // CurLvBuf++;
+        //         // buffer["lv" + CurLvBuf] = [];
+        //         if (this.CurPos - 1 >= 0) {
+        //             //смотрим что слева от скобки и делаем елементам соответствующий тип или может это не надо
+        //         }
+        //     }
+        //     continue;  
+        // } else if  (0x005E === Elem.value) { // ^
+        //     if (g_aMathAutoCorrectDoNotDegree[this.ActionElement.value]) {
+        //         // return false;
+        //         this.CurPos--;
+        //         buffer[CurLvBuf].splice(0, 0, Elem);
+        //         continue;
+        //     }
+        //     if (bBrackOpen) {
+        //         InBrackets.type = MATH_DEGREE;
+        //         InBrackets.cur = true;
+        //     }
+        //     //если скобки одинаковые - то степень, разные - delimiter
+        //     if (this.Type == MATH_RADICAL || this.Type == MATH_NARY || !this.Type) {
+        //         if (InBrackets.cur) {
+        //             InBrackets.kind = DEGREE_SUPERSCRIPT;
+        //         } else {
+        //             this.Kind = DEGREE_SUPERSCRIPT;
+        //             this.Type = MATH_DEGREE;
+        //         }
+                
+        //     }
+        //     if (this.Type == MATH_DEGREE && (buffer[CurLvBuf-1] && buffer[CurLvBuf-1].Type == DEGREE_SUBSCRIPT)) {
+        //         if (InBrackets.cur) {
+        //             InBrackets.kind = DEGREE_SubSup;
+        //             InBrackets.Type = MATH_DEGREESubSup;
+        //         } else {
+        //             this.Kind = DEGREE_SubSup;
+        //             this.Type = MATH_DEGREESubSup;
+        //         }
+        //     }
+        //     buffer[CurLvBuf].Type = DEGREE_SUPERSCRIPT;
+        //     this.CurPos--;
+        //     if (!bBrackOpen) {
+        //         CurLvBuf++;
+        //         buffer[CurLvBuf] = [];
+        //     }
+        //     continue;
+        // } else if (0x005F === Elem.value) { // _
+        //     if (g_aMathAutoCorrectDoNotDegree[this.ActionElement.value]) {
+        //         // return false;
+        //         this.CurPos--;
+        //         buffer[CurLvBuf].splice(0, 0, Elem);
+        //         continue;
+        //     }
+        //     if (bBrackOpen) {
+        //         InBrackets.type = MATH_DEGREE;
+        //         InBrackets.cur = true;
+        //     }
+        //     //если скобки одинаковые - то степень, разные - delimiter
+        //     if (this.Type == MATH_RADICAL || this.Type == MATH_NARY || !this.Type) {
+        //         if (InBrackets.cur) {
+        //             InBrackets.kind = DEGREE_SUBSCRIPT;
+        //         } else {
+        //             this.Kind = DEGREE_SUBSCRIPT;
+        //             this.Type = MATH_DEGREE;
+        //         }
+        //     }
+        //     if (this.Type == MATH_DEGREE && (buffer[CurLvBuf-1] && buffer[CurLvBuf-1].Type == DEGREE_SUPERSCRIPT)) {
+        //         if (InBrackets.cur) {
+        //             InBrackets.kind = DEGREE_SubSup;
+        //             InBrackets.type = MATH_DEGREESubSup;
+        //         } else {
+        //             this.Kind = DEGREE_SubSup;
+        //             this.Type = MATH_DEGREESubSup;
+        //         }
+        //     }
+        //     buffer[CurLvBuf].Type = DEGREE_SUBSCRIPT;
+        //     this.CurPos--;
+        //     if (!bBrackOpen) {
+        //         CurLvBuf++;
+        //         buffer[CurLvBuf] = [];
+        //     }
+        //     continue;
+        // } else if (Elem.value === 0x0020) { // space
+        //    // to do
+        //    continue;
+        // }
+        // else {
+        //     buffer[CurLvBuf].splice(0, 0, Elem);
+        // }
+        CurPos--;
+    }
+    if (Type !== null && ElPos !== null) {
+        var tmp =  [Elements.splice(ElPos+1),Elements.splice(0)];
+        this.CorrectEquation(Type,Props,Kind,tmp);
+        Elements.push(tmp[0]);
+    }
+
 };
 
+CMathAutoCorrectEngine.prototype.CorrectEquation = function(Type, Props, Kind, Elements) {
+    switch(Type) {
+        case MATH_FRACTION :
+            this.CorrectBuffForFrac(Elements);
+
+            this.AutoCorrectEquation(Elements[0]);
+            this.AutoCorrectEquation(Elements[1]);
+            var props = new CMathFractionPr();
+            props.Set_FromObject(Props);
+            props.ctrPrp = this.TextPr.Copy();
+            var Fraction = new CFraction(props);
+
+            var DenMathContent = Fraction.getDenominatorMathContent();
+            var NumMathContent = Fraction.getNumeratorMathContent();
+
+            this.PackTextToContent(DenMathContent, Elements[1], true);
+            this.PackTextToContent(NumMathContent, Elements[0], true);
+            Elements.splice(0,Elements.length, Fraction);
+            break;
+    }
+};
 /*CMathContent.prototype.private_AutoCorrectDelimiter = function( AutoCorrectEngine, ActionElement)
  {
  var ElCount = AutoCorrectEngine.Elements.length;
@@ -6052,8 +6263,6 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
             }
         }
 
-        this.AutoCorrectText(TempElements);
-        this.AutoCorrectTextFunc(TempElements);
         this.AutoCorrectEquation(TempElements);
         this.PackTextToContent(oBase, TempElements, false);
 
@@ -6094,8 +6303,6 @@ CMathAutoCorrectEngine.prototype.AutoCorrectPackDelimiter = function(data, Eleme
         }
         Elements[data['right'][j].pos] = null;
         Elements[data['left'][j].pos] = null;
-        this.AutoCorrectText(TempElements);
-        this.AutoCorrectTextFunc(TempElements);
         this.AutoCorrectEquation(TempElements);
         this.PackTextToContent(oBase, TempElements, false);
         Elements[data['left'][j].pos] = {Element : oDelimiter};
@@ -6115,11 +6322,9 @@ CMathAutoCorrectEngine.prototype.AutoCorrectFraction = function(buff) {
         var DenMathContent = tmp.getDenominatorMathContent();
         var NumMathContent = tmp.getNumeratorMathContent();
         RemoveCount += buff[i].length + ((this.props.type === 2) ? 2 : 1);
-
-        this.AutoCorrectText(Fraction);
-        this.AutoCorrectTextFunc(Fraction);
-        this.AutoCorrectText(buff[i]);
-        this.AutoCorrectTextFunc(buff[i]);
+        
+        this.AutoCorrectEquation(Fraction);
+        this.AutoCorrectEquation(buff[i]);
 
         this.PackTextToContent(DenMathContent, Fraction, true);
         this.PackTextToContent(NumMathContent, buff[i], true);
@@ -6987,12 +7192,7 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 this.AutoCorrectDelimiter(CanMakeAutoCorrect);
                 return true;
             } else {
-                // if (InBrackets.flag) {
-                //     this.Type = InBrackets.type;
-                //     this.props = InBrackets.props;
-                // } else {
-                    return false;
-                // }
+                return false;
             }
         case MATH_FRACTION :
             this.AutoCorrectFraction(buffer);
