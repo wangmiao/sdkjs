@@ -5739,41 +5739,40 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
     var Kind = null;
     var Props = null;
     var ElPos = null;
-    var End = null;
+    var End = CurPos;
     while (CurPos >= 0) {
         var Elem = Elements[CurPos];
         if (Elem.value === undefined) {
             CurPos--;
             continue;
         } else if (Elem.value === 0x002F) { // /
-            if (Type) {
-                var tmp =  [Elements.splice(ElPos+1),Elements.splice(CurPos+1)];
-                this.AutoCorrectEquation(Type,Props,tmp);
-                Elements[CurPos] = tmp;
-            } else {
-                if (CurPos - 1 > 0) {
-                    var tmp = Elements[CurPos-1];
-                    if (tmp.Type === para_Math_BreakOperator && tmp.value === 0x005C) { // \
-                        CurPos--;
-                        if (Type !== MATH_FRACTION || (Type === MATH_FRACTION && Props.type === LINEAR_FRACTION) ) {
-                            Type = MATH_FRACTION;
-                            Props = {type: LINEAR_FRACTION};
-                            ElPos = CurPos;
-                            CurPos --;
-                        } else {
-                            Props = {};
-                        }
-                        continue;
+            if (Type !== null) {
+                var tmp =  [Elements.splice(ElPos+1,(End-ElPos)),Elements.splice(CurPos+1,(ElPos-CurPos))];
+                this.CorrectEquation(Type,Props,Kind,tmp);
+                Elements.splice(CurPos + 1, 0, tmp[0]);
+                End = CurPos + 1;
+            }
+            if (CurPos - 1 > 0) {
+                var tmp = Elements[CurPos-1];
+                if (tmp.Type === para_Math_BreakOperator && tmp.value === 0x005C) { // \
+                    CurPos--;
+                    if (Type !== MATH_FRACTION) {
+                        Type = MATH_FRACTION;
+                        Props = {type: LINEAR_FRACTION};
+                        ElPos = CurPos;
+                        CurPos --;
+                    } else {
+                        Props = {};
                     }
+                    continue;
                 }
-                Type = MATH_FRACTION;
-                Props = {};
-                ElPos = CurPos;
-            } 
+            }
+            Type = MATH_FRACTION;
+            Props = {};
+            ElPos = CurPos;
             CurPos--;
             continue;
-        }
-        //  else if (0x2044 ===  Elem.value) { // fraction
+        // }  else if (0x2044 ===  Elem.value) { // fraction
         //     if (g_aMathAutoCorrectNotDoFraction[this.ActionElement.value]) {
         //         //дробь не закончена и рано еще делать автозамену
         //         // return false;
@@ -5908,19 +5907,31 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
         //         buffer[CurLvBuf] = [];
         //     }
         //     continue;
-        // } else if (Elem.value === 0x0020) { // space
-        //    // to do
-        //    continue;
-        // }
+        } else if (Elem.value === 0x0020) { // space
+            //add another symbol (+,-...)
+            if (Type !== null) {
+                var tmp =  [Elements.splice(ElPos+1,(End-ElPos)),Elements.splice(CurPos+1,(ElPos-CurPos))];
+                this.CorrectEquation(Type,Props,Kind,tmp);
+                Elements.splice(CurPos + 1, 0, tmp[0]);
+                Type = null;
+                Props = {};
+                Kind = null;
+                ElPos = null;
+                End = CurPos;
+            } else {
+                End = CurPos - 1;
+            }
+        }
         // else {
         //     buffer[CurLvBuf].splice(0, 0, Elem);
         // }
         CurPos--;
     }
-    if (Type !== null && ElPos !== null) {
-        var tmp =  [Elements.splice(ElPos+1),Elements.splice(0)];
+    if (Type !== null) { // && ElPos !== null) {
+        var tmp =  [Elements.splice(ElPos+1,(End-ElPos)),Elements.splice(0,ElPos+1)];
         this.CorrectEquation(Type,Props,Kind,tmp);
-        Elements.push(tmp[0]);
+        var pastPos = Elements.length === 0 ? 0 : ElPos;
+        Elements[pastPos] = tmp[0];
     }
 
 };
@@ -5940,8 +5951,8 @@ CMathAutoCorrectEngine.prototype.CorrectEquation = function(Type, Props, Kind, E
             var DenMathContent = Fraction.getDenominatorMathContent();
             var NumMathContent = Fraction.getNumeratorMathContent();
 
-            this.PackTextToContent(DenMathContent, Elements[1], true);
-            this.PackTextToContent(NumMathContent, Elements[0], true);
+            this.PackTextToContent(DenMathContent, Elements[0], true);
+            this.PackTextToContent(NumMathContent, Elements[1], true);
             Elements.splice(0,Elements.length, Fraction);
             break;
     }
@@ -6257,7 +6268,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
 
         var oBase = oDelimiter.getBase();
         var TempElements = [];
-        for (var i = this.Brackets[1]['right'][j].pos - 1; i>this.Brackets[1]['left'][j].pos; i--) {
+        for (var i = this.Brackets[1]['right'][j].pos - 1; i > this.Brackets[1]['left'][j].pos; i--) {
             if (Elements[i]) {
                 TempElements.splice(0, 0, Elements[i].Element);
             }
@@ -6313,6 +6324,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectFraction = function(buff) {
     this.CorrectBuffForFrac(buff);
     var Fraction = buff[0];
     var RemoveCount = buff[0].length;
+    this.AutoCorrectEquation(Fraction);
     for (var i = 1; i < buff.length; i++) {
         var props = new CMathFractionPr();
         props.Set_FromObject(this.props);
@@ -6323,7 +6335,6 @@ CMathAutoCorrectEngine.prototype.AutoCorrectFraction = function(buff) {
         var NumMathContent = tmp.getNumeratorMathContent();
         RemoveCount += buff[i].length + ((this.props.type === 2) ? 2 : 1);
         
-        this.AutoCorrectEquation(Fraction);
         this.AutoCorrectEquation(buff[i]);
 
         this.PackTextToContent(DenMathContent, Fraction, true);
