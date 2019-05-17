@@ -5755,15 +5755,10 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
             if (CurPos - 1 > 0) {
                 var tmp = Elements[CurPos-1];
                 if (tmp.Type === para_Math_BreakOperator && tmp.value === 0x005C) { // \
-                    CurPos--;
-                    if (Type !== MATH_FRACTION) {
-                        Type = MATH_FRACTION;
-                        Props = {type: LINEAR_FRACTION};
-                        ElPos = CurPos;
-                        CurPos --;
-                    } else {
-                        Props = {};
-                    }
+                    ElPos = CurPos;
+                    Type = MATH_FRACTION;
+                    Props = {type: LINEAR_FRACTION};
+                    CurPos -= 2;
                     continue;
                 }
             }
@@ -5772,28 +5767,19 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
             ElPos = CurPos;
             CurPos--;
             continue;
-        // }  else if (0x2044 ===  Elem.value) { // fraction
-        //     if (g_aMathAutoCorrectNotDoFraction[this.ActionElement.value]) {
-        //         //дробь не закончена и рано еще делать автозамену
-        //         // return false;
-        //         this.CurPos--;
-        //         buffer[CurLvBuf].splice(0, 0, Elem);
-        //         continue;
-        //     }
-        //     if (bBrackOpen) {
-        //         InBrackets.type = MATH_FRACTION;
-        //         InBrackets.cur = true;
-        //         InBrackets.props = {type: SKEWED_FRACTION};
-        //     } else {
-        //         this.Type = MATH_FRACTION;
-        //         this.props = {type: SKEWED_FRACTION};
-        //     }
-        //     this.CurPos--;
-        //     CurLvBuf++;
-        //     buffer[CurLvBuf] = [];
-        //     buffer[CurLvBuf].splice(0, 0, Elem);
-        //     continue;
-        // } else if (g_MathRightBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //right bracket
+        } else if (Elem.value === 0x2044) { // fraction
+            if (Type !== null) {
+                var tmp =  [Elements.splice(ElPos+1,(End-ElPos)),Elements.splice(CurPos+1,(ElPos-CurPos))];
+                this.CorrectEquation(Type,Props,Kind,tmp);
+                Elements.splice(CurPos + 1, 0, tmp[0]);
+                End = CurPos + 1;
+            }
+            Type = MATH_FRACTION;
+            Props = {type: SKEWED_FRACTION};
+            ElPos = CurPos;
+            CurPos--;
+            continue;
+        //} else if (g_MathRightBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //right bracket
         //     if (!this.Brackets[lvBrackets]) {
         //         this.Brackets[lvBrackets] = {};	
         //         this.Brackets[lvBrackets]['left'] = [];	
@@ -5939,7 +5925,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
 CMathAutoCorrectEngine.prototype.CorrectEquation = function(Type, Props, Kind, Elements) {
     switch(Type) {
         case MATH_FRACTION :
-            this.CorrectBuffForFrac(Elements);
+            this.CorrectBuffForFrac(Elements, Props);
 
             this.AutoCorrectEquation(Elements[0]);
             this.AutoCorrectEquation(Elements[1]);
@@ -6350,14 +6336,15 @@ CMathAutoCorrectEngine.prototype.AutoCorrectFraction = function(buff) {
     this.ReplaceContent.unshift(Fraction);
 };
 
-CMathAutoCorrectEngine.prototype.CorrectBuffForFrac = function(buff) {
+CMathAutoCorrectEngine.prototype.CorrectBuffForFrac = function(buff, Props) {
+    var props = Props || this.props;
     for (var i = 0; i < buff.length; i++) {
         var end = ((buff[i].length - 1) >= 0) ? buff[i].length - 1 : 0;
         if (!buff[i][end]) {
             continue;
         }
-        if (buff[i][end].value === 0x002F || (buff[i][end].value === 0x2044 && this.props.type === 1)) {
-            if (buff[i][end-1] && (buff[i][end-1].value === 0x005C && this.props.type === 2)) { 
+        if (buff[i][end].value === 0x002F || (buff[i][end].value === 0x2044 && props.type === 1)) {
+            if (buff[i][end-1] && (buff[i][end-1].value === 0x005C && props.type === 2)) { 
                 buff[i].splice(end-1,2);
             } else {
                 buff[i].splice(end,1);
