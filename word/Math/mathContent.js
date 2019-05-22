@@ -5738,7 +5738,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
     var Type = null;
     var Kind = null;
     var Props = null;
-    var ElPos = null;
+    var ElPos = [];
     var End = CurPos;
     while (CurPos >= 0) {
         var Elem = Elements[CurPos];
@@ -5747,7 +5747,12 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
             continue;
         } else if (Elem.value === 0x002F) { // /
             if (Type !== null) {
-                var tmp =  [Elements.splice(ElPos+1,(End-ElPos)),Elements.splice(CurPos+1,(ElPos-CurPos))];
+                var tmp = null;
+                if (Type === MATH_DEGREESubSup) {
+                    tmp = [Elements.splice(ElPos[1]+1,End-ElPos[1]),Elements.splice(ElPos[0]+1,ElPos[1]-ElPos[0]),Elements.splice(CurPos+1,ElPos[0]+1)];
+                } else {
+                    tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
+                }
                 this.CorrectEquation(Type,Props,Kind,tmp);
                 Elements.splice(CurPos + 1, 0, tmp[0]);
                 End = CurPos + 1;
@@ -5755,7 +5760,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
             if (CurPos - 1 > 0) {
                 var tmp = Elements[CurPos-1];
                 if (tmp.Type === para_Math_BreakOperator && tmp.value === 0x005C) { // \
-                    ElPos = CurPos;
+                    ElPos[0] = CurPos;
                     Type = MATH_FRACTION;
                     Props = {type: LINEAR_FRACTION};
                     CurPos -= 2;
@@ -5764,19 +5769,24 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
             }
             Type = MATH_FRACTION;
             Props = {};
-            ElPos = CurPos;
+            ElPos[0] = CurPos;
             CurPos--;
             continue;
         } else if (Elem.value === 0x2044) { // fraction
             if (Type !== null) {
-                var tmp =  [Elements.splice(ElPos+1,(End-ElPos)),Elements.splice(CurPos+1,(ElPos-CurPos))];
+                var tmp = null;
+                if (Type === MATH_DEGREESubSup) {
+                    tmp = [Elements.splice(ElPos[1]+1,End-ElPos[1]),Elements.splice(ElPos[0]+1,ElPos[1]-ElPos[0]),Elements.splice(CurPos+1,ElPos[0]+1)];
+                } else {
+                    tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
+                }
                 this.CorrectEquation(Type,Props,Kind,tmp);
                 Elements.splice(CurPos + 1, 0, tmp[0]);
                 End = CurPos + 1;
             }
             Type = MATH_FRACTION;
             Props = {type: SKEWED_FRACTION};
-            ElPos = CurPos;
+            ElPos[0] = CurPos;
             CurPos--;
             continue;
         //} else if (g_MathRightBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //right bracket
@@ -5820,65 +5830,80 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
         //         }
         //     }
         //     continue;  
-        } else if  (0x005E === Elem.value) { // ^
+        } else if  (Elem.value === 0x005E) { // ^
             if (Type == MATH_FRACTION) {
                 CurPos--;
                 continue;
             }
-            if (Type !== null) {
-                var tmp =  [Elements.splice(ElPos+1,(End-ElPos)),Elements.splice(CurPos+1,(ElPos-CurPos))];
+            if (Type !== null && (Type !== MATH_DEGREE && Kind !== DEGREE_SUBSCRIPT)) {
+                var tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,(ElPos[0]-CurPos))];
                 this.CorrectEquation(Type,Props,Kind,tmp);
                 Elements.splice(CurPos + 1, 0, tmp[0]);
                 End = CurPos + 1;
             }
-            Kind = DEGREE_SUPERSCRIPT;
-            Type = MATH_DEGREE; 
+            
             if (Type == MATH_DEGREE && Kind == DEGREE_SUBSCRIPT) {
                 // type agruments?
                 Kind = DEGREE_SubSup;
                 Type = MATH_DEGREESubSup;
+                ElPos[1] = ElPos[0];
+            } else {
+                Kind = DEGREE_SUPERSCRIPT;
+                Type = MATH_DEGREE; 
             }
-            ElPos = CurPos;
+            ElPos[0] = CurPos;
             CurPos--;
             continue;
-        } else if (0x005F === Elem.value) { // _
+        } else if (Elem.value === 0x005F) { // _
             if (Type == MATH_FRACTION) {
                 CurPos--;
                 continue;
             }
-            if (Type !== null) {
-                var tmp =  [Elements.splice(ElPos+1,(End-ElPos)),Elements.splice(CurPos+1,(ElPos-CurPos))];
+            if (Type !== null && (Type !== MATH_DEGREE && Kind !== DEGREE_SUPERSCRIPT)) {
+                var tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,(ElPos[0]-CurPos))];
                 this.CorrectEquation(Type,Props,Kind,tmp);
                 Elements.splice(CurPos + 1, 0, tmp[0]);
                 End = CurPos + 1;
             }
-            Kind = DEGREE_SUBSCRIPT;
-            Type = MATH_DEGREE;
             if (Type == MATH_DEGREE && Kind == DEGREE_SUPERSCRIPT) {
                 // type agruments?
                 Kind = DEGREE_SubSup;
                 Type = MATH_DEGREESubSup;
+                ElPos[1] = ElPos[0];
+            } else {
+                Kind = DEGREE_SUBSCRIPT;
+                Type = MATH_DEGREE;
             }
-            ElPos = CurPos;
+            ElPos[0] = CurPos;
             CurPos--;
             continue;
         } else if (Elem.value === 0x0020) { // space
             //add another symbol (+,-...)
             if (Type !== null) {
-                var tmp =  [Elements.splice(ElPos+1,(End-ElPos)),Elements.splice(CurPos+1,(ElPos-CurPos))];
+                var tmp = null;
+                if (Type === MATH_DEGREESubSup) {
+                    tmp = [Elements.splice(ElPos[1]+1,End-ElPos[1]),Elements.splice(ElPos[0]+1,ElPos[1]-ElPos[0]),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
+                } else {
+                    tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
+                }
                 this.CorrectEquation(Type,Props,Kind,tmp);
                 Elements.splice(CurPos + 1, 0, tmp[0]);
                 Type = null;
                 Props = {};
                 Kind = null;
-                ElPos = null;
+                ElPos = [];
             }
             End = CurPos - 1;
         }
         CurPos--;
     }
     if (Type !== null) { // && ElPos !== null) {
-        var tmp =  [Elements.splice(ElPos+1,(End-ElPos)),Elements.splice(0,ElPos+1)];
+        var tmp = null;
+        if (Type === MATH_DEGREESubSup) {
+            tmp = [Elements.splice(ElPos[1]+1,End-ElPos[1]),Elements.splice(ElPos[0]+1,ElPos[1]-ElPos[0]),Elements.splice(0,ElPos[0]+1)];
+        } else {
+            tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(0,ElPos[0]-CurPos)];
+        }
         this.CorrectEquation(Type,Props,Kind,tmp);
         Elements.splice(0,0,tmp[0]);
     }
@@ -5921,7 +5946,31 @@ CMathAutoCorrectEngine.prototype.CorrectEquation = function(Type, Props, Kind, E
             Elements.splice(0,Elements.length, oDegree);
             break;
         case MATH_DEGREESubSup :
-            //to do
+            var flag = (Elements[1][Elements[1].length-1].value == 0x005E) ? true : false;
+            Elements[1].splice(Elements[1].length-1,1);
+            Elements[2].splice(Elements[2].length-1,1);
+            this.AutoCorrectEquation(Elements[0]);
+            this.AutoCorrectEquation(Elements[1]);
+            this.AutoCorrectEquation(Elements[2]);
+
+            var props = new CMathDegreePr();
+            props.ctrPrp = this.TextPr.Copy();
+            props.type = Kind;
+            var oDegree = new CDegreeSubSup(props)
+
+            var BaseContent = oDegree.Content[0];
+            var IterDnContent = oDegree.Content[1];
+            var IterUpContent = oDegree.Content[2];
+
+            if (flag) {
+                this.PackTextToContent(IterUpContent, Elements[1], true);
+                this.PackTextToContent(IterDnContent, Elements[0], true);
+            } else {
+                this.PackTextToContent(IterUpContent, Elements[0], true);
+                this.PackTextToContent(IterDnContent, Elements[1], true);
+            }
+            this.PackTextToContent(BaseContent, Elements[2], false);
+            Elements.splice(0,Elements.length, oDegree);
             break;
     }
 };
@@ -7011,7 +7060,7 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             }
             buffer[CurLvBuf].splice(0, 0, Elem);
             continue;
-        } else if (0x2044 ===  Elem.value) { // fraction
+        } else if (Elem.value === 0x2044) { // fraction
             if (g_aMathAutoCorrectNotDoFraction[this.ActionElement.value]) {
                 //дробь не закончена и рано еще делать автозамену
                 // return false;
@@ -7073,7 +7122,12 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 }
             }
             continue;  
-        } else if  (0x005E === Elem.value) { // ^
+        } else if  (Elem.value === 0x005E) { // ^
+            if (this.Type == MATH_FRACTION) {
+                buffer[CurLvBuf].splice(0,0,Elem);
+                this.CurPos--;
+                continue;
+            }
             if (g_aMathAutoCorrectDoNotDegree[this.ActionElement.value]) {
                 // return false;
                 this.CurPos--;
@@ -7108,9 +7162,16 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             if (!bBrackOpen) {
                 CurLvBuf++;
                 buffer[CurLvBuf] = [];
+            } else {
+                buffer[CurLvBuf].splice(0,0,Elem);
             }
             continue;
-        } else if (0x005F === Elem.value) { // _
+        } else if (Elem.value === 0x005F) { // _
+            if (this.Type == MATH_FRACTION) {
+                buffer[CurLvBuf].splice(0,0,Elem);
+                this.CurPos--;
+                continue;
+            }
             if (g_aMathAutoCorrectDoNotDegree[this.ActionElement.value]) {
                 // return false;
                 this.CurPos--;
@@ -7144,6 +7205,8 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             if (!bBrackOpen) {
                 CurLvBuf++;
                 buffer[CurLvBuf] = [];
+            } else {
+                buffer[CurLvBuf].splice(0,0,Elem);
             }
             continue;
         } else if (Elem.value === 0x0020 && !bBrackOpen) { // space
