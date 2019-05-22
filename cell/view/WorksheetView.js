@@ -430,6 +430,8 @@
 
         this.cutRange = null;
 
+        this.usePrintScale = false;
+
         this._init();
 
         return this;
@@ -1603,7 +1605,7 @@
             pageOrientation = pageSetup.asc_getOrientation();
             bFitToWidth = pageSetup.asc_getFitToWidth();
             bFitToHeight = pageSetup.asc_getFitToHeight();
-			scale = pageSetup.asc_getScale() / 100;
+			scale = 40 / 100;
         }
 
         var pageLeftField, pageRightField, pageTopField, pageBottomField;
@@ -1935,6 +1937,9 @@
             // Сменим visibleRange для прохождения проверок отрисовки
             this.visibleRange = range;
 
+            this.usePrintScale = true;
+			this.model.PagePrintOptions.pageSetup.scale = 40;
+
             // Нужно отрисовать заголовки
             if (printPagesData.pageHeadings) {
                 this._drawColumnHeaders(drawingCtx, range.c1, range.c2, /*style*/ undefined, offsetX,
@@ -1955,6 +1960,8 @@
 
             // Отрисовываем ячейки и бордеры
             this._drawCellsAndBorders(drawingCtx, range, offsetX, offsetY);
+
+			this.usePrintScale = false;
 
             var drawingPrintOptions = {
                 ctx: drawingCtx, printPagesData: printPagesData
@@ -2119,8 +2126,7 @@
     };
 
     /** Рисует заголовки видимых колонок */
-    WorksheetView.prototype._drawColumnHeaders =
-      function (drawingCtx, start, end, style, offsetXForDraw, offsetYForDraw) {
+    WorksheetView.prototype._drawColumnHeaders = function (drawingCtx, start, end, style, offsetXForDraw, offsetYForDraw) {
           if (!drawingCtx && false === this.model.getSheetView().asc_getShowRowColHeaders()) {
               return;
           }
@@ -2154,11 +2160,18 @@
 
           this._setDefaultFont(drawingCtx);
 
+          var scale = 1;
+          if(this.usePrintScale) {
+			  var printOptions = this.model.PagePrintOptions;
+			  scale = printOptions && printOptions.pageSetup ? printOptions.pageSetup.scale : 100;
+			  scale = scale / 100;
+		  }
+
           // draw column headers
-		  var l = this._getColLeft(start) - offsetX, w;
+		  var l = this._getColLeft(start) * scale - offsetX, w;
           for (var i = start; i <= end; ++i) {
-          	w = this._getColumnWidth(i);
-              this._drawHeader(drawingCtx, l, offsetY, w, this.headersHeight, style, true, i);
+          	w = this._getColumnWidth(i) * scale;
+              this._drawHeader(drawingCtx, l, offsetY, w, this.headersHeight * scale, style, true, i);
               l += w;
           }
       };
@@ -2192,11 +2205,18 @@
 
         this._setDefaultFont(drawingCtx);
 
+		var scale = 1;
+		if(this.usePrintScale) {
+			var printOptions = this.model.PagePrintOptions;
+			scale = printOptions && printOptions.pageSetup ? printOptions.pageSetup.scale : 100;
+			scale = scale / 100;
+		}
+
         // draw row headers
-        var t = this._getRowTop(start) - offsetY, h;
+        var t = this._getRowTop(start) * scale - offsetY, h;
         for (var i = start; i <= end; ++i) {
-			h = this._getRowHeight(i);
-            this._drawHeader(drawingCtx, offsetX, t, this.headersWidth, h, style, false, i);
+			h = this._getRowHeight(i) * scale;
+            this._drawHeader(drawingCtx, offsetX, t, this.headersWidth * scale, h, style, false, i);
 			t += h;
         }
     };
@@ -2432,19 +2452,26 @@
 		//рисуем текст для преварительного просмотра
 		this._drawPageBreakPreviewText(drawingCtx, range, leftFieldInPx, topFieldInPx, width, height, visiblePrintPages);
 
+		var scale = 1;
+		if (this.usePrintScale) {
+			var printOptions = this.model.PagePrintOptions;
+			scale = printOptions && printOptions.pageSetup ? printOptions.pageSetup.scale : 100;
+			scale = scale / 100;
+		}
+
 		ctx.setStrokeStyle(this.settings.cells.defaultState.border)
 			.setLineWidth(1).beginPath();
 
 		var i, d, l;
 		for (i = range.c1, d = x1; i <= range.c2 && d <= x2; ++i) {
-			l = this._getColumnWidth(i);
+			l = this._getColumnWidth(i) *  scale;
 			d += l;
 			if (0 < l) {
 				ctx.lineVerPrevPx(d, y1, y2);
 			}
 		}
 		for (i = range.r1, d = y1; i <= range.r2 && d <= y2; ++i) {
-			l = this._getRowHeight(i);
+			l = this._getRowHeight(i) * scale;
 			d += l;
 			if (0 < l) {
 				ctx.lineHorPrevPx(x1, d, x2);
@@ -2496,15 +2523,22 @@
             }
         }
 
+		var scale = 1;
+		if (this.usePrintScale) {
+			var printOptions = this.model.PagePrintOptions;
+			scale = printOptions && printOptions.pageSetup ? printOptions.pageSetup.scale : 100;
+			scale = scale / 100;
+		}
+
         if ( !drawingCtx && !window['IS_NATIVE_EDITOR'] ) {
-            left = this._getColLeft(range.c1);
-            top = this._getRowTop(range.r1);
+            left = this._getColLeft(range.c1) * scale;
+            top = this._getRowTop(range.r1) * scale;
             // set clipping rect to cells area
             this.drawingCtx.save()
                 .beginPath()
 				.rect(left - offsetX, top - offsetY,
-					Math.min(this._getColLeft(range.c2 + 1) - left, this.drawingCtx.getWidth() - this.cellsLeft),
-					Math.min(this._getRowTop(range.r2 + 1) - top, this.drawingCtx.getHeight() - this.cellsTop))
+					Math.min(this._getColLeft(range.c2 + 1) * scale - left, this.drawingCtx.getWidth() * scale - this.cellsLeft),
+					Math.min(this._getRowTop(range.r2 + 1) * scale - top, this.drawingCtx.getHeight() * scale - this.cellsTop))
                 .clip();
         }
 
