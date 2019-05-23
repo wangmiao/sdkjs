@@ -637,7 +637,7 @@
 		var l = this.cols.length;
 		return this.cellsLeft + ((i < l) ? this.cols[i].left : (((0 === l) ? 0 :
 			this.cols[l - 1].left + this.cols[l - 1].width) + (!this.model.isDefaultWidthHidden()) *
-			Asc.round(this.defaultColWidthPx * this.getZoom()) * (i - l)));
+			Asc.round(this.defaultColWidthPx * this.getZoom()) * (i - l))) * this.getPrintScale();
 	};
     WorksheetView.prototype.getCellLeft = function (column, units) {
 		var u = units >= 0 && units <= 3 ? units : 0;
@@ -649,9 +649,9 @@
 	};
 	WorksheetView.prototype._getRowTop = function (i) {
 		var l = this.rows.length;
-		return (i < l) ? this.rows[i].top : (((0 === l) ? this.cellsTop :
+		return (i < l) ? this.rows[i].top * this.getPrintScale() : (((0 === l) ? this.cellsTop :
             this.rows[l - 1].top + this.rows[l - 1].height) + (!this.model.isDefaultHeightHidden()) *
-            Asc.round(this.defaultRowHeightPx * this.getZoom()) * (i - l));
+            Asc.round(this.defaultRowHeightPx * this.getZoom()) * (i - l)) * this.getPrintScale();
 	};
 
     WorksheetView.prototype.getCellTop = function (row, units) {
@@ -697,13 +697,13 @@
 		return Math.max(this._getColumnWidth(i) - this.settings.cells.padding * 2 - gridlineSize, 0);
 	};
 	WorksheetView.prototype._getColumnWidth = function (i) {
-		return (i < this.cols.length) ? this.cols[i].width :
-			(!this.model.isDefaultWidthHidden()) * Asc.round(this.defaultColWidthPx * this.getZoom());
+		return (i < this.cols.length) ? this.cols[i].width * this.getPrintScale() :
+			(!this.model.isDefaultWidthHidden()) * Asc.round(this.defaultColWidthPx * this.getZoom()) * this.getPrintScale();
 	};
 
     WorksheetView.prototype.getColumnWidth = function (index, units) {
 		var u = units >= 0 && units <= 3 ? units : 0;
-		return this._getColumnWidth(index) * asc_getcvt(0/*px*/, u, this._getPPIX());
+		return this._getColumnWidth(index) * asc_getcvt(0/*px*/, u, this._getPPIX()) * this.getPrintScale();
     };
 
 	WorksheetView.prototype.getColumnWidthInSymbols = function (index) {
@@ -746,8 +746,8 @@
     };
 
 	WorksheetView.prototype._getRowHeight = function (i) {
-		return (i < this.rows.length) ? this.rows[i].height :
-			(!this.model.isDefaultHeightHidden()) * Asc.round(this.defaultRowHeightPx * this.getZoom());
+		return (i < this.rows.length) ? this.rows[i].height * this.getPrintScale() :
+			(!this.model.isDefaultHeightHidden()) * Asc.round(this.defaultRowHeightPx * this.getZoom() * this.getPrintScale());
 	};
     WorksheetView.prototype.getRowHeight = function (index, units) {
 		var u = units >= 0 && units <= 3 ? units : 0;
@@ -777,6 +777,16 @@
     WorksheetView.prototype.getZoom = function () {
         return this.drawingCtx.getZoom();
     };
+
+	WorksheetView.prototype.getPrintScale = function () {
+		var res = 1;
+		if(this.usePrintScale) {
+			var printOptions = this.model.PagePrintOptions;
+			res = printOptions && printOptions.pageSetup ? printOptions.pageSetup.scale : 100;
+			res = res / 100;
+		}
+		return res;
+	};
 
     WorksheetView.prototype.changeZoom = function (isUpdate) {
         if (isUpdate) {
@@ -1605,7 +1615,7 @@
             pageOrientation = pageSetup.asc_getOrientation();
             bFitToWidth = pageSetup.asc_getFitToWidth();
             bFitToHeight = pageSetup.asc_getFitToHeight();
-			scale = 40 / 100;
+			scale = pageSetup.asc_getScale() / 100;
         }
 
         var pageLeftField, pageRightField, pageTopField, pageBottomField;
@@ -1938,7 +1948,6 @@
             this.visibleRange = range;
 
             this.usePrintScale = true;
-			this.model.PagePrintOptions.pageSetup.scale = 40;
 
             // Нужно отрисовать заголовки
             if (printPagesData.pageHeadings) {
@@ -2160,18 +2169,11 @@
 
           this._setDefaultFont(drawingCtx);
 
-          var scale = 1;
-          if(this.usePrintScale) {
-			  var printOptions = this.model.PagePrintOptions;
-			  scale = printOptions && printOptions.pageSetup ? printOptions.pageSetup.scale : 100;
-			  scale = scale / 100;
-		  }
-
           // draw column headers
-		  var l = this._getColLeft(start) * scale - offsetX, w;
+		  var l = this._getColLeft(start) - offsetX, w;
           for (var i = start; i <= end; ++i) {
-          	w = this._getColumnWidth(i) * scale;
-              this._drawHeader(drawingCtx, l, offsetY, w, this.headersHeight * scale, style, true, i);
+          	w = this._getColumnWidth(i);
+              this._drawHeader(drawingCtx, l, offsetY, w, this.headersHeight, style, true, i);
               l += w;
           }
       };
@@ -2205,18 +2207,11 @@
 
         this._setDefaultFont(drawingCtx);
 
-		var scale = 1;
-		if(this.usePrintScale) {
-			var printOptions = this.model.PagePrintOptions;
-			scale = printOptions && printOptions.pageSetup ? printOptions.pageSetup.scale : 100;
-			scale = scale / 100;
-		}
-
         // draw row headers
-        var t = this._getRowTop(start) * scale - offsetY, h;
+        var t = this._getRowTop(start) - offsetY, h;
         for (var i = start; i <= end; ++i) {
-			h = this._getRowHeight(i) * scale;
-            this._drawHeader(drawingCtx, offsetX, t, this.headersWidth * scale, h, style, false, i);
+			h = this._getRowHeight(i);
+            this._drawHeader(drawingCtx, offsetX, t, this.headersWidth, h, style, false, i);
 			t += h;
         }
     };
@@ -2442,6 +2437,7 @@
 				offsetY -= this._getRowTop(rFrozen) - this._getRowTop(0);
 			}
 		}
+
 		var x1 = this._getColLeft(range.c1) - offsetX;
 		var y1 = this._getRowTop(range.r1) - offsetY;
 		var x2 = Math.min(this._getColLeft(range.c2 + 1) - offsetX, widthCtx);
@@ -2452,26 +2448,19 @@
 		//рисуем текст для преварительного просмотра
 		this._drawPageBreakPreviewText(drawingCtx, range, leftFieldInPx, topFieldInPx, width, height, visiblePrintPages);
 
-		var scale = 1;
-		if (this.usePrintScale) {
-			var printOptions = this.model.PagePrintOptions;
-			scale = printOptions && printOptions.pageSetup ? printOptions.pageSetup.scale : 100;
-			scale = scale / 100;
-		}
-
 		ctx.setStrokeStyle(this.settings.cells.defaultState.border)
 			.setLineWidth(1).beginPath();
 
 		var i, d, l;
 		for (i = range.c1, d = x1; i <= range.c2 && d <= x2; ++i) {
-			l = this._getColumnWidth(i) *  scale;
+			l = this._getColumnWidth(i);
 			d += l;
 			if (0 < l) {
 				ctx.lineVerPrevPx(d, y1, y2);
 			}
 		}
 		for (i = range.r1, d = y1; i <= range.r2 && d <= y2; ++i) {
-			l = this._getRowHeight(i) * scale;
+			l = this._getRowHeight(i);
 			d += l;
 			if (0 < l) {
 				ctx.lineHorPrevPx(x1, d, x2);
@@ -2523,22 +2512,15 @@
             }
         }
 
-		var scale = 1;
-		if (this.usePrintScale) {
-			var printOptions = this.model.PagePrintOptions;
-			scale = printOptions && printOptions.pageSetup ? printOptions.pageSetup.scale : 100;
-			scale = scale / 100;
-		}
-
         if ( !drawingCtx && !window['IS_NATIVE_EDITOR'] ) {
-            left = this._getColLeft(range.c1) * scale;
-            top = this._getRowTop(range.r1) * scale;
+            left = this._getColLeft(range.c1);
+            top = this._getRowTop(range.r1);
             // set clipping rect to cells area
             this.drawingCtx.save()
                 .beginPath()
 				.rect(left - offsetX, top - offsetY,
-					Math.min(this._getColLeft(range.c2 + 1) * scale - left, this.drawingCtx.getWidth() * scale - this.cellsLeft),
-					Math.min(this._getRowTop(range.r2 + 1) * scale - top, this.drawingCtx.getHeight() * scale - this.cellsTop))
+					Math.min(this._getColLeft(range.c2 + 1) - left, this.drawingCtx.getWidth() - this.cellsLeft),
+					Math.min(this._getRowTop(range.r2 + 1) - top, this.drawingCtx.getHeight() - this.cellsTop))
                 .clip();
         }
 
