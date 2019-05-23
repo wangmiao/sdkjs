@@ -637,7 +637,7 @@
 		var l = this.cols.length;
 		return this.cellsLeft + ((i < l) ? this.cols[i].left : (((0 === l) ? 0 :
 			this.cols[l - 1].left + this.cols[l - 1].width) + (!this.model.isDefaultWidthHidden()) *
-			Asc.round(this.defaultColWidthPx * this.getZoom()) * (i - l))) * this.getPrintScale();
+			Asc.round(this.defaultColWidthPx * this.getZoom()) * (i - l)));
 	};
     WorksheetView.prototype.getCellLeft = function (column, units) {
 		var u = units >= 0 && units <= 3 ? units : 0;
@@ -649,9 +649,9 @@
 	};
 	WorksheetView.prototype._getRowTop = function (i) {
 		var l = this.rows.length;
-		return (i < l) ? this.rows[i].top * this.getPrintScale() : (((0 === l) ? this.cellsTop :
+		return (i < l) ? this.rows[i].top : (((0 === l) ? this.cellsTop :
             this.rows[l - 1].top + this.rows[l - 1].height) + (!this.model.isDefaultHeightHidden()) *
-            Asc.round(this.defaultRowHeightPx * this.getZoom()) * (i - l)) * this.getPrintScale();
+            Asc.round(this.defaultRowHeightPx * this.getZoom()) * (i - l));
 	};
 
     WorksheetView.prototype.getCellTop = function (row, units) {
@@ -697,13 +697,13 @@
 		return Math.max(this._getColumnWidth(i) - this.settings.cells.padding * 2 - gridlineSize, 0);
 	};
 	WorksheetView.prototype._getColumnWidth = function (i) {
-		return (i < this.cols.length) ? this.cols[i].width * this.getPrintScale() :
-			(!this.model.isDefaultWidthHidden()) * Asc.round(this.defaultColWidthPx * this.getZoom()) * this.getPrintScale();
+		return (i < this.cols.length) ? this.cols[i].width :
+			(!this.model.isDefaultWidthHidden()) * Asc.round(this.defaultColWidthPx * this.getZoom());
 	};
 
     WorksheetView.prototype.getColumnWidth = function (index, units) {
 		var u = units >= 0 && units <= 3 ? units : 0;
-		return this._getColumnWidth(index) * asc_getcvt(0/*px*/, u, this._getPPIX()) * this.getPrintScale();
+		return this._getColumnWidth(index) * asc_getcvt(0/*px*/, u, this._getPPIX());
     };
 
 	WorksheetView.prototype.getColumnWidthInSymbols = function (index) {
@@ -746,8 +746,8 @@
     };
 
 	WorksheetView.prototype._getRowHeight = function (i) {
-		return (i < this.rows.length) ? this.rows[i].height * this.getPrintScale() :
-			(!this.model.isDefaultHeightHidden()) * Asc.round(this.defaultRowHeightPx * this.getZoom() * this.getPrintScale());
+		return (i < this.rows.length) ? this.rows[i].height :
+			(!this.model.isDefaultHeightHidden()) * Asc.round(this.defaultRowHeightPx * this.getZoom());
 	};
     WorksheetView.prototype.getRowHeight = function (index, units) {
 		var u = units >= 0 && units <= 3 ? units : 0;
@@ -1949,6 +1949,16 @@
 
             this.usePrintScale = true;
 
+			if(drawingCtx.Transform) {
+				var mmToPx = asc_getcvt(3/*mm*/, 0/*px*/, this._getPPIX());
+				var printScale = this.getPrintScale();
+				if(printScale !== 1) {
+					var leftDiff = printPagesData.pageClipRectLeft * (1 - printScale);
+					var topDiff = printPagesData.pageClipRectTop * (1 - printScale);
+					drawingCtx.setTransform(printScale, drawingCtx.Transform.shy, drawingCtx.Transform.shx, printScale, leftDiff / mmToPx, topDiff / mmToPx);
+				}
+			}
+
             // Нужно отрисовать заголовки
             if (printPagesData.pageHeadings) {
                 this._drawColumnHeaders(drawingCtx, range.c1, range.c2, /*style*/ undefined, offsetX,
@@ -2422,9 +2432,10 @@
 		if (range === undefined) {
 			range = this.visibleRange;
 		}
+		var printScale = this.getPrintScale();
 		var ctx = drawingCtx || this.drawingCtx;
-		var widthCtx = (width) ? width : ctx.getWidth();
-		var heightCtx = (height) ? height : ctx.getHeight();
+		var widthCtx = (width) ? width / printScale : ctx.getWidth() / printScale;
+		var heightCtx = (height) ? height / printScale : ctx.getHeight() / printScale;
 		var offsetX = (undefined !== leftFieldInPx) ? leftFieldInPx : this._getColLeft(this.visibleRange.c1) - this.cellsLeft;
 		var offsetY = (undefined !== topFieldInPx) ? topFieldInPx : this._getRowTop(this.visibleRange.r1) - this.cellsTop;
 		if (!drawingCtx && this.topLeftFrozenCell) {
