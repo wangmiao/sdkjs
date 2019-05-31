@@ -5796,6 +5796,25 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
             ElPos[0] = CurPos;
             CurPos--;
             continue;
+        }else if (0x00A6 === Elem.value) { // fraction
+            if (Type !== null) {
+                var tmp = null;
+                if (Type === MATH_DEGREESubSup) {
+                    tmp = [Elements.splice(ElPos[1]+1,End-ElPos[1]),Elements.splice(ElPos[0]+1,ElPos[1]-ElPos[0]),Elements.splice(CurPos+1,ElPos[0]+1)];
+                } else {
+                    tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
+                }
+                this.CorrectEquation(Type,Props,Kind,tmp);
+                Elements.splice(CurPos + 1, 0, tmp[0]);
+                End = CurPos + 1;
+            }
+            if (!Brackets[0]) {
+                Type = MATH_FRACTION;
+                Props = {type: NO_BAR_FRACTION};
+            }
+            ElPos[0] = CurPos;
+            CurPos--;
+            continue;
         } else if (g_MathRightBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //right bracket
             Brackets.splice(0,0,CurPos);
             CurPos--;
@@ -5809,9 +5828,8 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
             this.CorrectEquation(MATH_DELIMITER,null,null,tmp);
             Elements.splice(CurPos,0,tmp[0]);
             Brackets.splice(0,1);
-            //пересчитать другие скобки
             for (var i = 0; i < Brackets.length; i++) {
-                Brackets[i] -= count -1;
+                Brackets[i] -= count - 1;
             }
             CurPos--;
             continue;
@@ -6378,7 +6396,7 @@ CMathAutoCorrectEngine.prototype.CorrectBuffForFrac = function(buff, Props) {
         if (!buff[i][end]) {
             continue;
         }
-        if (buff[i][end].value === 0x002F || (buff[i][end].value === 0x2044 && props.type === 1)) {
+        if (buff[i][end].value === 0x002F || (buff[i][end].value === 0x2044 && props.type === 1) || (buff[i][end].value === 0x00A6 && props.type === 3)) {
             if (buff[i][end-1] && (buff[i][end-1].value === 0x005C && props.type === 2)) { 
                 buff[i].splice(end-1,2);
             } else {
@@ -6840,7 +6858,9 @@ AutoCorrectionControl.prototype.FindFunction = function(CanMakeAutoCorrect)
                 }
             }
             return false;
-        } else if (oCurElem.Type === para_Math_Text && oCurElem.value == 0x2592) { // \of
+        }
+        // eсть
+        else if (oCurElem.Type === para_Math_Text && oCurElem.value == 0x2592) { // \of
             bOf = true;
             break;
         } else if (oCurElem.Type === para_Math_Text && oCurElem.value == 0x0020 && this.BrAccount.nCounter < 0) {
@@ -7069,6 +7089,23 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             buffer[CurLvBuf] = [];
             buffer[CurLvBuf].splice(0, 0, Elem);
             continue;
+        } else if (0x00A6 === Elem.value) { // fraction
+            if (g_aMathAutoCorrectNotDoFraction[this.ActionElement.value]) {
+                //дробь не закончена и рано еще делать автозамену
+                // return false;
+                this.CurPos--;
+                buffer[CurLvBuf].splice(0, 0, Elem);
+                continue;
+            }
+            if (!bBrackOpen) {
+                this.Type = MATH_FRACTION;
+                this.props = {type: NO_BAR_FRACTION};
+                CurLvBuf++;
+                buffer[CurLvBuf] = [];
+            }
+            buffer[CurLvBuf].splice(0, 0, Elem);
+            this.CurPos--;
+            continue;
         } else if (g_MathRightBracketAutoCorrectCharCodes[Elem.value] && !g_aMathAutoCorrectDoNotDelimetr[this.ActionElement.value]) { //right bracket
             if (!this.Brackets[lvBrackets]) {
                 this.Brackets[lvBrackets] = {};	
@@ -7273,11 +7310,15 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             } else {
                 TempElements2.splice(0, 0, Elem);
             }
-        } else if (Elem.value === 0x0029) { // )
+        } 
+        //есть
+        else if (Elem.value === 0x0029) { // )
             TempElements.splice(0, 0, Elem);
             TempElementsPos.splice(0, 0, CurPos);
             bCloseBrk = true;
-        } else if (Elem.value === 0x0028) { // (
+        } 
+        //есть
+        else if (Elem.value === 0x0028) { // (
             if (!bCloseBrk) {
                 return false;
             }
@@ -7301,6 +7342,7 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
 
             }
         }
+        //есть
         else if (0x002F === Elem.value) { // /
             //введены символы _ ^ + -
             if (this.ActionElement.Type == para_Math_Text && (this.ActionElementCode == 0x005E || this.ActionElementCode == 0x005F || this.ActionElementCode == 0x0028 || this.ActionElementCode == 0x0029)) { // a/a_
@@ -7329,12 +7371,16 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
         } else if (0x25A1 === Elem.value) {
             this.Type = MATH_BOX;
             break;
-        } else if (0x2044 ===  Elem.value) { // fraction
+        } 
+        //есть
+        else if (0x2044 ===  Elem.value) { // fraction
             this.Type = MATH_FRACTION;
             this.props = {type: SKEWED_FRACTION};
             CurPos--;
             break;
-        } else if  (0x005E === Elem.value) { // ^
+        } 
+        //есть
+        else if  (0x005E === Elem.value) { // ^
             //если скобки одинаковые - то степень, разные - delimiter
             if (this.Type == MATH_RADICAL || this.Type == MATH_NARY || !this.Type || ( this && ((this.BrAccount.LBracket == 0x28 && this.BrAccount.RBracket == 0x29) || (this.BrAccount.LBracket == 0x3016 && this.BrAccount.RBracket == 0x3017)))) {
                 TempElements.Type = DEGREE_SUPERSCRIPT;
@@ -7343,7 +7389,9 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             }
             CurPos--;
             break;
-        } else if  (0x005F === Elem.value) { // _
+        } 
+        //есть
+        else if  (0x005F === Elem.value) { // _
             //если скобки одинаковые - то степень, разные - delimiter
             if (this.Type == MATH_RADICAL || this.Type == MATH_NARY || !this.Type || (this && ((this.BrAccount.LBracket == 0x28 && this.BrAccount.RBracket == 0x29) || (this.BrAccount.LBracket == 0x3016 && this.BrAccount.RBracket == 0x3017)))) {
                 TempElements.Type = DEGREE_SUBSCRIPT;
@@ -7352,12 +7400,16 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             }
             CurPos--;
             break;
-        } else if (0x00A6 === Elem.value) {
+        } 
+        //есть
+        else if (0x00A6 === Elem.value) {
             this.Type = MATH_FRACTION;
             this.props = {type: NO_BAR_FRACTION};
             CurPos--;
             break;
-        } else if (0x2592 === Elem.value) {// /of просто пропускаем
+        } 
+        // есть
+        else if (0x2592 === Elem.value) {// /of просто пропускаем
             bOf = true;
             CurPos--;
             break;
@@ -7370,7 +7422,9 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             this.Type = MATH_NARY;
             CurPos--;
             break;
-        } else if (0x0020 === Elem.value && !bCloseBrk) { // space
+        }
+        // есть
+        else if (0x0020 === Elem.value && !bCloseBrk) { // space
             if (CurPos-1 > 0) {
                 var el = this.Elements[CurPos-1].Element;
                 if (para_Math_Text == el.Type && el.value ===0x0020) { //2 spaces in a row
@@ -7435,13 +7489,17 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             } else {
                 TempElements2.splice(0, 0, Elem);
             }
-        } else if (Elem.value === 0x0029) {  // )
+        }
+        //есть 
+        else if (Elem.value === 0x0029) {  // )
             if (bOpenBrk || TempElements2.length > 0) {
                 break;
             }
             TempElements2.splice(0, 0, Elem);
             bCloseBrk = true;
-        } else if (Elem.value === 0x0028) { //(
+        } 
+        //есть
+        else if (Elem.value === 0x0028) { //(
             if (!bCloseBrk) {
                 break;
             }
@@ -7450,7 +7508,9 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             }
             TempElements2.splice(0, 0, Elem);
             bOpenBrk = true;
-        } else if  (0x005F === Elem.value) { // _
+        } 
+        //есть
+        else if  (0x005F === Elem.value) { // _
             if (this.Type == MATH_DEGREE && TempElements.Type == DEGREE_SUBSCRIPT) {
                 break;
             }
@@ -7459,7 +7519,9 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             this.Type = MATH_DEGREESubSup;
             CurPos--;
             break;
-        } else if (0x005E === Elem.value) { // ^
+        } 
+        //есть
+        else if (0x005E === Elem.value) { // ^
             if (this.Type == MATH_DEGREE && TempElements.Type == DEGREE_SUPERSCRIPT) {
                 break;
             }
@@ -7485,7 +7547,9 @@ AutoCorrectionControl.prototype.private_CanAutoCorrectEquation = function(AutoCo
             this.Type = MATH_NARY;
             //CurPos--;
             break;
-        } else if (Elem.value === 0x002F) {  // '/'
+        } 
+        //есть
+        else if (Elem.value === 0x002F) {  // '/'
             break;
         } else if  (0x0040 === Elem.value || 0x0026 === Elem.value) {    //@ || &
             break;
