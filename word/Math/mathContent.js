@@ -5400,7 +5400,7 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
         CanMakeAutoCorrect = this.private_CanAutoCorrectText(AutoCorrectEngine, false);
         if (false === CanMakeAutoCorrect) {
             // Пробуем произвести автозамену без последнего добавленного символа
-            if (0x20 === ActionElement.value) {
+            if (g_aMathAutoCorrectTriggerCharCodes[ActionElement.value]) {
                 CanMakeAutoCorrect = this.private_CanAutoCorrectText(AutoCorrectEngine, true);
             } else {
                 // AutoCorrectEngine.Elements.splice(AutoCorrectEngine.Elements.length - 1, 1);
@@ -5569,6 +5569,8 @@ CMathContent.prototype.private_NeedAutoCorrect = function(ActionElement) {
 };
 CMathContent.prototype.private_CanAutoCorrectText = function(AutoCorrectEngine, bSkipLast) {
     var IndexAdd = (true === bSkipLast ? 1 : 0);
+    var skip = (g_aMathAutoCorrectTriggerCharCodes[AutoCorrectEngine.ActionElement.value]) ? 1 : 0;
+    skip -= (AutoCorrectEngine.ActionElement.value == 0x20) ? 1 : 0;
     var ElCount = AutoCorrectEngine.Elements.length;
     if (ElCount < 2 + IndexAdd) {
         return false;
@@ -5601,8 +5603,8 @@ CMathContent.prototype.private_CanAutoCorrectText = function(AutoCorrectEngine, 
             }
         }
         if (true === Found) {
-            RemoveCount = CheckStringLen + IndexAdd;
-            Start = ElCount - RemoveCount;
+            RemoveCount = CheckStringLen + IndexAdd - skip;
+            Start = ElCount - RemoveCount - skip;
 
             if (undefined === AutoCorrectElement[1].length) {
                 ReplaceChars[0] = AutoCorrectElement[1];
@@ -5946,8 +5948,8 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
             ElPos[0] = CurPos;
             CurPos--;
             continue;
-        } else if (Elem.value === 0x0020 & !Brackets[0]) { // space
-            //add another symbol (+,-...)
+        } else if (g_aMathAutoCorrectFracCharCodes[Elem.value] && !Brackets[0]) {   //space + - # @ and another
+        // else if (Elem.value === 0x0020 && !Brackets[0]) { // space
             if (Type !== null) {
                 var tmp = null;
                 if (Type === MATH_DEGREESubSup) {
@@ -6511,7 +6513,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectFraction = function(buff) {
     if (0x20 == this.ActionElement.value) {
         RemoveCount++;
     }
-    var Start = this.Elements.length - RemoveCount;
+    var Start = this.Elements.length - RemoveCount - this.Shift;
     if (this.ActionElement.value == 0x002F) {
         Start--;
     }
@@ -6564,6 +6566,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDegree = function(buff) {
         var BaseContent = tmp.Content[0];
         var IterContent = tmp.Content[1];
         RemoveCount += buff[i].length + 1;
+        //разделить контент если нет скокобок и сохранить оставшуюся часть
         this.AutoCorrectEquation(buff[i]);
         this.PackTextToContent(BaseContent, buff[i], false);
         this.PackTextToContent(IterContent, oDegree, true);
@@ -6572,7 +6575,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDegree = function(buff) {
     if (0x20 == this.ActionElement.value) {
         RemoveCount++;
     }
-    var Start = this.Elements.length - RemoveCount;
+    var Start = this.Elements.length - RemoveCount - this.Shift;
     this.Remove.push({Count:RemoveCount, Start:Start});
     this.ReplaceContent.unshift(oDegree);
 };
@@ -6604,7 +6607,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDegreeSubSup = function(buff) {
     if (0x20 == this.ActionElement.value) {
         RemoveCount++;
     }
-    var Start = this.Elements.length - RemoveCount;
+    var Start = this.Elements.length - RemoveCount - this.Shift;
     this.Remove.push({Count:RemoveCount, Start:Start});
     this.ReplaceContent.unshift(oDegree);
 };
@@ -6668,7 +6671,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectCNary = function(buff) {
     if (0x20 == this.ActionElement.value) {
         RemoveCount++;
     }
-    var Start = this.Elements.length - RemoveCount;
+    var Start = this.Elements.length - RemoveCount - this.Shift;
     this.Remove.push({Count:RemoveCount, Start:Start});
     this.ReplaceContent.unshift(oNary);
 };
@@ -7441,11 +7444,19 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
                 this.CurPos--;
                 continue;
             }
-        } else if (Elem.value === 0x0020 && !bBrackOpen) { // space
-            //доделать на нулевом уровне и с открытой скобкой
+        } else if (g_aMathAutoCorrectFracCharCodes[Elem.value]) { //space + - # @ and another
+        //  else if (Elem.value === 0x0020 && !bBrackOpen) { // space
             if (Elem === this.ActionElement) {
+                if (Elem.value !== 0x0020) {
+                    this.Shift = 1;
+                }
                 this.CurPos--;
                 continue;
+            }
+            if (bBrackOpen) {
+                buffer[CurLvBuf].splice(0, 0, Elem);
+                this.CurPos--;
+                continue
             }
             break;
         }
@@ -9362,12 +9373,11 @@ var g_MathPairBracketAutoCorrectCharCodes =
 //знаки (минус, сумма...)
 var g_aMathAutoCorrectFracCharCodes =
 {
-    0x20 : 1, /*0x21 : 1, 0x22 : 1, */0x23 : 1,	/*0x24 : 1,*/ 0x25 : 1, 0x26 : 1,
-    /*0x27 : 1, */0x28 : 1, 0x29 : 1, 0x2A : 1, 0x2B : 1, 0x2C : 1, 0x2D : 1,
+    0x20 : 1, 0x21 : 1, 0x22 : 1, 0x23 : 1,	0x24 : 1, 0x25 : 1, 0x26 : 1,
+    0x27 : 1, 0x28 : 1, 0x29 : 1, 0x2A : 1, 0x2B : 1, 0x2C : 1, 0x2D : 1,
     0x2E : 1, 0x2F : 1, 0x3A : 1, 0x3B : 1, 0x3C : 1, 0x3D : 1, 0x3E : 1,
-    0x3F : 1, 0x40 : 1, 0x5B : 1, /*0x5C : 1,*/ 0x5D : 1, /*0x5E : 1, 0x5F : 1,*/
-    0x60 : 1, 0x7B : 1, 0x7C : 1, 0x7D : 1, 0x7E : 1, /*0x2592 : 1*/
-    0xD7 : 1
+    0x3F : 1, 0x40 : 1, 0x5B : 1, 0x5C : 1, 0x5D : 1, 0x5E : 1, 0x5F : 1,
+    0x60 : 1, 0x7B : 1, 0x7C : 1, 0x7D : 1, 0x7E : 1, 0x2592 : 1, 0xD7 : 1
 };
 var g_aMathAutoCorrectDegreeCharCodes =
 {
@@ -9381,11 +9391,11 @@ var g_aMathAutoCorrectDegreeCharCodes =
 //символы для определения необходимости автозамены
 var g_aMathAutoCorrectTriggerCharCodes =
 {
-    0x20 : 1, 0x21 : 1, 0x22 : 1, 0x23 : 1, 0x24 : 1, 0x25 : 1, /*0x26 : 1,*/
+    0x20 : 1, 0x21 : 1, 0x22 : 1, 0x23 : 1, 0x24 : 1, 0x25 : 1, 0x26 : 1,
     0x27 : 1, 0x28 : 1, 0x29 : 1, 0x2A : 1, 0x2B : 1, 0x2C : 1, 0x2D : 1,
-    0x2E : 1, /*0x2F : 1,*/ 0x3A : 1, 0x3B : 1, 0x3C : 1, 0x3D : 1, 0x3E : 1,
-    0x3F : 1, 0x40 : 1, /*0x5B : 1, 0x5D : 1,*/ 0x5C : 1, 0x5E : 1, 0x5F : 1,
-    0x60 : 1, /*0x7B : 1, 0x7D : 1, 0x7C : 1,*/ 0x7E : 1 /*,0x2592 : 1*/
+    0x2E : 1, 0x2F : 1, 0x3A : 1, 0x3B : 1, 0x3C : 1, 0x3D : 1, 0x3E : 1,
+    0x3F : 1, 0x40 : 1, 0x5B : 1, 0x5D : 1, 0x5C : 1, 0x5E : 1, 0x5F : 1,
+    0x60 : 1, 0x7B : 1, 0x7D : 1, 0x7C : 1, 0x7E : 1 /*,0x2592 : 1*/
 };
 
 
@@ -9414,17 +9424,6 @@ var g_aMathAutoCorrectDoNotDelimiter = {
     0x22 : 1, 0x27 : 1, 0x28 : 1, 0x29 : 1, 0x2F : 1,
     0x5B : 1, 0x5C : 1, 0x5E : 1, 0x5F : 1, 0x7B : 1
  };
-
-//символы при которых не производится автозамена
-var g_aMathDoNotAutoCorrect =
-[
-    //дробь
-    0x21, 0x22, 0x27, 0x24, 0x28, 0x29, 0x5B,
-    0x5D, 0x7B, 0x7D, 0x5C, 0x5E, 0x5F, 0x7C,
-
-    //скобки
-    0x2F
-];
 
 //--------------------------------------------------------export----------------------------------------------------
 window['AscCommonWord'] = window['AscCommonWord'] || {};
