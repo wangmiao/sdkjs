@@ -5450,7 +5450,8 @@ CMathContent.prototype.Process_AutoCorrect = function(ActionElement) {
                     // FirstElPos--;
                 }
             }
-
+                //обработать потом
+                // this.Correct_Content(true);
             if (FirstEl.Element.Type != para_Math_Composition) {
                 var NewRun = FirstEl.Element.Parent.Split2(FirstEl.ContPos);
                 this.Internal_Content_Add(FirstElPos + 1, NewRun, false);
@@ -5637,7 +5638,7 @@ CMathContent.prototype.private_CanAutoCorrectText = function(AutoCorrectEngine, 
 };
 
 CMathAutoCorrectEngine.prototype.AutoCorrectText = function(Elements) {
-    var ElCount = Elements.length;
+    var ElCount = Elements.length || 0;
     if (ElCount < 2) {
         return;
     }
@@ -5679,7 +5680,7 @@ CMathAutoCorrectEngine.prototype.AutoCorrectText = function(Elements) {
 };
 
 CMathAutoCorrectEngine.prototype.AutoCorrectTextFunc = function(Elements) {
-    var ElCount = Elements.length;
+    var ElCount = Elements.length || 0;
     if (ElCount < 2 ) {
         return;
     }
@@ -5763,7 +5764,11 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
                     tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
                 }
                 this.CorrectEquation(Type,Props,Kind,tmp);
-                Elements.splice(CurPos + 1, 0, tmp[0]);
+                if (Type == MATH_RADICAL) {
+                    Elements.splice(CurPos + 1, 0, tmp[0], tmp[1]);
+                } else {
+                    Elements.splice(CurPos + 1, 0, tmp[0]);
+                }
                 End = CurPos + 1;
             }
             if (CurPos - 1 > 0) {
@@ -5800,7 +5805,11 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
                     tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
                 }
                 this.CorrectEquation(Type,Props,Kind,tmp);
-                Elements.splice(CurPos + 1, 0, tmp[0]);
+                if (Type == MATH_RADICAL) {
+                    Elements.splice(CurPos + 1, 0, tmp[0], tmp[1]);
+                } else {
+                    Elements.splice(CurPos + 1, 0, tmp[0]);
+                }
                 End = CurPos + 1;
             }
             if (!Brackets[0]) {
@@ -5825,7 +5834,11 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
                     tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
                 }
                 this.CorrectEquation(Type,Props,Kind,tmp);
-                Elements.splice(CurPos + 1, 0, tmp[0]);
+                if (Type == MATH_RADICAL) {
+                    Elements.splice(CurPos + 1, 0, tmp[0], tmp[1]);
+                } else {
+                    Elements.splice(CurPos + 1, 0, tmp[0]);
+                }
                 End = CurPos + 1;
             }
             if (!Brackets[0]) {
@@ -5870,7 +5883,11 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
                     tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,(ElPos[0]-CurPos))];
                 }
                 this.CorrectEquation(Type,Props,Kind,tmp);
-                Elements.splice(CurPos + 1, 0, tmp[0]);
+                if (Type == MATH_RADICAL) {
+                    Elements.splice(CurPos + 1, 0, tmp[0], tmp[1]);
+                } else {
+                    Elements.splice(CurPos + 1, 0, tmp[0]);
+                }
                 End = CurPos + 1;
             }
             
@@ -5904,7 +5921,11 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
                     tmp =  [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,(ElPos[0]-CurPos))];
                 }
                 this.CorrectEquation(Type,Props,Kind,tmp);
-                Elements.splice(CurPos + 1, 0, tmp[0]);
+                if (Type == MATH_RADICAL) {
+                    Elements.splice(CurPos + 1, 0, tmp[0], tmp[1]);
+                } else {
+                    Elements.splice(CurPos + 1, 0, tmp[0]);
+                }
                 End = CurPos + 1;
             }
             if (Type == MATH_DEGREE && Kind == DEGREE_SUPERSCRIPT) {
@@ -5933,7 +5954,11 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
                     tmp = [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
                 }
                 this.CorrectEquation(Type,Props,Kind,tmp);
-                Elements.splice(CurPos + 1, 0, tmp[0]);
+                if (Type == MATH_RADICAL) {
+                    Elements.splice(CurPos + 1, 0, tmp[0], tmp[1]);
+                } else {
+                    Elements.splice(CurPos + 1, 0, tmp[0]);
+                }
                 End = CurPos + 1;
             }
             if (!Brackets[0]) {
@@ -5944,6 +5969,32 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
                     ElPos[1] = ElPos[0];
                 }
                 Type = MATH_NARY;
+            }
+            ElPos[0] = CurPos;
+            CurPos--;
+            continue;
+        } else if (Elem.value === 0x221A || Elem.value === 0x221B || Elem.value === 0x221C) { // sqrt
+            if (Type !== null && Type !== MATH_DELIMITER) {
+                var tmp = null;
+                if (Type == MATH_NARY && ElPos[1]) {
+                    if (ElPos[2]) {
+                        tmp = [Elements.splice(ElPos[2],End-ElPos[2]+1),Elements.splice(ElPos[1],ElPos[2]-ElPos[1]),Elements.splice(0,ElPos[0]+1)];
+                    } else if (ElPos[1]) {
+                        tmp = [Elements.splice(ElPos[1],End-ElPos[1]+1),Elements.splice(0,ElPos[0]+1)];
+                    }
+                } else {
+                    tmp = [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
+                }
+                this.CorrectEquation(Type,Props,Kind,tmp);
+                if (Type == MATH_RADICAL) {
+                    Elements.splice(CurPos + 1, 0, tmp[0], tmp[1]);
+                } else {
+                    Elements.splice(CurPos + 1, 0, tmp[0]);
+                }
+                End = CurPos + 1;
+            }
+            if (!Brackets[0]) {
+                Type = MATH_RADICAL;
             }
             ElPos[0] = CurPos;
             CurPos--;
@@ -5964,7 +6015,12 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
                     tmp = [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(CurPos+1,ElPos[0]-CurPos)];
                 }
                 this.CorrectEquation(Type,Props,Kind,tmp);
-                Elements.splice(CurPos + 1, 0, tmp[0]);
+                if (Type == MATH_RADICAL) {
+                    Elements.splice(CurPos + 1, 0, tmp[0], tmp[1]);
+                } else {
+                    Elements.splice(CurPos + 1, 0, tmp[0]);
+                }
+                
                 Type = null;
                 Props = {};
                 Kind = null;
@@ -5991,7 +6047,11 @@ CMathAutoCorrectEngine.prototype.AutoCorrectEquation = function(Elements, Pos) {
             tmp = [Elements.splice(ElPos[0]+1,(End-ElPos[0])),Elements.splice(0,ElPos[0]-CurPos)];
         }
         this.CorrectEquation(Type,Props,Kind,tmp);
-        Elements.splice(0,0,tmp[0]);
+        if (Type == MATH_RADICAL) {
+            Elements.splice(0,0,tmp[0],tmp[1]);
+        } else {
+            Elements.splice(0,0,tmp[0]);
+        }
     }
 
 };
@@ -6122,6 +6182,33 @@ CMathAutoCorrectEngine.prototype.CorrectEquation = function(Type, Props, Kind, E
                 }
             }
             Elements.splice(0,Elements.length, oNary);
+            break;
+        case MATH_RADICAL :
+            Elements.splice(0,2,Elements[1].concat(Elements[0]));
+            var ElPos;
+            for (var i = 0; i < Elements[0].length; i++) {
+                if (Elements[0][i].value == 0x221A) {
+                    ElPos = i;
+                }
+            }
+            var tmp = Elements[0].splice(0,ElPos);
+            var props = new CMathRadicalPr();
+            props.degHide = this.CorrectBuffForRadical(Elements, true);
+            props.ctrPrp = this.TextPr.Copy();
+            var Radical = new CRadical(props);
+
+            var Base = Radical.getBase();
+            var Degree = Radical.getDegree();
+
+            this.AutoCorrectEquation(Elements[0]);
+            if (!props.degHide) {
+                this.AutoCorrectEquation(Elements[1]);
+                this.PackTextToContent(Degree, Elements[1], false);
+                this.PackTextToContent(Base, Elements[0], false);
+            } else {
+                this.PackTextToContent(Base, Elements[0], true);
+            }
+            Elements.splice(0,Elements.length, tmp[0], Radical);            
             break;
     }
 };
@@ -6466,6 +6553,13 @@ CMathAutoCorrectEngine.prototype.AutoCorrectDelimiter = function(CanMakeAutoCorr
 
 CMathAutoCorrectEngine.prototype.AutoCorrectPackDelimiter = function(data, Elements) {
     for(var j = 0; j < data['left'].length; j++) {
+        if (Elements[data['left'][j].pos-1] && Elements[data['left'][j].pos-1].Element.value) {
+            if (Elements[data['left'][j].pos-1].Element.value == 0x221A) {
+                // this.Brackets[0]['left'] = data['left'][j];
+                // this.Brackets[0]['right'] = data['right'][j];
+                continue;
+            }
+        }
         var props = new CMathDelimiterPr();
         props.column = 1;
         props.begChr = data['left'][j].bracket.value;
@@ -6668,12 +6762,100 @@ CMathAutoCorrectEngine.prototype.AutoCorrectCNary = function(buff) {
         }
     } 
 
-    if (0x20 == this.ActionElement.value) {
+    if (this.ActionElement.value == 0x20) {
         RemoveCount++;
     }
     var Start = this.Elements.length - RemoveCount - this.Shift;
     this.Remove.push({Count:RemoveCount, Start:Start});
     this.ReplaceContent.unshift(oNary);
+};
+
+CMathAutoCorrectEngine.prototype.AutoCorrectCRadical = function(buff) {
+    // if (!g_aMathAutoCorrectFracCharCodes[this.ActionElementCode]) { // \sqrt(a+b)^
+    //     return false;
+    // }
+    var props = new CMathRadicalPr();
+    var RemoveCount = buff[0].length;
+    props.degHide = this.CorrectBuffForRadical(buff, false);
+    props.ctrPrp = this.TextPr.Copy();
+    var Radical = new CRadical(props);
+
+    var Base = Radical.getBase();
+    var Degree = Radical.getDegree();
+    buff = buff[0];
+    this.AutoCorrectEquation(buff[0]);
+    if (!props.degHide) {
+        this.AutoCorrectEquation(buff[1]);
+        this.PackTextToContent(Degree, buff[1], false);
+        this.PackTextToContent(Base, buff[0], false);
+    } else {
+        this.PackTextToContent(Base, buff[0], true);
+    }
+    if (this.ActionElement.value == 0x20) {
+        RemoveCount++;
+    }
+    var Start = this.Elements.length - RemoveCount - this.Shift;
+    this.Remove.push({Count:RemoveCount, Start:Start});
+    this.ReplaceContent.unshift(Radical);
+};
+
+CMathAutoCorrectEngine.prototype.CorrectBuffForRadical = function(buff, inside) {
+    var radical = buff[0].splice(0,1)[0].value;
+    switch (radical) {
+        case 0x221A:
+                if (!this.Brackets.length) {
+                    return true;
+                }
+                var len = this.Brackets[1]['left'].length - 1;
+                if (this.Brackets[1]['left'][len].pos !== 1) {
+                    return true;
+                }
+                var bOpenBrk = 0;
+                var ampPos = null;
+                for (var i = 1; i < this.Brackets[1]['right'][len].pos - 1; i++) {
+                    if (g_MathLeftBracketAutoCorrectCharCodes[buff[0][i].value]) {
+                        bOpenBrk++;
+                    } else if (g_MathRightBracketAutoCorrectCharCodes[buff[0][i].value]) {
+                        bOpenBrk--;
+                    } else if (buff[0][i].value === 0x26 && !bOpenBrk) {
+                        if (ampPos === null) {
+                            ampPos = i;
+                        } else {
+                            ampPos = null;
+                            break;
+                        }
+                    }
+                }
+                if (ampPos) {
+                    buff[0].splice(this.Brackets[1]['right'][len].pos - 1,1);
+                    buff[0].splice(0,1);
+                    var tmp1 = buff[0].splice(0,ampPos-1);
+                    var tmp2 = buff[0].splice(1,buff[0].length);
+                    buff[0].splice(0,1,tmp2,tmp1);
+                    return false;
+                } else {
+                    return true;
+                }
+        case 0x221B:
+                var MathRun = new ParaRun(this.ParaMath.Paragraph, true);
+                MathRun.Set_Pr(this.TextPr.Copy());
+                MathRun.Set_MathPr(this.MathPr.Copy());
+                var MathText = new CMathText();
+                MathText.addTxt("3");
+                MathRun.Add_ToContent(0, MathText);
+                buff.splice(1,0,MathRun);
+                return false;
+        case 0x221C:
+                var MathRun = new ParaRun(this.ParaMath.Paragraph, true);
+                MathRun.Set_Pr(this.TextPr.Copy());
+                MathRun.Set_MathPr(this.MathPr.Copy());
+                var MathText = new CMathText();
+                MathText.addTxt("4");
+                MathRun.Add_ToContent(0, MathText);
+                buff.splice(1,0,MathRun);
+                return false;
+    }
+    
 };
 
 AutoCorrectionControl.prototype.AutoCorrectPhantom = function(AutoCorrectEngine, CanMakeAutoCorrect)
@@ -7430,20 +7612,26 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
             }
             continue;
         } else if (q_aMathAutoCorrectControlAggregationCodes[Elem.value]) { //cNary
+            buffer[CurLvBuf].splice(0, 0, Elem);
             if (g_aMathAutoCorrectNotDoCNary[this.ActionElement.value]) {
                 this.CurPos--;
-                buffer[CurLvBuf].splice(0, 0, Elem);
                 continue;
             }
             if (!bBrackOpen) {
                 this.Type = MATH_NARY;
-                buffer[CurLvBuf].splice(0, 0, Elem);
                 break;
             } else {
-                buffer[CurLvBuf].splice(0, 0, Elem);
                 this.CurPos--;
                 continue;
             }
+        } else if (Elem.value === 0x221A || Elem.value === 0x221B || Elem.value === 0x221C) { // sqrt
+            buffer[CurLvBuf].splice(0, 0, Elem);
+            this.CurPos--;
+            if (!bBrackOpen) {
+                this.Type = MATH_RADICAL;
+                break;
+            }
+            continue;
         } else if (g_aMathAutoCorrectFracCharCodes[Elem.value]) { //space + - # @ and another
         //  else if (Elem.value === 0x0020 && !bBrackOpen) { // space
             if (Elem === this.ActionElement) {
@@ -7489,6 +7677,11 @@ CMathAutoCorrectEngine.prototype.private_CanAutoCorrectEquation = function(CanMa
         case MATH_NARY :
             this.AutoCorrectCNary(buffer);
             return true;
+        case MATH_RADICAL :
+            this.AutoCorrectCRadical(buffer);
+            return true;
+        default : 
+        return false;
     }
 
 };
