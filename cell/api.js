@@ -2211,6 +2211,35 @@ var editor;
     this.collaborativeEditing.lock([lockInfo], copyWorksheet);
   };
 
+  spreadsheet_api.prototype.asc_addWorksheet = function(str, where) {
+      var scale = this.asc_getZoom();
+      var i = this.wbModel.getActive();
+
+      // ToDo уйти от lock для листа при копировании
+      var sheetId = this.wbModel.getWorksheet(i).getId();
+      var lockInfo = this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Sheet, /*subType*/null, sheetId, sheetId);
+      var t = this;
+      var copyWorksheet = function(res) {
+          if (res) {
+              // ToDo перейти от wsViews на wsViewsId (сейчас вызываем раньше, чем в модели, т.к. там будет sortDependency
+              // и cleanCellCache, который создаст уже скопированный лист(и splice сработает неправильно))
+              History.Create_NewPoint();
+
+              var newWs = ;
+			  t.wb.addWorksheet(newWs, where);
+              //t.wb.copyWorksheet(i, where);
+              //t.wbModel.copyWorksheet(i, where, newName);
+              // Делаем активным скопированный
+              t.asc_showWorksheet(where);
+              t.asc_setZoom(scale);
+              // Посылаем callback об изменении списка листов
+              t.sheetsChanged();
+          }
+      };
+
+      this.collaborativeEditing.lock([lockInfo], copyWorksheet);
+  };
+
   spreadsheet_api.prototype.asc_cleanSelection = function() {
     this.wb.getWorksheet().cleanSelection();
   };
