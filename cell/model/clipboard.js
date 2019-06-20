@@ -339,11 +339,8 @@
 			}
 		};
 
-		Clipboard.prototype.pasteData = function(ws, _format, data1, data2, text_data, bIsSpecialPaste, doNotShowButton)
+		Clipboard.prototype.pasteData = function(ws, _format, data1, data2, text_data, bIsSpecialPaste, doNotShowButton, isPasteAll)
 		{
-			//window["Asc"]["editor"].asc_EndMoveSheet(data1, 3, "test");
-			//return;
-
 			var t = this;
 			t.pasteProcessor.clean();
 
@@ -360,7 +357,6 @@
 			}
 
 			var cellEditor = window["Asc"]["editor"].wb.cellEditor;
-			var text;
 			switch (_format)
 			{
 				case AscCommon.c_oAscClipboardDataFormat.HtmlElement:
@@ -411,7 +407,7 @@
 					}
 					else
 					{
-						t.pasteProcessor.pasteFromBinary(ws, data1);
+						t.pasteProcessor.pasteFromBinary(ws, data1, null, isPasteAll);
 					}
 
 					break;
@@ -507,8 +503,7 @@
 			},
 
 			getBinaryForCopy: function (worksheet, activeRange, selectAll) {
-				//selectAll = true;
-
+				selectAll = true;
 
 				var objectRender = worksheet.objectRender;
 				var isIntoShape = objectRender.controller.getTargetDocContent();
@@ -1164,7 +1159,7 @@
 				this.oImages = {};
 			},
 
-			pasteFromBinary: function (worksheet, binary, isCellEditMode) {
+			pasteFromBinary: function (worksheet, binary, isCellEditMode, isPasteAll) {
 				var base64 = null, base64FromWord = null, base64FromPresentation = null, t = this;
 
 				if (binary.indexOf("xslData;") > -1) {
@@ -1179,7 +1174,7 @@
 				var isIntoShape = worksheet.objectRender.controller.getTargetDocContent();
 				if (base64 != null)//from excel
 				{
-					result = this._pasteFromBinaryExcel(worksheet, base64, isIntoShape, isCellEditMode);
+					result = this._pasteFromBinaryExcel(worksheet, base64, isIntoShape, isCellEditMode, isPasteAll);
 				} else if (base64FromWord)//from word
 				{
 					this.activeRange = worksheet.model.selectionRange.getLast().clone(true);
@@ -1197,8 +1192,6 @@
 				var newFonts;
 				var tempWorkbook = new AscCommonExcel.Workbook();
 				var aPastedImages = this._readExcelBinary(base64, tempWorkbook);
-
-				//isPasteAll = true;
 
 				if (!isIntoShape && this._checkCutBefore(worksheet, tempWorkbook)) {
 					return;
@@ -1218,8 +1211,13 @@
 					newFonts = {};
 					newFonts = tempWorkbook.generateFontMap2();
 					newFonts = t._convertFonts(newFonts);
+
+					if(isPasteAll) {
+						window['AscCommon'].g_specialPasteHelper.Special_Paste_Hide_Button();
+					}
+
 					//закрываем общую транзакцию _loadDataBeforePaste после загрузки шрифтов
-					worksheet.setSelectionInfo('paste', {data: pasteData, fromBinary: true, fontsNew: newFonts, needEndTransaction: isPasteAll});
+					worksheet.setSelectionInfo('paste', {data: pasteData, fromBinary: true, fontsNew: newFonts, pasteAllSheet: isPasteAll});
 				};
 
 				var doPasteIntoShape = function() {
@@ -1244,7 +1242,7 @@
 					if (pasteData.Drawings && pasteData.Drawings.length) {
 
 						if (window["IS_NATIVE_EDITOR"]) {
-							t._insertImagesFromBinary(worksheet, pasteData, isIntoShape);
+							t._insertImagesFromBinary(worksheet, pasteData, isIntoShape, null, isPasteAll);
 							if(isPasteAll) {
 								doPasteData();
 							}
@@ -1260,7 +1258,7 @@
 								}
 							}
 
-							t._insertImagesFromBinary(worksheet, pasteData, isIntoShape);
+							t._insertImagesFromBinary(worksheet, pasteData, isIntoShape, null, isPasteAll);
 							if(isPasteAll) {
 								doPasteData();
 							}
@@ -1274,13 +1272,13 @@
 							worksheet._loadFonts(newFonts, function () {
 								if (aPastedImages && aPastedImages.length) {
 									t._loadImagesOnServer(aPastedImages, function () {
-										t._insertImagesFromBinary(worksheet, pasteData, isIntoShape);
+										t._insertImagesFromBinary(worksheet, pasteData, isIntoShape, null, isPasteAll);
 										if(isPasteAll) {
 											doPasteData();
 										}
 									});
 								} else {
-									t._insertImagesFromBinary(worksheet, pasteData, isIntoShape);
+									t._insertImagesFromBinary(worksheet, pasteData, isIntoShape, null, isPasteAll);
 									if(isPasteAll) {
 										doPasteData();
 									}
@@ -1836,7 +1834,7 @@
 				}
 			},
 
-			_insertImagesFromBinary: function (ws, data, isIntoShape, needShowSpecialProps) {
+			_insertImagesFromBinary: function (ws, data, isIntoShape, needShowSpecialProps, savePosition) {
 				var activeCell = ws.model.selectionRange.activeCell;
 				var curCol, drawingObject, curRow, startCol, startRow, xfrm, aImagesSync = [], activeRow, activeCol, tempArr, offX, offY, rot;
 
@@ -1929,8 +1927,14 @@
 						activeCol = isIntoShape.Parent.parent.drawingBase.from.col;
 					}
 
-					curCol = xfrm.offX - startCol + ws.objectRender.convertMetric(ws._getColLeft(activeCol) - ws._getColLeft(0), 0, 3);
-					curRow = xfrm.offY - startRow + ws.objectRender.convertMetric(ws._getRowTop(activeRow) - ws._getRowTop(0), 0, 3);
+					if(savePosition) {
+						curCol = xfrm.offX;
+						curRow = xfrm.offY;
+					} else {
+						curCol = xfrm.offX - startCol + ws.objectRender.convertMetric(ws._getColLeft(activeCol) - ws._getColLeft(0), 0, 3);
+						curRow = xfrm.offY - startRow + ws.objectRender.convertMetric(ws._getRowTop(activeRow) - ws._getRowTop(0), 0, 3);
+					}
+
 
 					drawingObject = ws.objectRender.cloneDrawingObject(drawingObject);
 					drawingObject.graphicObject.setDrawingBase(drawingObject);

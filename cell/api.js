@@ -2218,39 +2218,6 @@ var editor;
   };
 
   spreadsheet_api.prototype.asc_EndMoveSheet = function(str, where, name) {
-      //получаем ws из бинарника и добавляем все данные на лист
-      /*var scale = this.asc_getZoom();
-      var i = this.wbModel.getActive();
-
-      // ToDo уйти от lock для листа при копировании
-      var sheetId = this.wbModel.getWorksheet(i).getId();
-      var lockInfo = this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Sheet, null, sheetId, sheetId);
-      var t = this;
-      var copyWorksheet = function(res) {
-          if (res) {
-              // ToDo перейти от wsViews на wsViewsId (сейчас вызываем раньше, чем в модели, т.к. там будет sortDependency
-              // и cleanCellCache, который создаст уже скопированный лист(и splice сработает неправильно))
-              History.Create_NewPoint();
-
-			  AscCommonExcel.g_clipboardExcel.pasteProcessor._pasteFromBinaryExcel(newWs, str, undefined, undefined, true);
-
-
-              var newWs = 123;
-			  t.wb.addWorksheet(newWs, where);
-              //t.wb.copyWorksheet(i, where);
-              //t.wbModel.copyWorksheet(i, where, newName);
-              // Делаем активным скопированный
-              t.asc_showWorksheet(where);
-              t.asc_setZoom(scale);
-              // Посылаем callback об изменении списка листов
-              t.sheetsChanged();
-          }
-      };
-
-      this.collaborativeEditing.lock([lockInfo], copyWorksheet);*/
-
-
-
 	  var t = this;
 	  var addWorksheetCallback = function(res) {
 		  if (res) {
@@ -2261,7 +2228,8 @@ var editor;
 			  t.wb.spliceWorksheet(where, 0, null);
 
 			  var newWs = t.wb.getWorksheet(newIndex);
-			  AscCommonExcel.g_clipboardExcel.pasteProcessor._pasteFromBinaryExcel(newWs, str.split('xslData;')[1], undefined, undefined, true);
+			  AscCommonExcel.g_clipboardExcel.pasteData(newWs, AscCommon.c_oAscClipboardDataFormat.Internal, str, null, null, null, true, true);
+			  //AscCommonExcel.g_clipboardExcel.pasteProcessor._pasteFromBinaryExcel(newWs, str.split('xslData;')[1], undefined, undefined, true);
 
 			  if (!window["NATIVE_EDITOR_ENJINE"] || window['IS_NATIVE_EDITOR'] || window['DoctRendererMode']) {
 				  t.asc_showWorksheet(newIndex);

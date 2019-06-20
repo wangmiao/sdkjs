@@ -9713,6 +9713,9 @@
                     case "paste":
 						var specialPasteHelper = window['AscCommon'].g_specialPasteHelper;
 						specialPasteHelper.specialPasteProps = specialPasteHelper.specialPasteProps ? specialPasteHelper.specialPasteProps : new Asc.SpecialPasteProps();
+						if(val.pasteAllSheet) {
+							specialPasteHelper.specialPasteProps.asc_setProps(Asc.c_oSpecialPasteProps.formulaColumnWidth);
+						}
 
                         t._loadDataBeforePaste(isLargeRange, val, val.data, bIsUpdate, canChangeColWidth, item);
 						bIsUpdate = false;
@@ -10124,7 +10127,7 @@
 				History.SetSelection(oSelection);
 				History.SetSelectionRedo(oSelection);
 			}
-			if(val.needEndTransaction){
+			if(val.pasteAllSheet){
 				History.EndTransaction();
 			}
 		};
