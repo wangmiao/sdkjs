@@ -341,8 +341,8 @@
 
 		Clipboard.prototype.pasteData = function(ws, _format, data1, data2, text_data, bIsSpecialPaste, doNotShowButton)
 		{
-			window["Asc"]["editor"].asc_EndMoveSheet(data1, 3, "test");
-			return;
+			//window["Asc"]["editor"].asc_EndMoveSheet(data1, 3, "test");
+			//return;
 
 			var t = this;
 			t.pasteProcessor.clean();
@@ -507,7 +507,7 @@
 			},
 
 			getBinaryForCopy: function (worksheet, activeRange, selectAll) {
-				selectAll = true;
+				//selectAll = true;
 
 
 				var objectRender = worksheet.objectRender;
@@ -1197,7 +1197,9 @@
 				var newFonts;
 				var tempWorkbook = new AscCommonExcel.Workbook();
 				var aPastedImages = this._readExcelBinary(base64, tempWorkbook);
-				isPasteAll = true;
+
+				//isPasteAll = true;
+
 				if (!isIntoShape && this._checkCutBefore(worksheet, tempWorkbook)) {
 					return;
 				}
