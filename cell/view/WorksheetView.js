@@ -10124,6 +10124,9 @@
 				History.SetSelection(oSelection);
 				History.SetSelectionRedo(oSelection);
 			}
+			if(val.needEndTransaction){
+				History.EndTransaction();
+			}
 		};
 
 		var fromBinaryExcel = val.fromBinary;

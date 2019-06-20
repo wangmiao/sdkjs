@@ -2211,13 +2211,20 @@ var editor;
     this.collaborativeEditing.lock([lockInfo], copyWorksheet);
   };
 
-  spreadsheet_api.prototype.asc_addWorksheet = function(str, where) {
-      var scale = this.asc_getZoom();
+  spreadsheet_api.prototype.asc_StartMoveSheet = function () {
+      var ws = this.wb.getWorksheet();
+      //получаем полный бинарник + удаляем лист
+      return AscCommonExcel.g_clipboardExcel.copyProcessor.getBinaryForCopy(ws.model, null, true);
+  };
+
+  spreadsheet_api.prototype.asc_EndMoveSheet = function(str, where, name) {
+      //получаем ws из бинарника и добавляем все данные на лист
+      /*var scale = this.asc_getZoom();
       var i = this.wbModel.getActive();
 
       // ToDo уйти от lock для листа при копировании
       var sheetId = this.wbModel.getWorksheet(i).getId();
-      var lockInfo = this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Sheet, /*subType*/null, sheetId, sheetId);
+      var lockInfo = this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Sheet, null, sheetId, sheetId);
       var t = this;
       var copyWorksheet = function(res) {
           if (res) {
@@ -2225,7 +2232,10 @@ var editor;
               // и cleanCellCache, который создаст уже скопированный лист(и splice сработает неправильно))
               History.Create_NewPoint();
 
-              var newWs = ;
+			  AscCommonExcel.g_clipboardExcel.pasteProcessor._pasteFromBinaryExcel(newWs, str, undefined, undefined, true);
+
+
+              var newWs = 123;
 			  t.wb.addWorksheet(newWs, where);
               //t.wb.copyWorksheet(i, where);
               //t.wbModel.copyWorksheet(i, where, newName);
@@ -2237,7 +2247,34 @@ var editor;
           }
       };
 
-      this.collaborativeEditing.lock([lockInfo], copyWorksheet);
+      this.collaborativeEditing.lock([lockInfo], copyWorksheet);*/
+
+
+
+	  var t = this;
+	  var addWorksheetCallback = function(res) {
+		  if (res) {
+			  History.Create_NewPoint();
+			  History.StartTransaction();
+
+			  var newIndex = t.wbModel.createWorksheet(where, name);
+			  t.wb.spliceWorksheet(where, 0, null);
+
+			  var newWs = t.wb.getWorksheet(newIndex);
+			  AscCommonExcel.g_clipboardExcel.pasteProcessor._pasteFromBinaryExcel(newWs, str.split('xslData;')[1], undefined, undefined, true);
+
+			  if (!window["NATIVE_EDITOR_ENJINE"] || window['IS_NATIVE_EDITOR'] || window['DoctRendererMode']) {
+				  t.asc_showWorksheet(newIndex);
+				  // Посылаем callback об изменении списка листов
+				  t.sheetsChanged();
+			  }
+
+			  History.EndTransaction()
+		  }
+	  };
+
+	  var lockInfo = this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Sheet, /*subType*/null, AscCommonExcel.c_oAscLockAddSheet, AscCommonExcel.c_oAscLockAddSheet);
+	  this.collaborativeEditing.lock([lockInfo], addWorksheetCallback);
   };
 
   spreadsheet_api.prototype.asc_cleanSelection = function() {
