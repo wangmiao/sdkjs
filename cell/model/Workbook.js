@@ -2010,6 +2010,11 @@
 			this.snapshot = this._getSnapshot();
 		}
 	};
+	Workbook.prototype.setCommonIndexObjectsFrom = function(wb) {
+		this.oStyleManager = wb.oStyleManager;
+		this.sharedStrings = wb.sharedStrings;
+		this.workbookFormulas = wb.workbookFormulas;
+	};
 	Workbook.prototype.forEach = function (callback, isCopyPaste) {
 		//if copy/paste - use only actve ws
 		if (isCopyPaste) {
