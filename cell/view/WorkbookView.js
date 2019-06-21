@@ -3244,11 +3244,12 @@
 	};
 	WorkbookView.prototype.pasteSheet = function (base64, insertBefore, name) {
 		var tempWorkbook = new AscCommonExcel.Workbook();
+		tempWorkbook.setCommonIndexObjectsFrom(this.model);
 		AscCommonExcel.g_clipboardExcel.pasteProcessor._readExcelBinary(base64.split('xslData;')[1], tempWorkbook);
 
 
 		History.Create_NewPoint();
-		//this.copyWorksheet(i, insertBefore);
+		this.copyWorksheet(0, insertBefore);
 		this.model.copyWorksheet(0, insertBefore, name, undefined, undefined, undefined, tempWorkbook.aWorksheets[0]);
 	};
 
