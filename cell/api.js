@@ -2215,7 +2215,7 @@ var editor;
   spreadsheet_api.prototype.asc_StartMoveSheet = function () {
       var ws = this.wb.getWorksheet();
       //получаем полный бинарник + удаляем лист
-      return AscCommonExcel.g_clipboardExcel.copyProcessor.getBinaryForCopy(ws.model, null, true);
+      return AscCommonExcel.g_clipboardExcel.copyProcessor.getBinaryForCopy(ws.model, null, null, true);
   };
 
   spreadsheet_api.prototype.asc_EndMoveSheet = function(str, where, name) {

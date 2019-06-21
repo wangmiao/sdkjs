@@ -325,7 +325,7 @@
 						if (_data && _data.base64) {
 							_data = _data.base64;
 						} else {
-							_data = this.copyProcessor.getBinaryForCopy(ws);
+							_data = this.copyProcessor.getBinaryForCopy(ws.model, ws.objectRender);
 						}
 					}
 
@@ -475,7 +475,7 @@
 				History.TurnOff();
 				//use binary strings
 				if (copyPasteUseBinary) {
-					sBase64 = this.getBinaryForCopy(worksheet);
+					sBase64 = this.getBinaryForCopy(worksheet.model, worksheet.objectRender);
 				}
 				History.TurnOn();
 
@@ -502,16 +502,15 @@
 				return {base64: sBase64, html: innerHtml};
 			},
 
-			getBinaryForCopy: function (worksheet, activeRange, selectAll) {
+			getBinaryForCopy: function (wsModel, objectRender, activeRange, selectAll) {
 				selectAll = true;
 
-				var objectRender = worksheet.objectRender;
-				var isIntoShape = objectRender.controller.getTargetDocContent();
+				var isIntoShape = objectRender && objectRender.controller ? objectRender.controller.getTargetDocContent() : null;
 
 				var sBase64 = null;
 				if (isIntoShape) {
 					//в данному случае пишем бинарник с меткой pptData - с префиксом xlsData отдельно параграфы записать не получится
-					sBase64 = this._getBinaryShapeContent(worksheet, isIntoShape);
+					sBase64 = this._getBinaryShapeContent(isIntoShape);
 				} else {
 					pptx_content_writer.Start_UseFullUrl();
 					pptx_content_writer.BinaryFileWriter.ClearIdMap();
@@ -519,20 +518,20 @@
 					var unselectedIndexes = [];
 					if(selectAll) {
 						if(activeRange) {
-							activeRange = new Asc.Range(0, 0, worksheet.nColsCount, worksheet.nRowsCount);
+							activeRange = new Asc.Range(0, 0, AscCommon.gc_nMaxCol - 1, AscCommon.gc_nMaxRow - 1);
 						}
 
-						for(var i = 0; i < worksheet.model.Drawings.length; i++) {
-							if(!worksheet.model.Drawings[i].graphicObject.selected) {
+						for(var i = 0; i < wsModel.Drawings.length; i++) {
+							if(!wsModel.Drawings[i].graphicObject.selected) {
 								unselectedIndexes[i] = true;
-								worksheet.model.Drawings[i].graphicObject.selected = true;
+								wsModel.Drawings[i].graphicObject.selected = true;
 							}
 						}
 					}
 
 					// ToDo multiselect ?
-					var selectionRange = activeRange ? activeRange : worksheet.model.selectionRange.getLast();
-					var maxRowCol = this._getRangeMaxRowCol(worksheet, selectionRange);
+					var selectionRange = activeRange ? activeRange : wsModel.selectionRange.getLast();
+					var maxRowCol = this._getRangeMaxRowCol(wsModel, selectionRange);
 					if (null !== maxRowCol) {
 						if (maxRowCol.col < selectionRange.c1) {
 							maxRowCol.col = selectionRange.c1;
@@ -540,11 +539,10 @@
 						if (maxRowCol.row < selectionRange.r1) {
 							maxRowCol.row = selectionRange.r1;
 						}
-						selectionRange =
-							new Asc.Range(selectionRange.c1, selectionRange.r1, maxRowCol.col, maxRowCol.row);
+						selectionRange = new Asc.Range(selectionRange.c1, selectionRange.r1, maxRowCol.col, maxRowCol.row);
 					}
 
-					var wb = worksheet.model.workbook;
+					var wb = wsModel.workbook;
 					var isNullCore = false;
 					if(!wb.Core) {
 						isNullCore = true;
@@ -564,7 +562,7 @@
 
 					if(selectAll) {
 						for(i in unselectedIndexes) {
-							worksheet.model.Drawings[i].graphicObject.selected = false;
+							wsModel.Drawings[i].graphicObject.selected = false;
 						}
 					}
 
@@ -588,7 +586,7 @@
 				var oType = Asc.c_oAscSelectionType;
 				if (type === oType.RangeCol || type === oType.RangeRow || type === oType.RangeMax) {
 					if (!range3) {
-						range3 = worksheet.model.getRange3(selectionRange.r1, selectionRange.c1, selectionRange.r2, selectionRange.c2);
+						range3 = worksheet.getRange3(selectionRange.r1, selectionRange.c1, selectionRange.r2, selectionRange.c2);
 					}
 
 					//нужно вычислить последнюю ячейку в столбце, где есть данные
@@ -609,7 +607,7 @@
 				return res;
 			},
 
-			_getBinaryShapeContent: function (worksheet, isIntoShape) {
+			_getBinaryShapeContent: function (isIntoShape) {
 				var sBase64;
 
 				var selectedContent = new CSelectedContent();
@@ -705,7 +703,7 @@
 				History.TurnOff();
 				var sBase64 = null;
 				if (!isIntoShape) {
-					sBase64 = this.getBinaryForCopy(worksheetView);
+					sBase64 = this.getBinaryForCopy(worksheetView.model, worksheetView.objectRender);
 				}
 				History.TurnOn();
 
@@ -871,7 +869,7 @@
 				} else {
 					var maxRow = bbox.r2;
 					var maxCol = bbox.c2;
-					var maxRowCol = this._getRangeMaxRowCol(worksheet, bbox, range);
+					var maxRowCol = this._getRangeMaxRowCol(worksheet.model, bbox, range);
 					if (null !== maxRowCol) {
 						maxRow = maxRowCol.row;
 						maxCol = maxRowCol.col;
@@ -1103,7 +1101,7 @@
 
 					var maxRow = bbox.r2;
 					var maxCol = bbox.c2;
-					var maxRowCol = this._getRangeMaxRowCol(worksheet, bbox, range);
+					var maxRowCol = this._getRangeMaxRowCol(worksheet.model, bbox, range);
 					if (null !== maxRowCol) {
 						maxRow = maxRowCol.row;
 						maxCol = maxRowCol.col;

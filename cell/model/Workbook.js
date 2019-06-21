@@ -2148,7 +2148,11 @@
 				tableNames = newSheet.getTableNames();
 			}
 
-			History.Add(AscCommonExcel.g_oUndoRedoWorkbook, AscCH.historyitem_Workbook_SheetAdd, null, null, new UndoRedoData_SheetAdd(insertBefore, newSheet.getName(), wsFrom.getId(), newSheet.getId(), tableNames));
+			var opt_sheet_binary = null;
+			if(!bFromRedo && opt_sheet) {
+				opt_sheet_binary = AscCommonExcel.g_clipboardExcel.copyProcessor.getBinaryForCopy(wsFrom, null, null, true);
+			}
+			History.Add(AscCommonExcel.g_oUndoRedoWorkbook, AscCH.historyitem_Workbook_SheetAdd, null, null, new UndoRedoData_SheetAdd(insertBefore, newSheet.getName(), wsFrom.getId(), newSheet.getId(), tableNames, opt_sheet_binary));
 			History.SetSheetUndo(wsActive.getId());
 			History.SetSheetRedo(newSheet.getId());
 			if(!(bFromRedo === true))
