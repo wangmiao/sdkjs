@@ -2108,14 +2108,14 @@
 		this.dependencyFormulas.unlockRecal();
 		return oNewWorksheet.index;
 	};
-	Workbook.prototype.copyWorksheet=function(index, insertBefore, sName, sId, bFromRedo, tableNames){
+	Workbook.prototype.copyWorksheet=function(index, insertBefore, sName, sId, bFromRedo, tableNames, opt_sheet){
 		//insertBefore - optional
 		if(index >= 0 && index < this.aWorksheets.length){
 			//buildRecalc вызываем чтобы пересчиталося cwf(может быть пустым если сделать сдвиг формул и скопировать лист)
 			this.dependencyFormulas.buildDependency();
 			History.TurnOff();
 			var wsActive = this.getActiveWs();
-			var wsFrom = this.aWorksheets[index];
+			var wsFrom = opt_sheet ? opt_sheet : this.aWorksheets[index];
 			var newSheet = new Worksheet(this, -1, sId);
 			if(null != insertBefore && insertBefore >= 0 && insertBefore < this.aWorksheets.length){
 				//помещаем новый sheet перед insertBefore

@@ -483,6 +483,7 @@ var editor;
 
   spreadsheet_api.prototype.asc_PasteData = function (_format, data1, data2, text_data) {
     if (this.canEdit()) {
+      //this.asc_EndMoveSheet2(data1, 1, "test2");
       this.wb.pasteData(_format, data1, data2, text_data, arguments[5]);
     }
   };
@@ -2243,6 +2244,32 @@ var editor;
 
 	  var lockInfo = this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Sheet, /*subType*/null, AscCommonExcel.c_oAscLockAddSheet, AscCommonExcel.c_oAscLockAddSheet);
 	  this.collaborativeEditing.lock([lockInfo], addWorksheetCallback);
+  };
+
+  spreadsheet_api.prototype.asc_EndMoveSheet2 = function(base64, index, name) {
+	  var scale = this.asc_getZoom();
+	  var i = this.wbModel.getActive();
+
+	  // ToDo уйти от lock для листа при копировании
+	  var sheetId = this.wbModel.getWorksheet(i).getId();
+	  var lockInfo = this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Sheet, /*subType*/null, sheetId, sheetId);
+	  var t = this;
+	  var copyWorksheet = function(res) {
+		  if (res) {
+			  // ToDo перейти от wsViews на wsViewsId (сейчас вызываем раньше, чем в модели, т.к. там будет sortDependency
+			  // и cleanCellCache, который создаст уже скопированный лист(и splice сработает неправильно))
+
+			  t.wb.pasteSheet(base64, index, name);
+
+			  // Делаем активным скопированный
+			  t.asc_showWorksheet(index);
+			  t.asc_setZoom(scale);
+			  // Посылаем callback об изменении списка листов
+			  t.sheetsChanged();
+		  }
+	  };
+
+	  this.collaborativeEditing.lock([lockInfo], copyWorksheet);
   };
 
   spreadsheet_api.prototype.asc_cleanSelection = function() {
