@@ -1794,6 +1794,11 @@ function (window, undefined) {
 				Data.sheet = outputParams.sheet;
 			} else {
 				if(Data.opt_sheet) {
+
+					/*var api = window["Asc"]["editor"];
+					api.wb.pasteSheet(Data.opt_sheet, 0, Data.name);
+					api.asc_EndMoveSheet2(Data.opt_sheet, 0, Data.name);*/
+
 					var tempWorkbook = new AscCommonExcel.Workbook();
 					tempWorkbook.setCommonIndexObjectsFrom(wb);
 					AscCommonExcel.g_clipboardExcel.pasteProcessor._readExcelBinary(Data.opt_sheet.split('xslData;')[1], tempWorkbook);

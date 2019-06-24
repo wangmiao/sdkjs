@@ -483,8 +483,8 @@ var editor;
 
   spreadsheet_api.prototype.asc_PasteData = function (_format, data1, data2, text_data) {
     if (this.canEdit()) {
-      //this.asc_EndMoveSheet2(data1, 1, "test2");
-      this.wb.pasteData(_format, data1, data2, text_data, arguments[5]);
+      this.asc_EndMoveSheet2(data1, 1, "test2");
+      //this.wb.pasteData(_format, data1, data2, text_data, arguments[5]);
     }
   };
 
@@ -2259,13 +2259,13 @@ var editor;
 			  // ToDo перейти от wsViews на wsViewsId (сейчас вызываем раньше, чем в модели, т.к. там будет sortDependency
 			  // и cleanCellCache, который создаст уже скопированный лист(и splice сработает неправильно))
 
-			  t.wb.pasteSheet(base64, index, name);
-
-			  // Делаем активным скопированный
-			  t.asc_showWorksheet(index);
-			  t.asc_setZoom(scale);
-			  // Посылаем callback об изменении списка листов
-			  t.sheetsChanged();
+			  t.wb.pasteSheet(base64, index, name, function() {
+				  // Делаем активным скопированный
+				  t.asc_showWorksheet(index);
+				  t.asc_setZoom(scale);
+				  // Посылаем callback об изменении списка листов
+				  t.sheetsChanged();
+              });
 		  }
 	  };
 
