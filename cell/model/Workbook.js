@@ -2165,7 +2165,7 @@
 			History.SetSheetRedo(newSheet.getId());
 			if(!(bFromRedo === true))
 			{
-				wsFrom.copyObjects(newSheet, wsFrom);
+				wsFrom.copyObjects(newSheet);
 			}
 			this.sortDependency();
 		}
@@ -3518,7 +3518,7 @@
 
 		return renameParams;
 	};
-	Worksheet.prototype.copyObjects = function (oNewWs, wsFrom) {
+	Worksheet.prototype.copyObjects = function (oNewWs) {
 		var i;
 		if (null != this.Drawings && this.Drawings.length > 0) {
 			var drawingObjects = new AscFormat.DrawingObjects();
@@ -3541,14 +3541,14 @@
 			}
 			AscFormat.NEW_WORKSHEET_DRAWING_DOCUMENT = null;
 			drawingObjects.pushToAObjects(oNewWs.Drawings);
-			drawingObjects.updateChartReferences2(parserHelp.getEscapeSheetName(wsFrom.sName),
+			drawingObjects.updateChartReferences2(parserHelp.getEscapeSheetName(this.sName),
 												  parserHelp.getEscapeSheetName(oNewWs.sName));
 		}
 
 		var newSparkline;
 		for (i = 0; i < this.aSparklineGroups.length; ++i) {
 			newSparkline = this.aSparklineGroups[i].clone();
-			newSparkline.setWorksheet(oNewWs, wsFrom);
+			newSparkline.setWorksheet(oNewWs, this);
 			oNewWs.aSparklineGroups.push(newSparkline);
 		}
 	};
