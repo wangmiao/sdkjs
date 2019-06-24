@@ -2213,7 +2213,7 @@ var editor;
   };
 
   spreadsheet_api.prototype.asc_StartMoveSheet = function (deleteIndex) {
-      var ws = this.wb.getWorksheet();
+      var ws = this.wb.getWorksheet(deleteIndex);
       //получаем полный бинарник + удаляем лист
       var binaryStr = AscCommonExcel.g_clipboardExcel.copyProcessor.getBinaryForCopy(ws.model, null, null, true);
 
@@ -3865,6 +3865,8 @@ var editor;
   prot["asc_endFindText"] = prot.asc_endFindText;
   prot["asc_findCell"] = prot.asc_findCell;
   prot["asc_closeCellEditor"] = prot.asc_closeCellEditor;
+  prot["asc_StartMoveSheet"] = prot.asc_StartMoveSheet;
+  prot["asc_EndMoveSheet"] = prot.asc_EndMoveSheet;
 
   prot["asc_setR1C1Mode"] = prot.asc_setR1C1Mode;
 
