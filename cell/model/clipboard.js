@@ -1297,8 +1297,9 @@
 				return res;
 			},
 
-			_readExcelBinary: function(base64, tempWorkbook) {
+			_readExcelBinary: function(base64, tempWorkbook, selectAllSheet) {
 				var oBinaryFileReader = new AscCommonExcel.BinaryFileReader(true);
+				oBinaryFileReader.copyPasteObj.selectAllSheet = selectAllSheet;
 				var t = this;
 				var aPastedImages;
 

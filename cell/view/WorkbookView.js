@@ -3248,7 +3248,7 @@
 		var tempWorkbook = new AscCommonExcel.Workbook();
 		tempWorkbook.setCommonIndexObjectsFrom(this.model);
 		var pasteProcessor = AscCommonExcel.g_clipboardExcel.pasteProcessor;
-		var aPastedImages = pasteProcessor._readExcelBinary(base64.split('xslData;')[1], tempWorkbook);
+		var aPastedImages = pasteProcessor._readExcelBinary(base64.split('xslData;')[1], tempWorkbook, true);
 		var pastedWs = tempWorkbook.aWorksheets[0];
 		var newFonts = {};
 		newFonts = tempWorkbook.generateFontMap2();

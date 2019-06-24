@@ -805,8 +805,16 @@
 
 			return res;
 		},
-		copyDefNameByWorksheet: function(wsFrom, wsTo, renameParams) {
-			var sheetContainerFrom = this.defNames.sheet[wsFrom.getId()];
+		copyDefNameByWorksheet: function(wsFrom, wsTo, renameParams, opt_sheet) {
+			var sheetContainerFrom;
+			var opt_df = opt_sheet && opt_sheet.workbook && opt_sheet.workbook.dependencyFormulas ? opt_sheet.workbook.dependencyFormulas : null;
+			if(opt_df && opt_df.defNames && opt_df.defNames.sheet && opt_df.defNames.sheet[wsFrom.getId()]) {
+				//TODO пересмотреть!
+				//пока делаю только для им. диапазонов листа. в случае книгой - необходимо хранить map преообразований для redo
+				sheetContainerFrom = opt_df.defNames.sheet[wsFrom.getId()];
+			} else {
+				sheetContainerFrom = this.defNames.sheet[wsFrom.getId()];
+			}
 			if (sheetContainerFrom) {
 				for (var name in sheetContainerFrom) {
 					var defNameOld = sheetContainerFrom[name];
@@ -2137,7 +2145,7 @@
 			newSheet.initPostOpen(this.wsHandlers);
 			History.TurnOn();
 
-			this.dependencyFormulas.copyDefNameByWorksheet(wsFrom, newSheet, renameParams);
+			this.dependencyFormulas.copyDefNameByWorksheet(wsFrom, newSheet, renameParams, opt_sheet);
 			//для формул. создаем копию this.cwf[this.Id] для нового листа.
 			//newSheet._BuildDependencies(wsFrom.getCwf());
 
