@@ -2122,13 +2122,13 @@ var editor;
   };
 
   // Удаление листа
-  spreadsheet_api.prototype.asc_deleteWorksheet = function() {
+  spreadsheet_api.prototype.asc_deleteWorksheet = function(deleteIndex) {
     // Проверка глобального лока
     if (this.collaborativeEditing.getGlobalLock()) {
       return false;
     }
 
-    var i = this.wbModel.getActive();
+    var i = undefined !== deleteIndex  ? deleteIndex : this.wbModel.getActive();
     var activeSheet = this.wbModel.getWorksheet(i);
     var activeName = parserHelp.getEscapeSheetName(activeSheet.sName);
     var sheetId = activeSheet.getId();
@@ -2212,10 +2212,13 @@ var editor;
     this.collaborativeEditing.lock([lockInfo], copyWorksheet);
   };
 
-  spreadsheet_api.prototype.asc_StartMoveSheet = function () {
+  spreadsheet_api.prototype.asc_StartMoveSheet = function (deleteIndex) {
       var ws = this.wb.getWorksheet();
       //получаем полный бинарник + удаляем лист
-      return AscCommonExcel.g_clipboardExcel.copyProcessor.getBinaryForCopy(ws.model, null, null, true);
+      var binaryStr = AscCommonExcel.g_clipboardExcel.copyProcessor.getBinaryForCopy(ws.model, null, null, true);
+
+      this.wb.asc_deleteWorksheet(deleteIndex);
+      return binaryStr;
   };
 
   spreadsheet_api.prototype.asc_EndMoveSheet = function(str, where, name) {
