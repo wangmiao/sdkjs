@@ -5253,7 +5253,12 @@ function parserFormula( formula, parent, _ws ) {
 		return needAssemble;
 	};
 parserFormula.prototype.clone = function(formula, parent, ws) {
-    if (null == formula) {
+	var opt_ws = null;
+	if(Asc["editor"] && Asc["editor"].wb && Asc["editor"].wb.addingWorksheet) {
+		opt_ws = Asc["editor"].wb.addingWorksheet;
+		ws = opt_ws;
+	}
+	if (null == formula) {
     formula = this.Formula;
     }
     if (null == parent) {
@@ -5268,7 +5273,7 @@ parserFormula.prototype.clone = function(formula, parent, ws) {
   for (var i = 0, length = this.outStack.length; i < length; i++) {
     var oCurElem = this.outStack[i];
       if (oCurElem.clone) {
-      oRes.outStack.push(oCurElem.clone());
+      oRes.outStack.push(oCurElem.clone(opt_ws));
       } else {
       oRes.outStack.push(oCurElem);
     }

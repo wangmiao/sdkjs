@@ -1974,6 +1974,11 @@
 
 		this.lastFindOptions = null;
 		this.lastFindCells = {};
+
+		//при копировании листа с одного wb на другой необходимо менять в стеке
+		// формул лист и книгу(на которые ссылаемся) - например у элементов cStrucTable
+		//временно добавляю новый вставляемый лист, чтобы не передавать параметры через большое количество функций
+		this.addingWorksheet = null;
 	}
 	Workbook.prototype.init=function(tableCustomFunc, bNoBuildDep, bSnapshot){
 		if(this.nActive < 0)
@@ -2138,6 +2143,11 @@
 				//помещаем новый sheet в конец
 				this.aWorksheets.push(newSheet);
 			}
+
+			if(opt_sheet) {
+				this.addingWorksheet = newSheet;
+			}
+
 			this.aWorksheetsById[newSheet.getId()] = newSheet;
 			this._updateWorksheetIndexes(wsActive);
 			//copyFrom after sheet add because formula assemble dependce on sheet structure
@@ -2168,6 +2178,10 @@
 				wsFrom.copyObjects(newSheet);
 			}
 			this.sortDependency();
+
+			if(opt_sheet) {
+				this.addingWorksheet = null;
+			}
 		}
 	};
 	Workbook.prototype.insertWorksheet = function (index, sheet) {
