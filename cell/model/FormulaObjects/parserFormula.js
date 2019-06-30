@@ -5252,36 +5252,36 @@ function parserFormula( formula, parent, _ws ) {
 			}
 		return needAssemble;
 	};
-parserFormula.prototype.clone = function(formula, parent, ws) {
-	var opt_ws = null;
-	if(Asc["editor"] && Asc["editor"].wb && Asc["editor"].wb.addingWorksheet) {
-		opt_ws = Asc["editor"].wb.addingWorksheet;
-		ws = opt_ws;
-	}
-	if (null == formula) {
-    formula = this.Formula;
-    }
-    if (null == parent) {
-		parent = this.parent;
-    }
-    if (null == ws) {
-    ws = this.ws;
-    }
-  var oRes = new parserFormula(formula, parent, ws);
-  oRes.is3D = this.is3D;
-  oRes.value = this.value;
-  for (var i = 0, length = this.outStack.length; i < length; i++) {
-    var oCurElem = this.outStack[i];
-      if (oCurElem.clone) {
-      oRes.outStack.push(oCurElem.clone(opt_ws));
-      } else {
-      oRes.outStack.push(oCurElem);
-    }
-    }
-  oRes.isParsed = this.isParsed;
-  oRes.ref = this.ref;
-  return oRes;
-};
+	parserFormula.prototype.clone = function (formula, parent, ws) {
+		var opt_ws = null;
+		if (Asc["editor"] && Asc["editor"].wb && Asc["editor"].wb.addingWorksheet) {
+			opt_ws = Asc["editor"].wb.addingWorksheet;
+			ws = opt_ws;
+		}
+		if (null == formula) {
+			formula = this.Formula;
+		}
+		if (null == parent) {
+			parent = this.parent;
+		}
+		if (null == ws) {
+			ws = this.ws;
+		}
+		var oRes = new parserFormula(formula, parent, ws);
+		oRes.is3D = this.is3D;
+		oRes.value = this.value;
+		for (var i = 0, length = this.outStack.length; i < length; i++) {
+			var oCurElem = this.outStack[i];
+			if (oCurElem.clone) {
+				oRes.outStack.push(oCurElem.clone(opt_ws));
+			} else {
+				oRes.outStack.push(oCurElem);
+			}
+		}
+		oRes.isParsed = this.isParsed;
+		oRes.ref = this.ref;
+		return oRes;
+	};
 	parserFormula.prototype.getParent = function() {
 		return this.parent;
 	};
