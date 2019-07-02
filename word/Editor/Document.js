@@ -1829,6 +1829,7 @@ function CDocument(DrawingDocument, isMainLogicDocument)
 	this.RecalcTableHeader         = false; // Пересчитываем ли сейчас заголовок таблицы
 	this.TrackMoveId               = null;  // Идентификатор переноса внутри рецензирования
 	this.RemoveEmptySelection      = true;  // При обновлении селекта, если он пустой тогда сбрасываем его
+	this.MoveDrawing               = false; // Происходит ли сейчас перенос автофигуры
 
 	// Параметры для случая, когда мы не можем сразу перерисовать треки и нужно перерисовывать их на таймере пересчета
 	this.NeedUpdateTracksOnRecalc = false;
@@ -2329,6 +2330,9 @@ CDocument.prototype.FinalizeAction = function(isCheckEmptyAction)
 	if (this.Action.Additional.TrackMove)
 		this.private_FinalizeRemoveTrackMove();
 
+	if (this.TrackMoveId)
+		this.private_FinalizeCheckTrackMove();
+
 	//------------------------------------------------------------------------------------------------------------------
 
 	var isAllPointsEmpty = true;
@@ -2409,6 +2413,48 @@ CDocument.prototype.private_FinalizeRemoveTrackMove = function()
 	for (var sMoveId in this.Action.Additional.TrackMove)
 	{
 		var oMarks = this.Action.Additional.TrackMove[sMoveId];
+		privateRemoveTrackMoveMark(oMarks.To.Start);
+		privateRemoveTrackMoveMark(oMarks.To.End);
+		privateRemoveTrackMoveMark(oMarks.From.Start);
+		privateRemoveTrackMoveMark(oMarks.From.End);
+
+		this.Action.Recalculate = true;
+	}
+};
+CDocument.prototype.private_FinalizeCheckTrackMove = function()
+{
+	function privateRemoveTrackMoveMark(oMark)
+	{
+		if (oMark instanceof CRunRevisionMove)
+		{
+			oMark.GetRun().RemoveElement(oMark);
+		}
+		else if (oMark instanceof CParaRevisionMove && oMark.GetParagraph())
+		{
+			oMark.GetParagraph().RemoveElement(oMark);
+		}
+	}
+
+	var sMoveId = this.TrackMoveId;
+	var oMarks  = this.TrackRevisionsManager.GetMoveMarks(sMoveId);
+
+	if (oMarks
+		&& (!oMarks.To.Start
+		|| !oMarks.To.Start.IsUseInDocument()
+		|| !oMarks.To.End
+		|| !oMarks.To.End.IsUseInDocument()
+		|| !oMarks.From.Start
+		|| !oMarks.From.Start.IsUseInDocument()
+		|| !oMarks.From.End
+		|| !oMarks.From.End.IsUseInDocument()))
+	{
+		// TODO: Вообще лучше переделать схему, потому что она не всегда правильно работает
+		//       Если удаляемый элемент попадает в ранее добавленный текст, тогда и метка удалится, хотя такого быть не
+		//       должно
+
+		this.TrackMoveId = null;
+		this.RemoveTrackMoveMarks(sMoveId);
+
 		privateRemoveTrackMoveMark(oMarks.To.Start);
 		privateRemoveTrackMoveMark(oMarks.To.End);
 		privateRemoveTrackMoveMark(oMarks.From.Start);
@@ -5203,6 +5249,30 @@ CDocument.prototype.MoveCursorToSignature = function(sGuid)
 {
     this.DrawingObjects.moveCursorToSignature(sGuid);
 };
+CDocument.prototype.MoveCursorToPageStart = function()
+{
+	if (docpostype_Content !== this.GetDocPosType())
+	{
+		this.RemoveSelection();
+		this.SetDocPosType(docpostype_Content);
+	}
+
+	this.MoveCursorToXY(0, 0, false);
+	this.UpdateInterface();
+	this.UpdateSelection();
+};
+CDocument.prototype.MoveCursorToPageEnd = function()
+{
+	if (docpostype_Content !== this.GetDocPosType())
+	{
+		this.RemoveSelection();
+		this.SetDocPosType(docpostype_Content);
+	}
+
+	this.MoveCursorToXY(0, 10000, false);
+	this.UpdateInterface();
+	this.UpdateSelection();
+};
 CDocument.prototype.SetParagraphAlign = function(Align)
 {
 	var SelectedInfo = this.GetSelectedElementsInfo();
@@ -7636,6 +7706,11 @@ CDocument.prototype.Insert_Content = function(SelectedContent, NearPos)
 				ParaS.Selection.Use      = true;
 				ParaS.Selection.StartPos = ParaS.Content.length - _ParaSContentLen;
 				ParaS.Selection.EndPos   = ParaS.Content.length - 1;
+
+				for (var nParaSIndex = ParaS.Selection.StartPos; nParaSIndex <= Math.min(ParaS.Selection.EndPos, ParaS.Content.length - 1); ++nParaSIndex)
+				{
+					ParaS.Content[nParaSIndex].SelectAll(1);
+				}
 			}
 			else if (true !== Para.IsCursorAtBegin() && true !== bDoNotIncreaseDstIndex)
 			{
@@ -10196,7 +10271,7 @@ CDocument.prototype.GetWatermarkProps = function()
 
 CDocument.prototype.SetWatermarkProps = function(oProps)
 {
-    this.StartAction(0);
+    this.StartAction(AscDFH.historydescription_Document_AddWatermark);
     var SectionPageInfo = this.Get_SectionPageNumInfo(this.CurPage);
     var bFirst = SectionPageInfo.bFirst;
     var bEven  = SectionPageInfo.bEven;

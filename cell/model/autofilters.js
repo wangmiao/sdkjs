@@ -3965,7 +3965,7 @@
 						var isMerged = cell.hasMerged();
 						var isMergedAllRow = isMerged && isMerged.c2 + 1 == AscCommon.gc_nMaxCol && isMerged.c1 === 0;//если замержена вся ячейка
 						
-						if((isMerged && isMerged.c2 != col && !isMergedAllRow) || (isMergedAllRow && col !== ref.c1))
+						if((isMerged && isMerged.c2 !== col && !isMergedAllRow && ref.c2 !== col) || (isMergedAllRow && col !== ref.c1))
 						{	
 							filterColumn = worksheet.AutoFilter.addFilterColumn();
 							filterColumn.ColId = col - ref.c1;
@@ -4177,7 +4177,11 @@
 				var hasMerged = cell.hasMerged();
 				if(hasMerged)
 				{
-					res = hasMerged.c1 - ref.c1 >= 0 ? hasMerged.c1 - ref.c1 : res;
+					if(hasMerged.c1 < ref.c1) {
+						res = 0;
+					} else {
+						res = hasMerged.c1 - ref.c1 >= 0 ? hasMerged.c1 - ref.c1 : res;
+					}
 				}
 				
 				return res;
@@ -5216,7 +5220,9 @@
 				}
 
 				//expand by merged cells(if selected columns/rows)
-				tempRange = this.worksheet.expandRangeByMerged(tempRange);
+				if(bTable) {
+					tempRange = this.worksheet.expandRangeByMerged(tempRange);
+				}
 
 				//expand range
 				var tablePartsContainsRange = this._isTablePartsContainsRange(tempRange);

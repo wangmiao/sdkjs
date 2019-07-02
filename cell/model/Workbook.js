@@ -12982,6 +12982,7 @@
 	window['AscCommonExcel'].aStandartNumFormatsId = aStandartNumFormatsId;
 	window['AscCommonExcel'].oFormulaLocaleInfo = oFormulaLocaleInfo;
 	window['AscCommonExcel'].getDefNameIndex = getDefNameIndex;
+	window['AscCommonExcel'].getCellIndex = getCellIndex;
 	window['AscCommonExcel'].angleFormatToInterface2 = angleFormatToInterface2;
 	window['AscCommonExcel'].angleInterfaceToFormat = angleInterfaceToFormat;
 	window['AscCommonExcel'].Workbook = Workbook;

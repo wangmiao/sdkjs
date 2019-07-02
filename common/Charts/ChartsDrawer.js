@@ -1606,6 +1606,9 @@ CChartsDrawer.prototype =
 				newArr[l] = [];
 
 				yNumCache = t.getNumCache(series[l].yVal);
+				if(!yNumCache) {
+					continue;
+				}
 
 				for (var j = 0; j < yNumCache.ptCount; ++j) {
 					var val = t._getScatterPointVal(series[l], j);
@@ -1748,17 +1751,18 @@ CChartsDrawer.prototype =
 
 		var yMin = axis.min;
 		var yMax = axis.max;
+		var logBase = axis.scaling && axis.scaling.logBase;
 
-		if (axis.scaling && axis.scaling.logBase) {
-			arrayValues = this._getLogArray(yMin, yMax, axis.scaling.logBase);
+		var manualMin = axis.scaling && axis.scaling.min !== null ? axis.scaling.min : null;
+		var manualMax = axis.scaling && axis.scaling.max !== null ? axis.scaling.max : null;
+
+		if (logBase) {
+			arrayValues = this._getLogArray(yMin, yMax, logBase, axis);
 			return arrayValues;
 		}
 
 		//максимальное и минимальное значение(по документации excel)
 		var trueMinMax = this._getTrueMinMax(yMin, yMax, isStackedType);
-
-		var manualMin = axis.scaling && axis.scaling.min !== null ? axis.scaling.min : null;
-		var manualMax = axis.scaling && axis.scaling.max !== null ? axis.scaling.max : null;
 
 		//TODO временная проверка для некорректных минимальных и максимальных значений
 		if (manualMax && manualMin && manualMax < manualMin) {
@@ -1951,12 +1955,20 @@ CChartsDrawer.prototype =
 		return arrayValues;
 	},
 
-	_getLogArray: function (yMin, yMax, logBase) {
+	_getLogArray: function (yMin, yMax, logBase, axis) {
 		var result = [];
 
 		var temp;
 		var pow = 0;
 		var tempPow = yMin;
+
+		var kF = 1000000000;
+		var manualMin = axis.scaling && axis.scaling.min !== null ? Math.round(axis.scaling.min * kF) / kF : null;
+		var manualMax = axis.scaling && axis.scaling.max !== null ? Math.round(axis.scaling.max * kF) / kF : null;
+
+		if(manualMin !== null) {
+			yMin = manualMin;
+		}
 
 		if (yMin < 1 && yMin > 0) {
 			temp = this._getFirstDegree(yMin).numPow;
@@ -1980,16 +1992,37 @@ CChartsDrawer.prototype =
 			if (lMax < yMax) {
 				lMax = yMax;
 			}
+			if(manualMax !== null && manualMax > lMax) {
+				lMax = manualMax;
+			}
 
 			while (temp < lMax) {
 				temp = Math.pow(logBase, pow);
+				if(manualMin !== null && manualMin > temp) {
+					pow++;
+					continue;
+				}
+				if(manualMax !== null && manualMax < temp) {
+					break;
+				}
 				result[step] = temp;
 				pow++;
 				step++;
 			}
 		} else {
+			if(manualMax !== null && manualMax > yMax) {
+				yMax = manualMax;
+			}
+
 			while (temp <= yMax) {
 				temp = Math.pow(logBase, pow);
+				if(manualMin !== null && manualMin > temp) {
+					pow++;
+					continue;
+				}
+				if(manualMax !== null && manualMax < temp) {
+					break;
+				}
 				result[step] = temp;
 				pow++;
 				step++;
@@ -2571,6 +2604,7 @@ CChartsDrawer.prototype =
 		var logVal = Math.log(val) / Math.log(logBase);
 		var result;
 
+		//TODO переписать функцию!
 		var parseVal, maxVal, minVal, startPos = 0, diffPos;
 		if (logVal < 0) {
 			parseVal = logVal.toString().split(".");
@@ -2578,8 +2612,14 @@ CChartsDrawer.prototype =
 			minVal = Math.pow(logBase, parseFloat(parseVal[0]) - 1);
 			for (var i = 0; i < yPoints.length; i++) {
 				if (yPoints[i].val < maxVal && yPoints[i].val >= minVal) {
-					startPos = yPoints[i + 1].pos;
-					diffPos = yPoints[i].pos - yPoints[i + 1].pos;
+					if(yPoints[i + 1]) {
+						startPos = yPoints[i + 1].pos;
+						diffPos = yPoints[i].pos - yPoints[i + 1].pos;
+					} else {
+						startPos = yPoints[i].pos;
+						diffPos = yPoints[i - 1].pos - yPoints[i].pos;
+					}
+
 					break;
 				}
 			}
@@ -2590,8 +2630,13 @@ CChartsDrawer.prototype =
 			maxVal = Math.pow(logBase, parseFloat(parseVal[0]) + 1);
 			for (var i = 0; i < yPoints.length; i++) {
 				if (yPoints[i].val < maxVal && yPoints[i].val >= minVal) {
-					startPos = yPoints[i].pos;
-					diffPos = yPoints[i].pos - yPoints[i + 1].pos;
+					if(yPoints[i + 1]) {
+						startPos = yPoints[i].pos;
+						diffPos = yPoints[i].pos - yPoints[i + 1].pos;
+					} else {
+						startPos = yPoints[i].pos;
+						diffPos = yPoints[i - 1].pos - yPoints[i].pos;
+					}
 					break;
 				}
 			}
@@ -10634,14 +10679,16 @@ drawScatterChart.prototype = {
 		var xPoints = this.catAx.xPoints;
 		var yPoints = this.valAx.yPoints;
 
-		var x, y, x1, y1, isSplineLine;
+		//пока smooth для логарифмической шкалы не выставлю - рисуется не верно
+		var allAxisLog = this.catAx.scaling && this.catAx.scaling.logBase && this.valAx.scaling && this.valAx.scaling.logBase;
+		var x, y, x1, y1, x2, y2, x3, y3, isSplineLine;
 
 		if(!points) {
 			return;
 		}
 
 		for (var i = 0; i < points.length; i++) {
-			isSplineLine = this.chart.series[i].smooth !== false;
+			isSplineLine = !allAxisLog && this.chart.series[i].smooth !== false;
 
 			if (!points[i]) {
 				continue;
@@ -10658,17 +10705,17 @@ drawScatterChart.prototype = {
 				if (points[i][n] != null && points[i][n + 1] != null) {
 					if (isSplineLine) {
 
-						var x = points[i][n - 1] ? points[i][n - 1].x : points[i][n].x;
-						var y = points[i][n - 1] ? points[i][n - 1].y : points[i][n].y;
+						x = points[i][n - 1] ? points[i][n - 1].x : points[i][n].x;
+						y = points[i][n - 1] ? points[i][n - 1].y : points[i][n].y;
 
-						var x1 = points[i][n].x;
-						var y1 = points[i][n].y;
+						x1 = points[i][n].x;
+						y1 = points[i][n].y;
 
-						var x2 = points[i][n + 1] ? points[i][n + 1].x : points[i][n].x;
-						var y2 = points[i][n + 1] ? points[i][n + 1].y : points[i][n].y;
+						x2 = points[i][n + 1] ? points[i][n + 1].x : points[i][n].x;
+						y2 = points[i][n + 1] ? points[i][n + 1].y : points[i][n].y;
 
-						var x3 = points[i][n + 2] ? points[i][n + 2].x : points[i][n + 1] ? points[i][n + 1].x : points[i][n].x;
-						var y3 = points[i][n + 2] ? points[i][n + 2].y : points[i][n + 1] ? points[i][n + 1].y : points[i][n].y;
+						x3 = points[i][n + 2] ? points[i][n + 2].x : points[i][n + 1] ? points[i][n + 1].x : points[i][n].x;
+						y3 = points[i][n + 2] ? points[i][n + 2].y : points[i][n + 1] ? points[i][n + 1].y : points[i][n].y;
 
 						//this.paths.series[i][n] = {path: this.cChartDrawer.calculateSplineLine(x, y, x1, y1, x2, y2, x3, y3, this.catAx, this.valAx), idx: points[i][n].idx};
 						this.paths.series[i][n] = this.cChartDrawer.calculateSplineLine(x, y, x1, y1, x2, y2, x3, y3, this.catAx, this.valAx);
