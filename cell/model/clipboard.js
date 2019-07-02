@@ -503,8 +503,6 @@
 			},
 
 			getBinaryForCopy: function (wsModel, objectRender, activeRange, selectAll) {
-				selectAll = true;
-
 				var isIntoShape = objectRender && objectRender.controller ? objectRender.controller.getTargetDocContent() : null;
 
 				var sBase64 = null;
@@ -517,9 +515,7 @@
 
 					var unselectedIndexes = [];
 					if(selectAll) {
-						if(activeRange) {
-							activeRange = new Asc.Range(0, 0, AscCommon.gc_nMaxCol - 1, AscCommon.gc_nMaxRow - 1);
-						}
+						activeRange = new Asc.Range(0, 0, AscCommon.gc_nMaxCol - 1, AscCommon.gc_nMaxRow - 1);
 
 						for(var i = 0; i < wsModel.Drawings.length; i++) {
 							if(!wsModel.Drawings[i].graphicObject.selected) {

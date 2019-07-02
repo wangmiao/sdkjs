@@ -483,8 +483,8 @@ var editor;
 
   spreadsheet_api.prototype.asc_PasteData = function (_format, data1, data2, text_data) {
     if (this.canEdit()) {
-      this.asc_EndMoveSheet2(data1, 1, "test2");
-      //this.wb.pasteData(_format, data1, data2, text_data, arguments[5]);
+      this.wb.pasteData(_format, data1, data2, text_data, arguments[5]);
+      //this.asc_EndMoveSheet2(data1, 1, "test2");
     }
   };
 
@@ -2237,35 +2237,7 @@ var editor;
       return binaryStr;
   };
 
-  spreadsheet_api.prototype.asc_EndMoveSheet = function(str, where, name) {
-	  var t = this;
-	  var addWorksheetCallback = function(res) {
-		  if (res) {
-			  History.Create_NewPoint();
-			  History.StartTransaction();
-
-			  var newIndex = t.wbModel.createWorksheet(where, name);
-			  t.wb.spliceWorksheet(where, 0, null);
-
-			  var newWs = t.wb.getWorksheet(newIndex);
-			  AscCommonExcel.g_clipboardExcel.pasteData(newWs, AscCommon.c_oAscClipboardDataFormat.Internal, str, null, null, null, true, true);
-			  //AscCommonExcel.g_clipboardExcel.pasteProcessor._pasteFromBinaryExcel(newWs, str.split('xslData;')[1], undefined, undefined, true);
-
-			  if (!window["NATIVE_EDITOR_ENJINE"] || window['IS_NATIVE_EDITOR'] || window['DoctRendererMode']) {
-				  t.asc_showWorksheet(newIndex);
-				  // Посылаем callback об изменении списка листов
-				  t.sheetsChanged();
-			  }
-
-			  History.EndTransaction()
-		  }
-	  };
-
-	  var lockInfo = this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Sheet, /*subType*/null, AscCommonExcel.c_oAscLockAddSheet, AscCommonExcel.c_oAscLockAddSheet);
-	  this.collaborativeEditing.lock([lockInfo], addWorksheetCallback);
-  };
-
-  spreadsheet_api.prototype.asc_EndMoveSheet2 = function(base64, index, name) {
+  spreadsheet_api.prototype.asc_EndMoveSheet = function(base64, index, name) {
 	  var scale = this.asc_getZoom();
 	  var i = this.wbModel.getActive();
 
