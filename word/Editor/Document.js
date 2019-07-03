@@ -1829,6 +1829,7 @@ function CDocument(DrawingDocument, isMainLogicDocument)
 	this.RecalcTableHeader         = false; // Пересчитываем ли сейчас заголовок таблицы
 	this.TrackMoveId               = null;  // Идентификатор переноса внутри рецензирования
 	this.RemoveEmptySelection      = true;  // При обновлении селекта, если он пустой тогда сбрасываем его
+	this.MoveDrawing               = false; // Происходит ли сейчас перенос автофигуры
 
 	// Параметры для случая, когда мы не можем сразу перерисовать треки и нужно перерисовывать их на таймере пересчета
 	this.NeedUpdateTracksOnRecalc = false;
@@ -5248,6 +5249,30 @@ CDocument.prototype.MoveCursorToSignature = function(sGuid)
 {
     this.DrawingObjects.moveCursorToSignature(sGuid);
 };
+CDocument.prototype.MoveCursorToPageStart = function()
+{
+	if (docpostype_Content !== this.GetDocPosType())
+	{
+		this.RemoveSelection();
+		this.SetDocPosType(docpostype_Content);
+	}
+
+	this.MoveCursorToXY(0, 0, false);
+	this.UpdateInterface();
+	this.UpdateSelection();
+};
+CDocument.prototype.MoveCursorToPageEnd = function()
+{
+	if (docpostype_Content !== this.GetDocPosType())
+	{
+		this.RemoveSelection();
+		this.SetDocPosType(docpostype_Content);
+	}
+
+	this.MoveCursorToXY(0, 10000, false);
+	this.UpdateInterface();
+	this.UpdateSelection();
+};
 CDocument.prototype.SetParagraphAlign = function(Align)
 {
 	var SelectedInfo = this.GetSelectedElementsInfo();
@@ -7681,6 +7706,11 @@ CDocument.prototype.Insert_Content = function(SelectedContent, NearPos)
 				ParaS.Selection.Use      = true;
 				ParaS.Selection.StartPos = ParaS.Content.length - _ParaSContentLen;
 				ParaS.Selection.EndPos   = ParaS.Content.length - 1;
+
+				for (var nParaSIndex = ParaS.Selection.StartPos; nParaSIndex <= Math.min(ParaS.Selection.EndPos, ParaS.Content.length - 1); ++nParaSIndex)
+				{
+					ParaS.Content[nParaSIndex].SelectAll(1);
+				}
 			}
 			else if (true !== Para.IsCursorAtBegin() && true !== bDoNotIncreaseDstIndex)
 			{

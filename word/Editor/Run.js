@@ -112,7 +112,8 @@ function ParaRun(Paragraph, bMathRun)
 		&& editor.WordControl
 		&& editor.WordControl.m_oLogicDocument
 		&& true === editor.WordControl.m_oLogicDocument.IsTrackRevisions()
-		&& !editor.WordControl.m_oLogicDocument.RecalcTableHeader)
+		&& !editor.WordControl.m_oLogicDocument.RecalcTableHeader
+		&& !editor.WordControl.m_oLogicDocument.MoveDrawing)
 	{
 		this.ReviewType = reviewtype_Add;
 		this.ReviewInfo.Update();
@@ -191,11 +192,11 @@ ParaRun.prototype.Copy = function(Selected, oPr, isCopyReviewPr)
     NewRun.Set_Pr( this.Pr.Copy() );
 
     var oLogicDocument = this.GetLogicDocument();
-    if (true === isCopyReviewPr || (oLogicDocument && oLogicDocument.RecalcTableHeader))
+    if (true === isCopyReviewPr || (oLogicDocument && (oLogicDocument.RecalcTableHeader || oLogicDocument.MoveDrawing)))
 	{
 		var nReviewType = this.GetReviewType();
 		var oReviewInfo = this.GetReviewInfo().Copy();
-		if (!(oLogicDocument && oLogicDocument.RecalcTableHeader))
+		if (!(oLogicDocument && (oLogicDocument.RecalcTableHeader || oLogicDocument.MoveDrawing)))
 			oReviewInfo.SetMove(Asc.c_oAscRevisionsMove.NoMove);
 
 		NewRun.SetReviewTypeWithInfo(nReviewType, oReviewInfo);
@@ -467,6 +468,18 @@ ParaRun.prototype.Add = function(Item, bMath)
 {
 	if (undefined !== Item.Parent)
 		Item.Parent = this;
+
+	if (this.IsParaEndRun())
+	{
+		var NewRun = this.private_SplitRunInCurPos();
+		if (NewRun)
+		{
+			NewRun.MoveCursorToStartPos();
+			NewRun.Add(Item, bMath);
+			NewRun.Make_ThisElementCurrent();
+			return;
+		}
+	}
 
 	if (this.Paragraph && this.Paragraph.LogicDocument)
 	{
@@ -1015,7 +1028,7 @@ ParaRun.prototype.Remove = function(Direction, bOnAddText)
 					if (oComplexField)
 					{
 						oComplexField.SelectField();
-						var oLogicDocument = this.Paragraph ? this.Paragraph.LogicDocument : null;
+						var oLogicDocument = (this.Paragraph && this.Paragraph.bFromDocument) ? this.Paragraph.LogicDocument : null;
 						if (oLogicDocument)
 						{
 							oLogicDocument.Document_UpdateInterfaceState();
@@ -1025,7 +1038,7 @@ ParaRun.prototype.Remove = function(Direction, bOnAddText)
 					return true;
 				}
 
-				var oStyles = this.Paragraph ? this.Paragraph.LogicDocument.GetStyles() : null;
+				var oStyles = (this.Paragraph && this.Paragraph.bFromDocument) ? this.Paragraph.LogicDocument.GetStyles() : null;
 				if (oStyles && 1 === this.Content.length && para_FootnoteReference === this.Content[0].Type && this.Get_RStyle() === oStyles.GetDefaultFootnoteReference())
 					this.Set_RStyle(undefined);
 
@@ -1051,7 +1064,7 @@ ParaRun.prototype.Remove = function(Direction, bOnAddText)
 					if (oComplexField)
 					{
 						oComplexField.SelectField();
-						var oLogicDocument = this.Paragraph ? this.Paragraph.LogicDocument : null;
+						var oLogicDocument = (this.Paragraph && this.Paragraph.bFromDocument) ? this.Paragraph.LogicDocument : null;
 						if (oLogicDocument)
 						{
 							oLogicDocument.Document_UpdateInterfaceState();
@@ -1061,7 +1074,7 @@ ParaRun.prototype.Remove = function(Direction, bOnAddText)
 					return true;
 				}
 
-				var oStyles = this.Paragraph ? this.Paragraph.LogicDocument.GetStyles() : null;
+				var oStyles = (this.Paragraph && this.Paragraph.bFromDocument) ? this.Paragraph.LogicDocument.GetStyles() : null;
 				if (oStyles && 1 === this.Content.length && para_FootnoteReference === this.Content[0].Type && this.Get_RStyle() === oStyles.GetDefaultFootnoteReference())
 					this.Set_RStyle(undefined);
 
@@ -10187,7 +10200,9 @@ ParaRun.prototype.RejectRevisionChanges = function(nType, bAll)
 			CenterRun.Set_Pr(CenterRun.Pr.PrChange);
 		}
 
-		if (reviewtype_Add === ReviewType
+		var oReviewInfo = this.GetReviewInfo();
+		var oPrevInfo   = oReviewInfo.GetPrevAdded();
+		if ((reviewtype_Add === ReviewType
 			&& (undefined === nType
 			|| c_oAscRevisionsChangeType.TextAdd === nType
 			|| (c_oAscRevisionsChangeType.MoveMark === nType
@@ -10195,6 +10210,10 @@ ParaRun.prototype.RejectRevisionChanges = function(nType, bAll)
 			&& oProcessMove
 			&& !oProcessMove.IsFrom()
 			&& oProcessMove.GetUserId() === this.GetReviewInfo().GetUserId())))
+			|| (undefined === nType
+			&& bAll
+			&& reviewtype_Remove === ReviewType
+			&& oPrevInfo))
 		{
 			Parent.RemoveFromContent(CenterRunPos, 1);
 
@@ -10214,8 +10233,6 @@ ParaRun.prototype.RejectRevisionChanges = function(nType, bAll)
 			&& oProcessMove.IsFrom()
 			&& oProcessMove.GetUserId() === this.GetReviewInfo().GetUserId())))
 		{
-			var oReviewInfo = this.GetReviewInfo();
-			var oPrevInfo   = oReviewInfo.GetPrevAdded();
 			if (oPrevInfo && c_oAscRevisionsChangeType.MoveMark !== nType)
 			{
 				CenterRun.SetReviewTypeWithInfo(reviewtype_Add, oPrevInfo.Copy());

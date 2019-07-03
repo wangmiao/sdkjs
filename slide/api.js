@@ -3989,6 +3989,39 @@ background-repeat: no-repeat;\
 		}
 	};
 
+	asc_docs_api.prototype.asc_addSlideNumber = function()
+	{
+		this.WordControl.m_oLogicDocument.addSlideNumber();
+	};
+	asc_docs_api.prototype.asc_addDateTime = function(oPr)
+	{
+		this.WordControl.m_oLogicDocument.addDateTime(oPr);
+	};
+	asc_docs_api.prototype.asc_setDefaultDateTimeFormat = function(sFormat)
+	{
+		window['AscCommonWord'] = window['AscCommonWord'] || {};
+		window['AscCommonWord'].sDefaultDateTimeFormat = sFormat;
+	};
+
+	asc_docs_api.prototype.asc_getHeaderFooterProperties = function()
+	{
+		if(this.WordControl && this.WordControl.m_oLogicDocument)
+		{
+			return this.WordControl.m_oLogicDocument.getHFProperties();
+		}
+		return null;
+	};
+
+	asc_docs_api.prototype.asc_setHeaderFooterProperties = function(oProps, bAll)
+	{
+		if(this.WordControl && this.WordControl.m_oLogicDocument)
+		{
+			return this.WordControl.m_oLogicDocument.setHFProperties(oProps, bAll);
+		}
+		return null;
+	};
+
+
 	asc_docs_api.prototype.asc_addOleObjectAction = function(sLocalUrl, sData, sApplicationId, fWidth, fHeight, nWidthPix, nHeightPix)
 	{
 		var _image = this.ImageLoader.LoadImage(AscCommon.getFullImageSrc2(sLocalUrl), 1);
@@ -5198,7 +5231,13 @@ background-repeat: no-repeat;\
 		this.WordControl.m_oLogicDocument.Set_MathProps(MathProps);
 	};
 
-
+	asc_docs_api.prototype.asc_SetHFProps = function(HFProps, bAll)
+	{
+		if(this.WordControl && this.WordControl.m_oLogicDocument)
+		{
+			this.WordControl.m_oLogicDocument.setHFProperties(HFProps, bAll);
+		}
+	};
 
 	asc_docs_api.prototype.asyncFontEndLoaded = function(fontinfo)
 	{
@@ -7848,6 +7887,12 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype["asc_pluginResize"]                    = asc_docs_api.prototype.asc_pluginResize;
 	asc_docs_api.prototype["asc_pluginButtonClick"]               = asc_docs_api.prototype.asc_pluginButtonClick;
 	asc_docs_api.prototype["asc_pluginEnableMouseEvents"]         = asc_docs_api.prototype.asc_pluginEnableMouseEvents;
+
+	asc_docs_api.prototype["asc_addSlideNumber"]                  = asc_docs_api.prototype.asc_addSlideNumber;
+	asc_docs_api.prototype["asc_addDateTime"]                     = asc_docs_api.prototype.asc_addDateTime;
+	asc_docs_api.prototype["asc_setDefaultDateTimeFormat"]        = asc_docs_api.prototype.asc_setDefaultDateTimeFormat;
+	asc_docs_api.prototype["asc_getHeaderFooterProperties"]       = asc_docs_api.prototype.asc_getHeaderFooterProperties;
+	asc_docs_api.prototype["asc_setHeaderFooterProperties"]       = asc_docs_api.prototype.asc_setHeaderFooterProperties;
 
 	asc_docs_api.prototype["asc_startEditCurrentOleObject"]       = asc_docs_api.prototype.asc_startEditCurrentOleObject;
 	asc_docs_api.prototype["asc_InputClearKeyboardElement"]       = asc_docs_api.prototype.asc_InputClearKeyboardElement;
