@@ -1716,17 +1716,18 @@
 					var bbox = printTitleRefs[i].bbox;
 					if(bbox) {
 						if(c_oAscSelectionType.RangeCol === bbox.getType()) {
-							tRow1 = bbox.r1;
-							tRow2 = bbox.r2;
-						} else if(c_oAscSelectionType.RangeRow === bbox.getType()) {
 							tCol1 = bbox.c1;
 							tCol2 = bbox.c2;
+						} else if(c_oAscSelectionType.RangeRow === bbox.getType()) {
+							tRow1 = bbox.r1;
+							tRow2 = bbox.r2;
 						}
 					}
 				}
 			}
 		}
 
+		var titleRow = tRow1, titleCol = tCol1;
 		while (AscCommonExcel.c_kMaxPrintPages > arrPages.length) {
 			var newPagePrint = new asc_CPagePrint();
 
@@ -1744,7 +1745,23 @@
 			newPagePrint.leftFieldInPx = leftFieldInPx;
 			newPagePrint.topFieldInPx = topFieldInPx;
 
+			if(titleRow !== undefined && titleRow >= tRow2) {
+				titleRow = tRow1;
+			}
+			if(titleCol !== undefined && titleCol >= tCol2) {
+				titleCol = tCol1;
+			}
+
+			//каждая новая страница должна начинаться с заголовков печати
 			for (rowIndex = currentRowIndex; rowIndex <= range.r2; ++rowIndex) {
+				if(titleRow !== undefined) {
+					if(titleRow <= tRow2) {
+						rowIndex = titleRow;
+					} else if(titleRow === tRow2 + 1 && tRow1 !== currentRowIndex) {
+						rowIndex = currentRowIndex;
+					}
+				}
+
 				var currentRowHeight = this._getRowHeight(rowIndex);
 				if (!bFitToHeight && currentHeight + currentRowHeight > pageHeightWithFieldsHeadings) {
 					// Закончили рисовать страницу
@@ -1753,6 +1770,15 @@
 				}
 				if (isCalcColumnsWidth) {
 					for (colIndex = currentColIndex; colIndex <= range.c2; ++colIndex) {
+
+						if(titleCol !== undefined) {
+							if(titleCol !== undefined && titleCol <= tCol2) {
+								colIndex = titleCol;
+							} else if(titleCol === tCol2 + 1 && tCol1 !== currentColIndex) {
+								colIndex = currentColIndex;
+							}
+						}
+
 						var currentColWidth = this._getColumnWidth(colIndex);
 						if (bIsAddOffset) {
 							newPagePrint.startOffset = ++nCountOffset;
@@ -1777,6 +1803,9 @@
 						} else {
 							bIsAddOffset = false;
 						}
+						if(titleCol !== undefined) {
+							titleCol++;
+						}
 					}
 					isCalcColumnsWidth = false;
 					if (pageHeadings) {
@@ -1794,6 +1823,9 @@
 
 				currentHeight += currentRowHeight;
 				currentWidth = 0;
+				if(titleRow !== undefined) {
+					titleRow++;
+				}
 			}
 
 			if (pageHeadings) {
