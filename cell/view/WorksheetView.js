@@ -1702,7 +1702,31 @@
 		var bIsAddOffset = false;
 		var nCountOffset = 0;
 
+		//PRINT TITLES
 		var t = this;
+		var printTitles = this.model.workbook.getDefinesNames("Print_Titles", this.model.getId());
+		var tCol1, tCol2, tRow1, tRow2;
+		if(printTitles) {
+			var printTitleRefs;
+			AscCommonExcel.executeInR1C1Mode(false, function () {
+				printTitleRefs = AscCommonExcel.getRangeByRef(printTitles.ref, t.model, true, true)
+			});
+			if(printTitleRefs && printTitleRefs.length) {
+				for(var i = 0; i < printTitleRefs.length; i++) {
+					var bbox = printTitleRefs[i].bbox;
+					if(bbox) {
+						if(c_oAscSelectionType.RangeCol === bbox.getType()) {
+							tRow1 = bbox.r1;
+							tRow2 = bbox.r2;
+						} else if(c_oAscSelectionType.RangeRow === bbox.getType()) {
+							tCol1 = bbox.c1;
+							tCol2 = bbox.c2;
+						}
+					}
+				}
+			}
+		}
+
 		while (AscCommonExcel.c_kMaxPrintPages > arrPages.length) {
 			var newPagePrint = new asc_CPagePrint();
 
