@@ -179,6 +179,7 @@
 			SessionToken: -122,
 
 			/* для формул */
+			FrmlMaxTextLength           : -299,
 			FrmlWrongCountParentheses   : -300,
 			FrmlWrongOperator           : -301,
 			FrmlWrongMaxArgument        : -302,
@@ -207,7 +208,9 @@
 
 			MailToClientMissing	: -452,
 
-			NoDataToParse : -601
+			NoDataToParse : -601,
+
+			CannotUngroupError : -700
 		}
 	};
 
@@ -864,6 +867,8 @@
 		PageRightField  : 17.8,
 		PageTopField    : 19.1,
 		PageBottomField : 19.1,
+		PageHeaderField : 7.62,
+		PageFooterField : 7.62,
 		MinPageLeftField	: 0.17,
 		MinPageRightField	: 0.17,
 		MinPageTopField		: 0.17,
@@ -1140,6 +1145,7 @@
 	var changestype_AddShapes                 = 73;
 	var changestype_PresDefaultLang           = 74;
 	var changestype_SlideHide                 = 75;
+	var changestype_CorePr                    = 76;
 
 	var changestype_2_InlineObjectMove       = 1; // Передвигаем объект в заданную позцию (проверяем место, в которое пытаемся передвинуть)
 	var changestype_2_HdrFtr                 = 2; // Изменения с колонтитулом
@@ -1599,6 +1605,7 @@
 	prot['SessionAbsolute']                  = prot.SessionAbsolute;
 	prot['SessionIdle']                      = prot.SessionIdle;
 	prot['SessionToken']                     = prot.SessionToken;
+	prot['FrmlMaxTextLength']                = prot.FrmlMaxTextLength;
 	prot['FrmlWrongCountParentheses']        = prot.FrmlWrongCountParentheses;
 	prot['FrmlWrongOperator']                = prot.FrmlWrongOperator;
 	prot['FrmlWrongMaxArgument']             = prot.FrmlWrongMaxArgument;
@@ -1620,6 +1627,7 @@
 	prot['OpenWarning']                      = prot.OpenWarning;
 	prot['DataEncrypted']                    = prot.DataEncrypted;
 	prot['NoDataToParse']                    = prot.NoDataToParse;
+	prot['CannotUngroupError']               = prot.CannotUngroupError;
 	window['Asc']['c_oAscAsyncAction']       = window['Asc'].c_oAscAsyncAction = c_oAscAsyncAction;
 	prot                                     = c_oAscAsyncAction;
 	prot['Open']                             = prot.Open;
@@ -2186,6 +2194,7 @@
 	window["AscCommon"].changestype_AddShapes                 = changestype_AddShapes;
 	window["AscCommon"].changestype_PresDefaultLang           = changestype_PresDefaultLang;
 	window["AscCommon"].changestype_SlideHide                 = changestype_SlideHide;
+	window["AscCommon"].changestype_CorePr                    = changestype_CorePr;
 	window["AscCommon"].changestype_2_InlineObjectMove        = changestype_2_InlineObjectMove;
 	window["AscCommon"].changestype_2_HdrFtr                  = changestype_2_HdrFtr;
 	window["AscCommon"].changestype_2_Comment                 = changestype_2_Comment;

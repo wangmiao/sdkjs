@@ -175,6 +175,13 @@ if(typeof CDocument !== "undefined")
 			{
 				this.DrawingObjects.Lock.Check(this.DrawingObjects.Get_Id());
 			}
+			else if(AscCommon.changestype_CorePr === CheckType)
+			{
+				if(this.Core)
+				{
+					this.Core.Lock.Check(this.Core.Get_Id());
+				}
+			}
 			else
 			{
 				this.Controller.IsSelectionLocked(CheckType);
@@ -646,23 +653,24 @@ CTable.prototype.Document_Is_SelectionLocked = function(CheckType, bCheckInner)
         case AscCommon.changestype_Delete:
         case AscCommon.changestype_Image_Properties:
         {
-            if ( true === this.ApplyToAll || (true === this.Selection.Use && table_Selection_Cell === this.Selection.Type) )
-            {
-                var Cells_array = this.Internal_Get_SelectionArray();
+			if (this.IsCellSelection())
+			{
+				var arrCells = this.GetSelectionArray();
+				var Count = arrCells.length;
+				for (var Index = 0; Index < Count; Index++)
+				{
+					var Pos  = arrCells[Index];
+					var Cell = this.Content[Pos.Row].Get_Cell(Pos.Cell);
 
-                var Count = Cells_array.length;
-                for ( var Index = 0; Index < Count; Index++ )
-                {
-                    var Pos  = Cells_array[Index];
-                    var Cell = this.Content[Pos.Row].Get_Cell( Pos.Cell );
-
-                    Cell.Content.Set_ApplyToAll( true );
-                    Cell.Content.Document_Is_SelectionLocked( CheckType );
-                    Cell.Content.Set_ApplyToAll( false );
-                }
-            }
-            else
-                this.CurCell.Content.Document_Is_SelectionLocked( CheckType );
+					Cell.Content.Set_ApplyToAll(true);
+					Cell.Content.Document_Is_SelectionLocked(CheckType);
+					Cell.Content.Set_ApplyToAll(false);
+				}
+			}
+			else if (this.CurCell)
+			{
+				this.CurCell.Content.Document_Is_SelectionLocked(CheckType);
+			}
 
             bCheckContentControl = true;
             break;
@@ -1124,6 +1132,20 @@ if(typeof CPresentation !== "undefined")
                 };
                 this.Slides[selected_slides[i]].showLock.Lock.Check(check_obj);
             }
+        }
+
+        if(CheckType === AscCommon.changestype_CorePr)
+        {
+			if(this.Core)
+			{
+				this.Core.Lock.Check(
+					{
+						"type": c_oAscLockTypeElemPresentation.Object,
+						"val": this.Core.Get_Id(),
+						"guid": this.Core.Get_Id(),
+						"objId": this.Core.Get_Id()
+					});
+			}
         }
 
         if(CheckType === AscCommon.changestype_SlideTiming)

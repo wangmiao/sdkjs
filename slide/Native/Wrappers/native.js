@@ -182,10 +182,6 @@ AscCommon.ChartPreviewManager.prototype.createChartPreview = function(_graphics,
       // sizes for imageView
       window["native"]["DD_StartNativeDraw"](85 * 2, 85 * 2, 75, 75);
 
-      var dKoefToMM = AscCommon.g_dKoef_pix_to_mm;
-      if (this.IsRetinaEnabled)
-          dKoefToMM /= 2;
-
       chart_space.draw(_graphics);
       _graphics.ClearParams();
 
@@ -203,7 +199,7 @@ AscCommon.ChartPreviewManager.prototype.getChartPreviews = function(chartType)
 {
     if (AscFormat.isRealNumber(chartType))
     {
-        var bIsCached = window["native"]["DD_IsCachedChartStyles"](chartType);
+        var bIsCached = window["native"]["IsCachedChartStyles"](chartType);
         if (!bIsCached)
         {
             window["native"]["DD_PrepareNativeDraw"]();
@@ -252,7 +248,7 @@ window["AscCommon"].getFullImageSrc2 = function (src) {
         }
     }
     return src;
-}
+};
 
 Asc['asc_docs_api'].prototype["Call_Menu_Event"] = function(type, _params)
 {
@@ -1494,4 +1490,4 @@ Asc['asc_docs_api'].prototype["Call_Menu_Event"] = function(type, _params)
     }
 
     return _return;
-}
+};

@@ -323,6 +323,7 @@ var editor;
     AscCommonExcel.g_DefNameWorksheet = new AscCommonExcel.Worksheet(wbModel, -1);
     AscCommonExcel.g_oUndoRedoSharedFormula = new AscCommonExcel.UndoRedoSharedFormula(wbModel);
     AscCommonExcel.g_oUndoRedoLayout = new AscCommonExcel.UndoRedoRedoLayout(wbModel);
+    AscCommonExcel.g_oUndoRedoHeaderFooter = new AscCommonExcel.UndoRedoHeaderFooter(wbModel);
     AscCommonExcel.g_oUndoRedoArrayFormula = new AscCommonExcel.UndoRedoArrayFormula(wbModel);
   };
 
@@ -611,7 +612,7 @@ var editor;
   };
 
 	spreadsheet_api.prototype.asc_getTablePictures = function (props, pivot) {
-		return this.wb.af_getTablePictures(props, pivot);
+		return this.wb.getTableStyles(props, pivot);
 	};
 
   spreadsheet_api.prototype.asc_setViewMode = function (isViewMode) {
@@ -781,7 +782,7 @@ var editor;
 			this.openDocumentFromZip(t.wbModel, this.openingEnd.data).then(function() {
 				g_oIdCounter.Set_Load(false);
 				AscCommon.checkCultureInfoFontPicker();
-				AscCommonExcel.asc_CStylesPainter.prototype.asc_checkStylesNames(t.wbModel.CellStyles);
+				AscCommonExcel.checkStylesNames(t.wbModel.CellStyles);
 				t.FontLoader.LoadDocumentFonts(t.wbModel.generateFontMap2());
 
 				// Какая-то непонятная заглушка, чтобы не падало в ipad
@@ -1257,6 +1258,9 @@ var editor;
       },
       "updateAllLayoutsLock": function() {
           t._onUpdateAllLayoutsLock.apply(t, arguments);
+      },
+      "updateAllHeaderFooterLock": function() {
+          t._onUpdateAllHeaderFooterLock.apply(t, arguments);
       }
     }, this.getViewMode());
 
@@ -1290,7 +1294,17 @@ var editor;
         if (lockType === c_oAscLockTypeElem.Object) {
           drawing = g_oTableId.Get_ById(lockElem.Element["rangeOrObjectId"]);
           if (drawing) {
+            var bLocked, bLocked2;
+            bLocked = drawing.lockType !== c_oAscLockTypes.kLockTypeNone && drawing.lockType !== c_oAscLockTypes.kLockTypeMine;
+
             drawing.lockType = lockElem.Type;
+
+            if(drawing instanceof AscCommon.CCore) {
+              bLocked2 = drawing.lockType !== c_oAscLockTypes.kLockTypeNone && drawing.lockType !== c_oAscLockTypes.kLockTypeMine;
+              if(bLocked2 !== bLocked) {
+                t.sendEvent("asc_onLockCore", bLocked2);
+              }
+            }
           }
         }
 
@@ -1307,6 +1321,8 @@ var editor;
           t._onUpdateLayoutLock(lockElem);
           //эвент о локе в меню опции print area во вкладке layout
           t._onUpdatePrintAreaLock(lockElem);
+          //эвент о локе в меню опции headers/footers во вкладке layout
+          t._onUpdateHeaderFooterLock(lockElem);
 
           var ws = t.wb.getWorksheet();
           var lockSheetId = lockElem.Element["sheetId"];
@@ -1368,7 +1384,13 @@ var editor;
             if (lockElem.Element["type"] === c_oAscLockTypeElem.Object) {
               drawing = g_oTableId.Get_ById(lockElem.Element["rangeOrObjectId"]);
               if (drawing) {
+                var bLocked = drawing.lockType !== c_oAscLockTypes.kLockTypeNone && drawing.lockType !== c_oAscLockTypes.kLockTypeMine;
                 drawing.lockType = c_oAscLockTypes.kLockTypeNone;
+                if(drawing instanceof AscCommon.CCore) {
+                  if(bLocked){
+                    t.sendEvent("asc_onLockCore", false);
+                  }
+                }
               }
             }
           }
@@ -1382,6 +1404,8 @@ var editor;
           t._onUpdateLayoutLock(lockElem);
           //эвент о локе в меню опции print area во вкладке layout
           t._onUpdatePrintAreaLock(lockElem);
+          //эвент о локе в меню опции headers/footers во вкладке layout
+          t._onUpdateHeaderFooterLock(lockElem);
         }
       }
     };
@@ -1519,6 +1543,24 @@ var editor;
       }
   };
 
+  spreadsheet_api.prototype._onUpdateAllHeaderFooterLock = function () {
+      var t = this;
+      if (t.wbModel) {
+          var i, length, wsModel, wsIndex;
+          for (i = 0, length = t.wbModel.getWorksheetCount(); i < length; ++i) {
+              wsModel = t.wbModel.getWorksheet(i);
+              wsIndex = wsModel.getIndex();
+
+              var isLocked = t.asc_isLayoutLocked(wsIndex);
+              if (isLocked) {
+                  t.handlers.trigger("asc_onLockHeaderFooter", wsIndex);
+              } else {
+                  t.handlers.trigger("asc_onUnLockHeaderFooter", wsIndex);
+              }
+          }
+      }
+  };
+
   spreadsheet_api.prototype._onUpdateLayoutMenu = function (nSheetId) {
       var t = this;
       if (t.wbModel) {
@@ -1589,23 +1631,33 @@ var editor;
       }
   };
 
+  spreadsheet_api.prototype._onUpdateHeaderFooterLock = function(lockElem) {
+      var t = this;
+
+      var wsModel = t.wbModel.getWorksheetById(lockElem.Element["sheetId"]);
+      if (wsModel) {
+          var wsIndex = wsModel.getIndex();
+
+          var isLocked = t.asc_isHeaderFooterLocked();
+          if(isLocked) {
+              t.handlers.trigger("asc_onLockHeaderFooter");
+          } else {
+              t.handlers.trigger("asc_onUnLockHeaderFooter");
+          }
+      }
+  };
+
   spreadsheet_api.prototype._onUpdateFrozenPane = function(lockElem) {
     return (c_oAscLockTypeElem.Object === lockElem.Element["type"] && lockElem.Element["rangeOrObjectId"] === AscCommonExcel.c_oAscLockNameFrozenPane);
   };
 
-	spreadsheet_api.prototype._sendWorkbookStyles = function () {
-		if (this.wbModel) {
-
-			if (window["NATIVE_EDITOR_ENJINE"]) {
-				// Для нативной версии (сборка и приложение) не генерируем стили
-				return;
-			}
-
-			// Отправка стилей ячеек
-			this.handlers.trigger("asc_onInitEditorStyles",
-				this.wb.getCellStyles(this.styleThumbnailWidth, this.styleThumbnailHeight));
-		}
-	};
+  spreadsheet_api.prototype._sendWorkbookStyles = function () {
+    // Для нативной версии (сборка и приложение) не генерируем стили
+    if (this.wbModel && !window["NATIVE_EDITOR_ENJINE"]) {
+      // Отправка стилей ячеек
+      this.handlers.trigger("asc_onInitEditorStyles", this.wb.getCellStyles(this.styleThumbnailWidth, this.styleThumbnailHeight));
+    }
+  };
 
   spreadsheet_api.prototype.startCollaborationEditing = function() {
     // Начинаем совместное редактирование
@@ -1886,6 +1938,10 @@ var editor;
     return this.wb.getDefaultDefinedName();
   };
 
+  spreadsheet_api.prototype.asc_getDefaultTableStyle = function() {
+      return this.wb.getDefaultTableStyle();
+  };
+
   spreadsheet_api.prototype._onUpdateDefinedNames = function(lockElem) {
 //      if( lockElem.Element["subType"] == AscCommonExcel.c_oAscLockTypeElemSubType.DefinedNames ){
       if( lockElem.Element["sheetId"] == -1 && lockElem.Element["rangeOrObjectId"] != -1 && !this.collaborativeEditing.getFast() ){
@@ -1939,6 +1995,21 @@ var editor;
       }
 
       var lockInfo = this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Object, /*subType*/null, sheetId, "layoutOptions");
+      // Проверим, редактирует ли кто-то лист
+      return (false !== this.collaborativeEditing.getLockIntersection(lockInfo, c_oAscLockTypes.kLockTypeOther, /*bCheckOnlyLockAll*/false));
+  };
+
+	// Залочена ли работа с листом
+  spreadsheet_api.prototype.asc_isHeaderFooterLocked = function(index) {
+      var ws = this.wbModel.getWorksheet(index);
+      var sheetId = null;
+      if (null === ws || undefined === ws) {
+          sheetId = this.asc_getActiveWorksheetId();
+      } else {
+          sheetId = ws.getId();
+      }
+
+      var lockInfo = this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Object, /*subType*/null, sheetId, "headerFooter");
       // Проверим, редактирует ли кто-то лист
       return (false !== this.collaborativeEditing.getLockIntersection(lockInfo, c_oAscLockTypes.kLockTypeOther, /*bCheckOnlyLockAll*/false));
   };
@@ -2314,6 +2385,35 @@ var editor;
 
   spreadsheet_api.prototype.asc_hideRows = function() {
     this.wb.getWorksheet().changeWorksheet("hideRows");
+  };
+
+  spreadsheet_api.prototype.asc_group = function(val) {
+    if(val) {
+		this.wb.getWorksheet().changeWorksheet("groupRows");
+    } else {
+		this.wb.getWorksheet().changeWorksheet("groupCols");
+    }
+  };
+
+  spreadsheet_api.prototype.asc_ungroup = function(val) {
+    if(val) {
+        this.wb.getWorksheet().changeWorksheet("groupRows", true);
+    } else {
+        this.wb.getWorksheet().changeWorksheet("groupCols", true);
+    }
+  };
+
+  spreadsheet_api.prototype.asc_checkAddGroup = function(bUngroup) {
+	  //true - rows, false - columns, null - show dialog, undefined - error
+    return this.wb.getWorksheet().checkAddGroup(bUngroup);
+  };
+
+  spreadsheet_api.prototype.asc_clearOutline = function() {
+	  this.wb.getWorksheet().changeWorksheet("clearOutline");
+  };
+
+  spreadsheet_api.prototype.asc_changeGroupDetails = function(bExpand) {
+	  this.wb.getWorksheet().changeGroupDetails(bExpand);
   };
 
   spreadsheet_api.prototype.asc_insertCells = function(options) {
@@ -3388,7 +3488,7 @@ var editor;
 	var thenCallback = function() {
 		g_oIdCounter.Set_Load(false);
 		AscCommon.checkCultureInfoFontPicker();
-		AscCommonExcel.asc_CStylesPainter.prototype.asc_checkStylesNames(t.wbModel.CellStyles);
+		AscCommonExcel.checkStylesNames(t.wbModel.CellStyles);
 		t._coAuthoringInit();
 		t.wb = new AscCommonExcel.WorkbookView(t.wbModel, t.controller, t.handlers, window["_null_object"], window["_null_object"], t, t.collaborativeEditing, t.fontRenderingMode);
 	};
@@ -3606,9 +3706,35 @@ var editor;
 	{
 		return this.wbModel && this.wbModel.App || null;
 	};
-	spreadsheet_api.prototype.asc_getCoreProps = function()
+
+    spreadsheet_api.prototype.asc_setCoreProps = function(oProps)
+    {
+      var oCore = this.getInternalCoreProps();
+      if(!oCore) {
+        return;
+      }
+      var oWS = this.wb && this.wb.getWorksheet();
+      if(!oWS || !oWS.objectRender) {
+        History.Create_NewPoint();
+        oCore.setProps(oProps);
+      }
+      var oLocker = oWS.objectRender.objectLocker;
+      oLocker.reset();
+      oLocker.addObjectId(oCore.Get_Id());
+      oLocker.checkObjects(
+          function(bNoLock, bSync){
+              if(bNoLock) {
+                History.Create_NewPoint();
+                oCore.setProps(oProps);
+              }
+          }
+      );
+      return null;
+    };
+
+	spreadsheet_api.prototype.getInternalCoreProps = function()
 	{
-		return this.wbModel && this.wbModel.Core || null;
+      return this.wbModel && this.wbModel.Core;
 	};
 
   /*
@@ -3622,9 +3748,9 @@ var editor;
   prot["asc_GetFontThumbnailsPath"] = prot.asc_GetFontThumbnailsPath;
   prot["asc_setDocInfo"] = prot.asc_setDocInfo;
   prot['asc_getFunctionArgumentSeparator'] = prot.asc_getFunctionArgumentSeparator;
-	prot['asc_getCurrencySymbols'] = prot.asc_getCurrencySymbols;
-	prot['asc_getLocaleExample'] = prot.asc_getLocaleExample;
-	prot['asc_getFormatCells'] = prot.asc_getFormatCells;
+  prot['asc_getCurrencySymbols'] = prot.asc_getCurrencySymbols;
+  prot['asc_getLocaleExample'] = prot.asc_getLocaleExample;
+  prot['asc_getFormatCells'] = prot.asc_getFormatCells;
   prot["asc_getLocaleCurrency"] = prot.asc_getLocaleCurrency;
   prot["asc_setLocale"] = prot.asc_setLocale;
   prot["asc_getLocale"] = prot.asc_getLocale;
@@ -3647,18 +3773,19 @@ var editor;
 
 
   prot["asc_getDocumentName"] = prot.asc_getDocumentName;
-	prot["asc_getAppProps"] = prot.asc_getAppProps;
-	prot["asc_getCoreProps"] = prot.asc_getCoreProps;
+  prot["asc_getAppProps"] = prot.asc_getAppProps;
+  prot["asc_getCoreProps"] = prot.asc_getCoreProps;
+  prot["asc_setCoreProps"] = prot.asc_setCoreProps;
   prot["asc_isDocumentModified"] = prot.asc_isDocumentModified;
   prot["asc_isDocumentCanSave"] = prot.asc_isDocumentCanSave;
-	prot["asc_getCanUndo"] = prot.asc_getCanUndo;
-	prot["asc_getCanRedo"] = prot.asc_getCanRedo;
+  prot["asc_getCanUndo"] = prot.asc_getCanUndo;
+  prot["asc_getCanRedo"] = prot.asc_getCanRedo;
 
   prot["asc_setAutoSaveGap"] = prot.asc_setAutoSaveGap;
 
-	prot["asc_setViewMode"] = prot.asc_setViewMode;
-	prot["asc_setFilteringMode"] = prot.asc_setFilteringMode;
-	prot["asc_setRestriction"] = prot.asc_setRestriction;
+  prot["asc_setViewMode"] = prot.asc_setViewMode;
+  prot["asc_setFilteringMode"] = prot.asc_setFilteringMode;
+  prot["asc_setRestriction"] = prot.asc_setRestriction;
   prot["asc_setAdvancedOptions"] = prot.asc_setAdvancedOptions;
   prot["asc_setPageOptions"] = prot.asc_setPageOptions;
   prot["asc_savePagePrintOptions"] = prot.asc_savePagePrintOptions;
@@ -3697,6 +3824,7 @@ var editor;
   prot["asc_isWorkbookLocked"] = prot.asc_isWorkbookLocked;
   prot["asc_isLayoutLocked"] = prot.asc_isLayoutLocked;
   prot["asc_isPrintAreaLocked"] = prot.asc_isPrintAreaLocked;
+  prot["asc_isHeaderFooterLocked"] = prot.asc_isHeaderFooterLocked;
   prot["asc_getHiddenWorksheets"] = prot.asc_getHiddenWorksheets;
   prot["asc_showWorksheet"] = prot.asc_showWorksheet;
   prot["asc_hideWorksheet"] = prot.asc_hideWorksheet;
@@ -3739,8 +3867,8 @@ var editor;
   prot["asc_mergeCellsDataLost"] = prot.asc_mergeCellsDataLost;
   prot["asc_sortCellsRangeExpand"] = prot.asc_sortCellsRangeExpand;
   prot["asc_getSheetViewSettings"] = prot.asc_getSheetViewSettings;
-	prot["asc_setDisplayGridlines"] = prot.asc_setDisplayGridlines;
-	prot["asc_setDisplayHeadings"] = prot.asc_setDisplayHeadings;
+  prot["asc_setDisplayGridlines"] = prot.asc_setDisplayGridlines;
+  prot["asc_setDisplayHeadings"] = prot.asc_setDisplayHeadings;
 
   // Defined Names
   prot["asc_getDefinedNames"] = prot.asc_getDefinedNames;
@@ -3768,9 +3896,18 @@ var editor;
   prot["asc_changeTableRange"] = prot.asc_changeTableRange;
   prot["asc_convertTableToRange"] = prot.asc_convertTableToRange;
   prot["asc_getTablePictures"] = prot.asc_getTablePictures;
+  prot["asc_getDefaultTableStyle"] = prot.asc_getDefaultTableStyle;
+
 
   prot["asc_applyAutoCorrectOptions"] = prot.asc_applyAutoCorrectOptions;
 
+  //Group data
+  prot["asc_group"] = prot.asc_group;
+  prot["asc_ungroup"] = prot.asc_ungroup;
+  prot["asc_clearOutline"] = prot.asc_clearOutline;
+  prot["asc_changeGroupDetails"] = prot.asc_changeGroupDetails;
+  prot["asc_checkAddGroup"] = prot.asc_checkAddGroup;
+  
   // Drawing objects interface
 
   prot["asc_showDrawingObjects"] = prot.asc_showDrawingObjects;
@@ -3784,7 +3921,7 @@ var editor;
   prot["asc_DistributeSelectedDrawingObjectHor"] = prot.asc_DistributeSelectedDrawingObjectHor;
   prot["asc_DistributeSelectedDrawingObjectVer"] = prot.asc_DistributeSelectedDrawingObjectVer;
   prot["asc_getSelectedDrawingObjectsCount"] = prot.asc_getSelectedDrawingObjectsCount;
-    prot["asc_getChartPreviews"] = prot.asc_getChartPreviews;
+  prot["asc_getChartPreviews"] = prot.asc_getChartPreviews;
   prot["asc_getTextArtPreviews"] = prot.asc_getTextArtPreviews;
   prot['asc_getPropertyEditorShapes'] = prot.asc_getPropertyEditorShapes;
   prot['asc_getPropertyEditorTextArts'] = prot.asc_getPropertyEditorTextArts;

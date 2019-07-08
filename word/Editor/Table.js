@@ -263,7 +263,7 @@ CTable.prototype.Get_Props = function()
 
 	var Pr = {};
 
-	if (tblwidth_Auto === TablePr.TableW.Type)
+	if (tblwidth_Auto === TablePr.TableW.Type || (tblwidth_Mm === TablePr.TableW.Type && TablePr.TableW.W < 0.001))
 		Pr.TableWidth = null;
 	else if (tblwidth_Mm === TablePr.TableW.Type)
 		Pr.TableWidth = TablePr.TableW.W;
@@ -8995,6 +8995,8 @@ CTable.prototype.MergeTableCells = function(isClearMerge)
 
 	this.CurCell = Cell_tl;
 
+	this.CurCell.GetContent().SelectAll();
+
 	if (true !== isClearMerge)
 	{
 		// Запускаем пересчет
@@ -10390,6 +10392,164 @@ CTable.prototype.DistributeTableCells = function(isHorizontally)
 	else
 		return this.DistributeRows();
 };
+/**
+ * Удаляем выделенные ячейки таблицы со сдвигом влево
+ * @returns {boolean}
+ */
+CTable.prototype.RemoveTableCells = function()
+{
+	var bApplyToInnerTable = false;
+	if (false === this.Selection.Use || ( true === this.Selection.Use && table_Selection_Text === this.Selection.Type ))
+		bApplyToInnerTable = this.CurCell.Content.RemoveTableColumn();
+
+	if (true === bApplyToInnerTable)
+		return true;
+
+	var arrSelectedCells = this.GetSelectionArray();
+
+	var arrDeleteInfo = [];
+	var arrRowsInfo   = [];
+
+	var oDeletedFirstCellPos = null;
+
+	for (var nCurRow = 0, nRowsCount = this.GetRowsCount(); nCurRow < nRowsCount; ++nCurRow)
+	{
+		arrDeleteInfo[nCurRow] = [];
+		arrRowsInfo[nCurRow]   = [];
+
+		var oRow = this.GetRow(nCurRow);
+
+		var oBeforeInfo = oRow.GetBefore();
+		if (oBeforeInfo.Grid > 0)
+			arrRowsInfo[nCurRow].push({W : this.TableSumGrid[oBeforeInfo.Grid - 1], Type : -1, GridSpan : 1});
+
+		for (var nCurCell = 0, nCellsCount = oRow.GetCellsCount(); nCurCell < nCellsCount; ++nCurCell)
+		{
+			var isDeleted = false;
+			for (var nSelectedIndex = 0, nSelectedCount = arrSelectedCells.length; nSelectedIndex < nSelectedCount; ++nSelectedIndex)
+			{
+				var oPos = arrSelectedCells[nSelectedIndex];
+				if (oPos.Cell === nCurCell && oPos.Row === nCurRow)
+				{
+					isDeleted = true;
+					break;
+				}
+			}
+
+			if (isDeleted)
+			{
+				arrDeleteInfo[nCurRow].push(nCurCell);
+
+				if (!oDeletedFirstCellPos)
+					oDeletedFirstCellPos = {Row : nCurRow, Cell : nCurCell};
+			}
+			else
+			{
+				var oCell          = oRow.GetCell(nCurCell);
+				var nCellGridStart = oRow.GetCellInfo(nCurCell).StartGridCol;
+				var nCellGridEnd   = nCellGridStart + oCell.GetGridSpan() - 1;
+
+				var W = this.TableSumGrid[nCellGridEnd] - this.TableSumGrid[nCellGridStart - 1];
+				arrRowsInfo[nCurRow].push({W : W, Type : 0, GridSpan : 1});
+			}
+		}
+	}
+
+	if (!oDeletedFirstCellPos)
+		oDeletedFirstCellPos = {Row : 0, Cell : 0};
+
+	// Удалим все ячейки
+	for (var nCurRow = 0, nRowsCount = this.GetRowsCount(); nCurRow < nRowsCount; ++nCurRow)
+	{
+		var oRow = this.Content[nCurRow];
+		for (var nIndex = arrDeleteInfo[nCurRow].length - 1; nIndex >= 0; --nIndex)
+		{
+			var nCurCell = arrDeleteInfo[nCurRow][nIndex];
+			oRow.RemoveCell(nCurCell);
+		}
+	}
+
+	// При удалении колонки возможен случай, когда удаляется строка целиком
+	for (var nCurRow = this.GetRowsCount() - 1; nCurRow >= 0; --nCurRow)
+	{
+		// Строка удалена целиком, если в RowsInfo нет ни одной записи
+		// о ячейках (т.е. с типом равным 0)
+		var isRemove = true;
+		for (var nIndex = 0; nIndex < arrRowsInfo[nCurRow].length; ++nIndex)
+		{
+			if (0 === arrRowsInfo[nCurRow][nIndex].Type)
+			{
+				isRemove = false;
+				break;
+			}
+		}
+
+		if (isRemove)
+		{
+			this.private_RemoveRow(nCurRow);
+			arrRowsInfo.splice(nCurRow, 1);
+		}
+	}
+
+	// При удалении последней строки, надо сообщить об этом родительскому классу
+	if (this.GetRowsCount() <= 0)
+		return false;
+
+	// TODO: При удалении ячеек надо запоминать информацию об вертикально
+	//       объединенных ячейках, и в новой сетке объединять ячейки только
+	//       если они были объединены изначально. Сейчас если ячейка была
+	//       объединена с какой-либо ячейкой, то она может после удаления
+	//       объединиться с совсем другой ячейкой.
+
+	this.private_CreateNewGrid(arrRowsInfo);
+
+	// Пробегаемся по всем ячейкам и смотрим на их вертикальное объединение, было ли оно нарушено
+	this.private_CorrectVerticalMerge();
+
+	// Возможен случай, когда у нас остались строки, полностью состоящие из объединенных вертикально ячеек
+	for (var nCurRow = this.GetRowsCount() - 1; nCurRow >= 0; --nCurRow)
+	{
+		var isRemove = true;
+		var oRow     = this.GetRow(nCurRow);
+		for (var nCurCell = 0, nCellsCount = oRow.GetCellsCount(); nCurCell < nCellsCount; ++nCurCell)
+		{
+			var oCell = oRow.GetCell(nCurCell);
+			if (vmerge_Continue !== oCell.GetVMerge())
+			{
+				isRemove = false;
+				break;
+			}
+		}
+
+		if (isRemove)
+			this.private_RemoveRow(nCurRow);
+	}
+
+	var nCurRow  = oDeletedFirstCellPos.Row;
+	var nCurCell = 0;
+	if (nCurRow >= this.GetRowsCount())
+		nCurRow = this.GetRowsCount() - 1;
+	else
+		nCurCell = Math.min(oDeletedFirstCellPos.Cell, this.GetRow(nCurRow).GetCellsCount() - 1);
+
+	var oRow     = this.GetRow(nCurRow);
+	this.CurCell = oRow.GetCell(nCurCell);
+	this.CurCell.Content.MoveCursorToStartPos();
+
+	this.Markup.Internal.RowIndex  = nCurRow;
+	this.Markup.Internal.CellIndex = nCurCell;
+	this.Markup.Internal.PageNum   = 0;
+
+	this.Selection.Use          = false;
+	this.Selection.Start        = false;
+	this.Selection.StartPos.Pos = {Row : nCurRow, Cell : nCurCell};
+	this.Selection.EndPos.Pos   = {Row : nCurRow, Cell : nCurCell};
+	this.Selection.CurRow       = nCurRow;
+
+	this.private_RecalculateGrid();
+
+	return true;
+};
 //----------------------------------------------------------------------------------------------------------------------
 // Внутренние функции
 //----------------------------------------------------------------------------------------------------------------------
@@ -10771,6 +10931,8 @@ CTable.prototype.private_RemoveRow = function(nIndex)
 	this.RowsInfo.splice(nIndex, 1);
 
 	this.Internal_ReIndexing(nIndex);
+
+	this.private_CheckCurCell();
 };
 CTable.prototype.private_AddRow = function(Index, CellsCount, bReIndexing, _NewRow)
 {
@@ -10814,6 +10976,8 @@ CTable.prototype.private_AddRow = function(Index, CellsCount, bReIndexing, _NewR
 	}
 
 	NewRow.Table = this;
+
+	this.private_CheckCurCell();
 
 	return NewRow;
 };
@@ -11799,7 +11963,7 @@ CTable.prototype.Internal_CheckNullBorder = function(Border)
 };
 CTable.prototype.Internal_Get_SelectionArray = function()
 {
-	var SelectionArray = null;
+	var SelectionArray = [];
 	if (true === this.ApplyToAll)
 	{
 		SelectionArray = [];
@@ -11820,7 +11984,7 @@ CTable.prototype.Internal_Get_SelectionArray = function()
 	}
 	else if (true === this.Selection.Use && table_Selection_Cell === this.Selection.Type)
 		SelectionArray = this.Selection.Data;
-	else
+	else if (this.CurCell)
 		SelectionArray = [{Cell : this.CurCell.Index, Row : this.CurCell.Row.Index}];
 
 	return SelectionArray;
@@ -12964,21 +13128,24 @@ CTable.prototype.CorrectVMerge = function()
 };
 CTable.prototype.GetNumberingInfo = function(oNumberingEngine)
 {
-    if (oNumberingEngine.IsStop())
-        return;
+	if (oNumberingEngine.IsStop())
+		return;
 
-    for (var nCurRow = 0, nRowsCount = this.GetRowsCount(); nCurRow < nRowsCount; ++nCurRow)
-    {
-        var oRow = this.GetRow(nCurRow);
-        for (var nCurCell = 0, nCellsCount = oRow.GetCellsCount(); nCurCell < nCellsCount; ++nCurCell)
-        {
-            var oCell = oRow.GetCell(nCurCell);
-            oCell.GetContent().GetNumberingInfo(oNumberingEngine);
+	for (var nCurRow = 0, nRowsCount = this.GetRowsCount(); nCurRow < nRowsCount; ++nCurRow)
+	{
+		var oRow = this.GetRow(nCurRow);
+		for (var nCurCell = 0, nCellsCount = oRow.GetCellsCount(); nCurCell < nCellsCount; ++nCurCell)
+		{
+			var oCell = oRow.GetCell(nCurCell);
+			if (oCell.IsMergedCell())
+				continue;
 
-            if (oNumberingEngine.IsStop())
-                return;
-        }
-    }
+			oCell.GetContent().GetNumberingInfo(oNumberingEngine);
+
+			if (oNumberingEngine.IsStop())
+				return;
+		}
+	}
 };
 CTable.prototype.IsTableFirstRowOnNewPage = function(CurRow)
 {
@@ -13352,7 +13519,7 @@ CTable.prototype.CanUpdateTarget = function(nCurPage)
 CTable.prototype.IsCellSelection = function()
 {
 	if (true === this.ApplyToAll
-		|| (this.IsSelectionUse()
+		|| (true === this.Selection.Use
 		&& table_Selection_Cell === this.Selection.Type
 		&& this.Selection.Data.length > 0))
 		return true;
@@ -14730,6 +14897,44 @@ CTable.prototype.RejectPrChange = function()
 		// произвести корректировку
 		this.CorrectBadGrid();
 	}
+};
+CTable.prototype.private_CheckCurCell = function()
+{
+	if (this.CurCell)
+	{
+		var oRow = this.CurCell.GetRow();
+		if (!oRow || oRow.GetTable() !== this || this.GetRow(oRow.GetIndex()) !== oRow || this.CurCell !== oRow.GetCell(this.CurCell.GetIndex()))
+			this.CurCell = null;
+	}
+
+	if (!this.CurCell)
+	{
+		for (var nCurRow = 0, nRowsCount = this.GetRowsCount(); nCurRow < nRowsCount; ++nCurRow)
+		{
+			var oRow = this.GetRow(nCurRow);
+			if (oRow.GetCellsCount() > 0)
+			{
+				this.CurCell = oRow.GetCell(0);
+				return;
+			}
+		}
+	}
+};
+CTable.prototype.CheckRunContent = function(fCheck)
+{
+	for (var nCurRow = 0, nRowsCount = this.GetRowsCount(); nCurRow < nRowsCount; ++nCurRow)
+	{
+		var oRow = this.GetRow(nCurRow);
+		for (var nCurCell = 0, nCellsCount = oRow.GetCellsCount(); nCurCell < nCellsCount; ++nCurCell)
+		{
+			if (oRow.GetCell(nCurCell).GetContent().CheckRunContent(fCheck))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 };
 
 //----------------------------------------------------------------------------------------------------------------------

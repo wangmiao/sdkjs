@@ -184,6 +184,10 @@ CParaRevisionMove.prototype.GetReviewChange = function()
 
 	return null;
 };
+CParaRevisionMove.prototype.Is_Empty = function()
+{
+	return false;
+};
 
 
 /**
@@ -299,7 +303,7 @@ CRunRevisionMove.prototype.PreDelete = function()
 CRunRevisionMove.prototype.IsUseInDocument = function()
 {
 	var oRun = this.GetRun();
-	return (oRun && oRun.Is_UseInDocument());
+	return (oRun && -1 !== oRun.GetElementPosition(this) && oRun.Is_UseInDocument());
 };
 CRunRevisionMove.prototype.GetReviewChange = function()
 {

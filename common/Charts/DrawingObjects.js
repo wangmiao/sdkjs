@@ -422,20 +422,6 @@ function CCellObjectInfo () {
 }
 
 /** @constructor */
-function asc_CChartStyle() {
-    this.style = null;
-    this.imageUrl = null;
-}
-
-asc_CChartStyle.prototype = {
-    asc_getStyle: function() { return this.style; },
-    asc_setStyle: function(style) { this.style = style; },
-
-    asc_getImageUrl: function() { return this.imageUrl; },
-    asc_setImageUrl: function(imageUrl) { this.imageUrl = imageUrl; }
-};
-
-/** @constructor */
 function asc_CChartBinary(chart) {
 
     this["binary"] = null;
@@ -1111,21 +1097,16 @@ CSparklineView.prototype.draw = function(graphics, offX, offY)
         }
     }
 
-    var tx, ty, sx, sy, oldExtX, oldExtY;
-
     var _true_height = this.chartSpace.chartObj.calcProp.trueHeight;
-    var _true_width = this.chartSpace.chartObj.calcProp.trueWidht;
+    var _true_width = this.chartSpace.chartObj.calcProp.trueWidth;
 
-
-	this.chartSpace.chartObj.calcProp.trueWidht = this.chartSpace.extX * this.chartSpace.chartObj.calcProp.pxToMM;
+	this.chartSpace.chartObj.calcProp.trueWidth = this.chartSpace.extX * this.chartSpace.chartObj.calcProp.pxToMM;
 	this.chartSpace.chartObj.calcProp.trueHeight = this.chartSpace.extY * this.chartSpace.chartObj.calcProp.pxToMM;
 
     this.chartSpace.draw(graphics);
 
-	this.chartSpace.chartObj.calcProp.trueWidht = _true_width;
+	this.chartSpace.chartObj.calcProp.trueWidth = _true_width;
 	this.chartSpace.chartObj.calcProp.trueHeight = _true_height;
-
-
 };
 
 
@@ -1635,6 +1616,7 @@ function DrawingObjects() {
                     var oShape = oTrack.getShape(false, _this.drawingDocument, null);
                     oShape.setWorksheet(worksheet.model);
                     oShape.addToDrawingObjects();
+                    oShape.checkDrawingBaseCoords();
                     oShape.select(_this.controller, 0);
                     _this.controller.startRecalculate();
                     worksheet.setSelectionShape(true);
@@ -2935,7 +2917,9 @@ function DrawingObjects() {
             if(oSparklineGroup.type !== Asc.c_oAscSparklineType.Stacked &&
                 (Asc.c_oAscSparklineAxisMinMax.Group === oSparklineGroup.minAxisType || Asc.c_oAscSparklineAxisMinMax.Group === oSparklineGroup.maxAxisType))
             {
-                _this.checkSparklineGroupMinMaxVal(oSparklineGroup);
+                AscFormat.ExecuteNoHistory(function(){
+                    _this.checkSparklineGroupMinMaxVal(oSparklineGroup);
+                }, _this, []);
             }
             for(j = 0; j < oSparklineGroup.arrSparklines.length; ++j) {
 				sparkline = oSparklineGroup.arrSparklines[j];
@@ -4539,13 +4523,6 @@ ClickCounter.prototype.getClickCount = function() {
     window['Asc'] = window['Asc'] || {};
     window['AscFormat'].isObject = isObject;
     window['AscFormat'].CCellObjectInfo = CCellObjectInfo;
-
-    window["AscFormat"].asc_CChartStyle = asc_CChartStyle;
-    prot = asc_CChartStyle.prototype;
-    prot["asc_getStyle"] = prot.asc_getStyle;
-    prot["asc_setStyle"] = prot.asc_setStyle;
-    prot["asc_getImageUrl"] = prot.asc_getImageUrl;
-    prot["asc_setImageUrl"] = prot.asc_setImageUrl;
 
     window["Asc"]["asc_CChartBinary"] = window["Asc"].asc_CChartBinary = asc_CChartBinary;
     prot = asc_CChartBinary.prototype;

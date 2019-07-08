@@ -54,6 +54,8 @@ var UndoRedoData_Layout = AscCommonExcel.UndoRedoData_Layout;
 var c_oAscCustomAutoFilter = Asc.c_oAscCustomAutoFilter;
 var c_oAscAutoFilterTypes = Asc.c_oAscAutoFilterTypes;
 
+var c_maxOutlineLevel = 7;
+
 var g_oColorManager = null;
 	
 var g_nHSLMaxValue = 255;
@@ -869,6 +871,124 @@ var g_oFontProperties = {
 			newContext = null;
 		}
 		return newContext;
+	};
+	Font.prototype.checkSchemeFont = function(theme) {
+		if (null != this.scheme && theme) {
+			var fontScheme = theme.themeElements.fontScheme;
+			var sFontName = null;
+			switch (this.scheme) {
+				case Asc.EFontScheme.fontschemeMinor:sFontName = fontScheme.minorFont.latin;break;
+				case Asc.EFontScheme.fontschemeMajor:sFontName = fontScheme.majorFont.latin;break;
+			}
+			if (null != sFontName && "" != sFontName) {
+				this.fn = sFontName;
+			}
+		}
+	};
+	Font.prototype.fromXLSB = function(stream) {
+		var dyHeight = stream.GetUShortLE();
+		if(dyHeight >= 0x0014) {
+			this.fs = dyHeight / 20;
+		}
+		var grbit = stream.GetUShortLE();
+		if(0 !== (grbit & 0x2))
+		{
+			this.i = true;
+		}
+		if(0 !== (grbit & 0x8))
+		{
+			this.s = true;
+		}
+		var bls = stream.GetUShortLE();
+		if(0x02BC == bls) {
+			this.b = true;
+		}
+		var sss = stream.GetUShortLE();
+		if(sss > 0)
+		{
+			switch(sss)
+			{
+				case 0x0001:
+					this.va = AscCommon.vertalign_SuperScript;
+					break;
+				case 0x0002:
+					this.va = AscCommon.vertalign_SubScript;
+					break;
+			}
+		}
+		var uls = stream.GetUChar();
+		if(uls > 0)
+		{
+			switch(uls)
+			{
+				case 0x01:
+					this.u =  Asc.EUnderline.underlineSingle;
+					break;
+				case 0x02:
+					this.u =  Asc.EUnderline.underlineDouble;
+					break;
+				case 0x21:
+					this.u =  Asc.EUnderline.underlineSingleAccounting;
+					break;
+				case 0x22:
+					this.u =  Asc.EUnderline.underlineDoubleAccounting;
+					break;
+			}
+		}
+		stream.Skip2(3);
+
+		var xColorType = stream.GetUChar();
+		var index = stream.GetUChar();
+		var nTintAndShade = stream.GetShortLE();
+		var rgba = stream.GetULongLE();
+		var isActualRgb = 0 !== (xColorType & 0x1);
+		xColorType &= 0xFE;
+		var tint = null;
+		if(0 != nTintAndShade)
+		{
+			tint = nTintAndShade / 0x7FFF;
+		}
+		var theme = null;
+		if(0x6 == xColorType)
+		{
+			theme = 1;
+			switch(index)
+			{
+				case 0x01:
+					theme = 0;
+					break;
+				case 0x00:
+					theme = 1;
+					break;
+				case 0x03:
+					theme = 2;
+					break;
+				case 0x02:
+					theme = 3;
+					break;
+				default:
+					theme = index;
+					break;
+			}
+			this.c = AscCommonExcel.g_oColorManager.getThemeColor(theme, tint);
+		} else if(isActualRgb){
+			this.c = AscCommonExcel.createRgbColor((rgba & 0xFF), (rgba & 0xFF00)>>8, (rgba & 0xFF0000)>>16);
+		}
+
+		var bFontScheme = stream.GetUChar();
+		if(bFontScheme > 0)
+		{
+			switch(bFontScheme)
+			{
+				case 0x01:
+					this.scheme = Asc.EFontScheme.fontschemeMajor;
+					break;
+				case 0x02:
+					this.scheme = Asc.EFontScheme.fontschemeMinor;
+					break;
+			}
+		}
+		this.fn = stream.GetString();
 	};
 
 	var c_oAscGradientType = {
@@ -3416,12 +3536,16 @@ Hyperlink.prototype = {
 	function SheetFormatPr() {
 		this.nBaseColWidth = null;
 		this.dDefaultColWidth = null;
+		this.nOutlineLevelCol = 0;
+		this.nOutlineLevelRow = 0;
 		this.oAllRow = null;
 	}
 	SheetFormatPr.prototype.clone = function () {
 		var oRes = new SheetFormatPr();
 		oRes.nBaseColWidth = this.nBaseColWidth;
 		oRes.dDefaultColWidth = this.dDefaultColWidth;
+		oRes.nOutlineLevelCol = this.nOutlineLevelCol;
+		oRes.nOutlineLevelRow = this.nOutlineLevelRow;
 		if (null != this.oAllRow) {
 			oRes.oAllRow = this.oAllRow.clone();
 		}
@@ -3441,17 +3565,32 @@ Hyperlink.prototype = {
 		this.CustomWidth = null;
 		this.width = null;
 		this.xfs = null;
+		this.outlineLevel = 0;
+		this.collapsed = false;
 
 		this.widthPx = null;
 		this.charCount = null;
 	}
 
+	Col.prototype.fixOnOpening = function () {
+		if (null == this.width) {
+			this.width = 0;
+			this.hd = true;
+		} else if (this.width < 0) {
+			this.width = 0;
+		} else if (this.width > Asc.c_oAscMaxColumnWidth) {
+			this.width = Asc.c_oAscMaxColumnWidth;
+		}
+		if(AscCommon.CurFileVersion < 2)
+			this.CustomWidth = 1;
+	};
 	Col.prototype.moveHor = function (nDif) {
 		this.index += nDif;
 	};
 	Col.prototype.isEqual = function (obj) {
 		var bRes = this.BestFit == obj.BestFit && this.hd == obj.hd && this.width == obj.width &&
-			this.CustomWidth == obj.CustomWidth;
+			this.CustomWidth == obj.CustomWidth && this.outlineLevel == obj.outlineLevel &&
+			this.collapsed == obj.collapsed;
 		if (bRes) {
 			if (null != this.xfs && null != obj.xfs) {
 				bRes = this.xfs.isEqual(obj.xfs);
@@ -3464,13 +3603,17 @@ Hyperlink.prototype = {
 	};
 	Col.prototype.isEmpty = function () {
 		return null == this.BestFit && null == this.hd && null == this.width && null == this.xfs &&
-			null == this.CustomWidth;
+			null == this.CustomWidth && 0 === this.outlineLevel && false == this.collapsed;
 	};
 	Col.prototype.clone = function (oNewWs) {
 		if (!oNewWs) {
 			oNewWs = this.ws;
 		}
 		var oNewCol = new Col(oNewWs, this.index);
+		this.cloneTo(oNewCol);
+		return oNewCol;
+	};
+	Col.prototype.cloneTo = function (oNewCol) {
 		if (null != this.BestFit) {
 			oNewCol.BestFit = this.BestFit;
 		}
@@ -3486,6 +3629,8 @@ Hyperlink.prototype = {
 		if (null != this.xfs) {
 			oNewCol.xfs = this.xfs;
 		}
+		oNewCol.outlineLevel = this.outlineLevel;
+		oNewCol.collapsed = this.collapsed;
 
 		if (null != this.widthPx) {
 			oNewCol.widthPx = this.widthPx;
@@ -3493,7 +3638,6 @@ Hyperlink.prototype = {
 		if (null != this.charCount) {
 			oNewCol.charCount = this.charCount;
 		}
-		return oNewCol;
 	};
 	Col.prototype.getWidthProp = function () {
 		return new AscCommonExcel.UndoRedoData_ColProp(this);
@@ -3515,6 +3659,9 @@ Hyperlink.prototype = {
 				this.BestFit = prop.BestFit;
 			} else {
 				this.BestFit = null;
+			}
+			if (null != prop.OutlineLevel) {
+				this.outlineLevel = prop.OutlineLevel;
 			}
 		}
 	};
@@ -3727,10 +3874,43 @@ Hyperlink.prototype = {
 	Col.prototype.getIndex = function () {
 		return this.index;
 	};
+	Col.prototype.setOutlineLevel = function (val, bDel) {
+		if(null !== val) {
+			this.outlineLevel = val;
+		} else {
+			if(!this.outlineLevel) {
+				this.outlineLevel = 0;
+			}
+			this.outlineLevel = bDel ? this.outlineLevel - 1 : this.outlineLevel + 1;
+		}
+		if(this.outlineLevel < 0){
+			this.outlineLevel = 0;
+		} else if(this.outlineLevel > c_maxOutlineLevel) {
+			this.outlineLevel = c_maxOutlineLevel;
+		} else {
+			//TODO ?
+			//this._hasChanged = true;
+		}
+	};
+	Col.prototype.getOutlineLevel = function () {
+		return this.outlineLevel;
+	};
+	Col.prototype.setCollapsed = function (val) {
+		this.collapsed = val;
+	};
+	Col.prototype.getCollapsed = function () {
+		return this.collapsed;
+	};
 
-	var g_nRowOffsetFlag = 0;
+	//TODO удалить!
+	/*var g_nRowOffsetFlag = 0;
 	var g_nRowOffsetXf = g_nRowOffsetFlag + 1;
 	var g_nRowOffsetHeight = g_nRowOffsetXf + 4;
+	var g_nRowStructSize = g_nRowOffsetHeight + 8;*/
+	var g_nRowOffsetFlag = 0;
+	var g_nRowOffsetXf = g_nRowOffsetFlag + 1;
+	var g_nRowOutlineLevel = g_nRowOffsetXf + 4;
+	var g_nRowOffsetHeight = g_nRowOutlineLevel + 1;
 	var g_nRowStructSize = g_nRowOffsetHeight + 8;
 
 	var g_nRowFlag_empty = 0;
@@ -3739,6 +3919,7 @@ Hyperlink.prototype = {
 	var g_nRowFlag_CustomHeight = 4;
 	var g_nRowFlag_CalcHeight = 8;
 	var g_nRowFlag_NullHeight = 16;
+	var g_nRowFlag_Collapsed = 32;
 
 	/**
 	 * @constructor
@@ -3748,6 +3929,7 @@ Hyperlink.prototype = {
 		this.index = null;
 		this.xfs = null;
 		this.h = null;
+		this.outlineLevel = 0;
 		this.flags = g_nRowFlag_init;
 		this._hasChanged = false;
 	}
@@ -3755,6 +3937,7 @@ Hyperlink.prototype = {
 		this.index = null;
 		this.xfs = null;
 		this.h = null;
+		this.outlineLevel = 0;
 		this.flags = g_nRowFlag_init;
 		this._hasChanged = false;
 	};
@@ -3772,6 +3955,7 @@ Hyperlink.prototype = {
 			}
 			sheetMemory.setUint8(this.index, g_nRowOffsetFlag, flagToSave);
 			sheetMemory.setUint32(this.index, g_nRowOffsetXf, xfSave);
+			sheetMemory.setUint8(this.index, g_nRowOutlineLevel, this.outlineLevel);
 			sheetMemory.setFloat64(this.index, g_nRowOffsetHeight, heightToSave);
 		}
 	};
@@ -3784,6 +3968,7 @@ Hyperlink.prototype = {
 			this.flags = sheetMemory.getUint8(this.index, g_nRowOffsetFlag);
 			if (0 != (g_nRowFlag_init & this.flags)) {
 				this.xfs = g_StyleCache.getXf(sheetMemory.getUint32(this.index, g_nRowOffsetXf));
+				this.outlineLevel = sheetMemory.getUint8(this.index, g_nRowOutlineLevel);
 				if (0 !== (g_nRowFlag_NullHeight & this.flags)) {
 					this.flags &= ~g_nRowFlag_NullHeight;
 					this.h = null;
@@ -3803,7 +3988,7 @@ Hyperlink.prototype = {
 	};
 	Row.prototype.isEmptyProp = function () {
 		//todo
-		return null == this.xfs && null == this.h && g_nRowFlag_init == this.flags;
+		return null == this.xfs && null == this.h && g_nRowFlag_init == this.flags && 0 === this.outlineLevel;
 	};
 	Row.prototype.clone = function (oNewWs, renameParams) {
 		if (!oNewWs) {
@@ -3818,6 +4003,9 @@ Hyperlink.prototype = {
 		if (null != this.h) {
 			oNewRow.h = this.h;
 		}
+		if(0 !== this.outlineLevel) {
+			oNewRow.outlineLevel = this.outlineLevel;
+		}
 		return oNewRow;
 	};
 	Row.prototype.copyFrom = function (row) {
@@ -3827,6 +4015,9 @@ Hyperlink.prototype = {
 		}
 		if (null != row.h) {
 			this.h = row.h;
+		}
+		if(0 !== this.outlineLevel) {
+			this.outlineLevel = row.outlineLevel;
 		}
 		this._hasChanged = true;
 	};
@@ -3849,6 +4040,7 @@ Hyperlink.prototype = {
 			}
 			this.setHidden(prop.hd);
 			this.setCustomHeight(prop.CustomHeight);
+			this.setOutlineLevel(prop.OutlineLevel);
 		}
 	};
 	Row.prototype.getStyle = function () {
@@ -4057,6 +4249,26 @@ Hyperlink.prototype = {
 		}
 		this._hasChanged = true;
 	};
+	Row.prototype.setOutlineLevel = function (val, bDel) {
+		if(null !== val) {
+			this.outlineLevel = val;
+		} else {
+			if(!this.outlineLevel) {
+				this.outlineLevel = 0;
+			}
+			this.outlineLevel = bDel ? this.outlineLevel - 1 : this.outlineLevel + 1;
+		}
+		if(this.outlineLevel < 0){
+			this.outlineLevel = 0;
+		} else if(this.outlineLevel > c_maxOutlineLevel) {
+			this.outlineLevel = c_maxOutlineLevel;
+		} else {
+			this._hasChanged = true;
+		}
+	};
+	Row.prototype.getOutlineLevel = function () {
+		return this.outlineLevel;
+	};
 	Row.prototype.getHidden = function () {
 		return 0 !== (g_nRowFlag_hd & this.flags);
 	};
@@ -4082,6 +4294,17 @@ Hyperlink.prototype = {
 	Row.prototype.getCalcHeight = function () {
 		return 0 != (g_nRowFlag_CalcHeight & this.flags);
 	};
+	Row.prototype.setCollapsed = function (val) {
+		if (true === val) {
+			this.flags |= g_nRowFlag_Collapsed;
+		} else {
+			this.flags &= ~g_nRowFlag_Collapsed;
+		}
+		this._hasChanged = true;
+	};
+	Row.prototype.getCollapsed = function () {
+		return 0 != (g_nRowFlag_Collapsed & this.flags);
+	};
 	Row.prototype.setIndex = function (val) {
 		this.index = val;
 	};
@@ -4099,6 +4322,70 @@ Hyperlink.prototype = {
 	};
 	Row.prototype.getHeight = function () {
 		return this.h;
+	};
+	Row.prototype.fromXLSB = function(stream, aCellXfs) {
+		var end = stream.XlsbReadRecordLength() + stream.GetCurPos();
+
+		this.setIndex(stream.GetULongLE() & 0xFFFFF);
+		var style = stream.GetULongLE();
+		var ht = stream.GetUShortLE();
+		stream.Skip2(1);
+		var byteExtra2 = stream.GetUChar();
+		this.setOutlineLevel(byteExtra2 & 0x7);
+		if (0 !== (byteExtra2 & 0x8)) {
+			this.setCollapsed(true);
+		}
+		if (0 !== (byteExtra2 & 0x10)) {
+			this.setHidden(true);
+		}
+		if (0 !== (byteExtra2 & 0x20)) {
+			this.setCustomHeight(true);
+		}
+		if (ht > 0 || this.getCustomHeight()) {
+			this.setHeight(ht / 20);
+		}
+		if (0 !== (byteExtra2 & 0x40)) {
+			var xf = aCellXfs[style];
+			if (xf) {
+				this.setStyle(xf);
+			}
+		}
+		stream.Seek2(end);
+	};
+	Row.prototype.toXLSB = function(stream, offsetIndex, stylesForWrite) {
+		stream.XlsbStartRecord(AscCommonExcel.XLSB.rt_ROW_HDR, 17);
+		stream.WriteULong((this.index + offsetIndex) & 0xFFFFF);
+		var nS = 0;
+		if (this.xfs) {
+			nS = stylesForWrite.add(this.xfs);
+		}
+		stream.WriteULong(nS);
+		var nHt = 0;
+		if (null != this.h) {
+			nHt = (this.h * 20) & 0x1FFF;
+		}
+		stream.WriteUShort(nHt);
+		stream.WriteByte(0);
+		var byteExtra2 = 0;
+		if (this.outlineLevel > 0) {
+			byteExtra2 |= this.outlineLevel & 0x7;
+		}
+		if (this.getCollapsed()) {
+			byteExtra2 |= 0x8;
+		}
+		if (this.getHidden()) {
+			byteExtra2 |= 0x10;
+		}
+		if (this.getCustomHeight()) {
+			byteExtra2 |= 0x20;
+		}
+		if (this.xfs) {
+			byteExtra2 |= 0x40;
+		}
+		stream.WriteByte(byteExtra2);
+		stream.WriteByte(0);
+		stream.WriteULong(0);
+		stream.XlsbEndRecord();
 	};
 
 	function getStringFromMultiText(multiText) {
@@ -5621,6 +5908,20 @@ function RangeDataManagerElem(bbox, data)
 		this.SortState = new AscCommonExcel.SortState();
 		this.SortState.SortConditions = [];
 		this.SortState.SortConditions[0] = new AscCommonExcel.SortCondition();
+	};
+
+	//при открытии в случае если не валидный Ref приходит в объекте AutoFilter
+	//получаем этот Ref из табличного
+	TablePart.prototype.generateAutoFilterRef = function () {
+		var res = null;
+		if(this.Ref) {
+			if(this.isTotalsRow()) {
+				res = new Asc.Range(this.Ref.c1, this.Ref.r1, this.Ref.c2, this.Ref.r2 - 1);
+			} else {
+				res = new Asc.Range(this.Ref.c1, this.Ref.r1, this.Ref.c2, this.Ref.r2);
+			}
+		}
+		return res;
 	};
 
 	/** @constructor */
@@ -7478,7 +7779,7 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 		{
 			date = new Asc.cDate(Date.UTC( oDateGroupItem.Year, oDateGroupItem.Month - 1, oDateGroupItem.Day));
 			startDate = date.getExcelDateWithTime();
-			date.addDays(1)
+			date.addDays(1);
 			endDate = date.getExcelDateWithTime();
 			break;
 		}
@@ -7498,7 +7799,7 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 		{
 			date = new Asc.cDate(Date.UTC( oDateGroupItem.Year, oDateGroupItem.Month - 1, 1));
 			startDate = date.getExcelDateWithTime();
-			date.addMonths(1)
+			date.addMonths(1);
 			endDate = date.getExcelDateWithTime();
 			break;
 		}
@@ -7512,7 +7813,7 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 		{
 			date = new Asc.cDate(Date.UTC( oDateGroupItem.Year, 0));
 			startDate = date.getExcelDateWithTime();
-			date.addYears(1)
+			date.addYears(1);
 			endDate = date.getExcelDateWithTime();
 			break;
 		}
@@ -7641,6 +7942,10 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 		this.top = null;
 		this.bottom = null;
 
+		//TODO в историю нужно будет записывать эти параметры
+		this.header = null;
+		this.footer = null;
+
 		this.ws = ws;
 
 		return this;
@@ -7654,11 +7959,17 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 			this.right = c_oAscPrintDefaultSettings.PageRightField;
 		if (null == this.bottom)
 			this.bottom = c_oAscPrintDefaultSettings.PageBottomField;
+		if (null == this.header)
+			this.header = c_oAscPrintDefaultSettings.PageHeaderField;
+		if (null == this.footer)
+			this.footer = c_oAscPrintDefaultSettings.PageFooterField;
 	};
 	asc_CPageMargins.prototype.asc_getLeft = function () { return this.left; };
 	asc_CPageMargins.prototype.asc_getRight = function () { return this.right; };
 	asc_CPageMargins.prototype.asc_getTop = function () { return this.top; };
 	asc_CPageMargins.prototype.asc_getBottom = function () { return this.bottom; };
+	asc_CPageMargins.prototype.asc_getHeader = function () { return this.header; };
+	asc_CPageMargins.prototype.asc_getFooter = function () { return this.footer; };
 
 	asc_CPageMargins.prototype.asc_setLeft = function (newVal) {
 		var oldVal = this.left;
@@ -7691,6 +8002,23 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 			History.Add(AscCommonExcel.g_oUndoRedoLayout, AscCH.historyitem_Layout_Bottom, this.ws.getId(),
 				null, new UndoRedoData_Layout(oldVal, newVal));
 		}
+	};
+
+	asc_CPageMargins.prototype.asc_setHeader = function (newVal) {
+		var oldVal = this.header;
+		this.header = newVal;
+		/*if (this.ws && History.Is_On() && oldVal !== this.top) {
+			History.Add(AscCommonExcel.g_oUndoRedoLayout, AscCH.historyitem_Layout_Top, this.ws.getId(),
+				null, new UndoRedoData_Layout(oldVal, newVal));
+		}*/
+	};
+	asc_CPageMargins.prototype.asc_setFooter = function (newVal) {
+		var oldVal = this.footer;
+		this.footer = newVal;
+		/*if (this.ws && History.Is_On() && oldVal !== this.bottom) {
+			History.Add(AscCommonExcel.g_oUndoRedoLayout, AscCH.historyitem_Layout_Bottom, this.ws.getId(),
+				null, new UndoRedoData_Layout(oldVal, newVal));
+		}*/
 	};
 	asc_CPageMargins.prototype.asc_setOptions = function (obj) {
 		var prop;
@@ -7732,6 +8060,9 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 		this.scale = 100;
 		this.useFirstPageNumber = false;
 		this.usePrinterDefaults = true;
+		this.horizontalDpi = 600;
+		this.verticalDpi = 600;
+		this.paperUnits = 0;
 
 		this.ws = ws;
 
@@ -7875,6 +8206,290 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 		this.asc_getPageSetup().asc_setOptions(obj.asc_getPageSetup());
 	};
 
+
+	function CHeaderFooter(ws) {
+		this.ws = ws;
+
+		this.alignWithMargins = null;
+		this.differentFirst = null;
+		this.differentOddEven = null;
+		this.scaleWithDoc = null;
+		this.evenFooter = null;
+		this.evenHeader = null;
+		this.firstFooter = null;
+		this.firstHeader = null;
+		this.oddFooter = null;
+		this.oddHeader = null;
+
+		return this;
+	}
+
+	CHeaderFooter.prototype.getAlignWithMargins = function () { return this.alignWithMargins; };
+	CHeaderFooter.prototype.getDifferentFirst = function () { return this.differentFirst; };
+	CHeaderFooter.prototype.getDifferentOddEven = function () { return this.differentOddEven; };
+	CHeaderFooter.prototype.getScaleWithDoc = function () { return this.scaleWithDoc; };
+	CHeaderFooter.prototype.getEvenFooter = function () { return this.evenFooter; };
+	CHeaderFooter.prototype.getEvenHeader = function () { return this.evenHeader; };
+	CHeaderFooter.prototype.getFirstFooter = function () { return this.firstFooter; };
+	CHeaderFooter.prototype.getFirstHeader = function () { return this.firstHeader; };
+	CHeaderFooter.prototype.getOddFooter = function () { return this.oddFooter; };
+	CHeaderFooter.prototype.getOddHeader = function () { return this.oddHeader; };
+
+	CHeaderFooter.prototype.setAlignWithMargins = function (val) { this.alignWithMargins = val; };
+	CHeaderFooter.prototype.setDifferentFirst = function (val) { this.differentFirst = val; };
+	CHeaderFooter.prototype.setDifferentOddEven = function (val) { this.differentOddEven = val; };
+	CHeaderFooter.prototype.setScaleWithDoc = function (val) { this.scaleWithDoc = val; };
+	CHeaderFooter.prototype.setEvenFooter = function (newVal) {
+		var oldVal = this.evenFooter ? this.evenFooter.str : null;
+
+		if(oldVal !== newVal) {
+			if(null === newVal) {
+				this.evenFooter = null;
+			} else {
+				this.evenFooter = new Asc.CHeaderFooterData();
+				this.evenFooter.setStr(newVal);
+			}
+
+			if (this.ws && History.Is_On()) {
+				History.Add(AscCommonExcel.g_oUndoRedoHeaderFooter, AscCH.historyitem_Footer_Even, this.ws.getId(),
+					null, new UndoRedoData_Layout(oldVal, newVal));
+			}
+		}
+	};
+	CHeaderFooter.prototype.setEvenHeader = function (newVal) {
+		var oldVal = this.evenHeader ? this.evenHeader.str : null;
+
+		if(oldVal !== newVal) {
+			if(null === newVal) {
+				this.evenHeader = null;
+			} else {
+				this.evenHeader = new Asc.CHeaderFooterData();
+				this.evenHeader.setStr(newVal);
+			}
+
+			if (this.ws && History.Is_On()) {
+				History.Add(AscCommonExcel.g_oUndoRedoHeaderFooter, AscCH.historyitem_Header_Even, this.ws.getId(),
+					null, new UndoRedoData_Layout(oldVal, newVal));
+			}
+		}
+	};
+	CHeaderFooter.prototype.setFirstFooter = function (newVal) {
+		var oldVal = this.firstFooter ? this.firstFooter.str : null;
+
+		if(oldVal !== newVal) {
+			if(null === newVal) {
+				this.firstFooter = null;
+			} else {
+				this.firstFooter = new Asc.CHeaderFooterData();
+				this.firstFooter.setStr(newVal);
+			}
+
+			if (this.ws && History.Is_On()) {
+				History.Add(AscCommonExcel.g_oUndoRedoHeaderFooter, AscCH.historyitem_Footer_First, this.ws.getId(),
+					null, new UndoRedoData_Layout(oldVal, newVal));
+			}
+		}
+	};
+	CHeaderFooter.prototype.setFirstHeader = function (newVal) {
+		var oldVal = this.firstHeader ? this.firstHeader.str : null;
+
+		if(oldVal !== newVal) {
+			if(null === newVal) {
+				this.firstHeader = null;
+			} else {
+				this.firstHeader = new Asc.CHeaderFooterData();
+				this.firstHeader.setStr(newVal);
+			}
+
+			if (this.ws && History.Is_On()) {
+				History.Add(AscCommonExcel.g_oUndoRedoHeaderFooter, AscCH.historyitem_Header_First, this.ws.getId(),
+					null, new UndoRedoData_Layout(oldVal, newVal));
+			}
+		}
+	};
+	CHeaderFooter.prototype.setOddFooter = function (newVal) {
+		var oldVal = this.oddFooter ? this.oddFooter.str : null;
+
+		if(oldVal !== newVal) {
+			if(null === newVal) {
+				this.oddFooter = null;
+			} else {
+				this.oddFooter = new Asc.CHeaderFooterData();
+				this.oddFooter.setStr(newVal);
+			}
+
+			if (this.ws && History.Is_On()) {
+				History.Add(AscCommonExcel.g_oUndoRedoHeaderFooter, AscCH.historyitem_Footer_Odd, this.ws.getId(),
+					null, new UndoRedoData_Layout(oldVal, newVal));
+			}
+		}
+	};
+	CHeaderFooter.prototype.setOddHeader = function (newVal) {
+		var oldVal = this.oddHeader ? this.oddHeader.str : null;
+
+		if(oldVal !== newVal) {
+			if(null === newVal) {
+				this.oddHeader = null;
+			} else {
+				this.oddHeader = new Asc.CHeaderFooterData();
+				this.oddHeader.setStr(newVal);
+			}
+
+			if (this.ws && History.Is_On()) {
+				History.Add(AscCommonExcel.g_oUndoRedoHeaderFooter, AscCH.historyitem_Header_Odd, this.ws.getId(),
+					null, new UndoRedoData_Layout(oldVal, newVal));
+			}
+		}
+	};
+
+	CHeaderFooter.prototype.setAlignWithMargins = function (newVal) {
+		var oldVal = this.alignWithMargins;
+		var defaultVal = null === oldVal && (newVal === 1 || newVal === true);
+
+		if(oldVal !== newVal && !defaultVal) {
+			this.alignWithMargins = newVal;
+
+			if (this.ws && History.Is_On()) {
+				History.Add(AscCommonExcel.g_oUndoRedoHeaderFooter, AscCH.historyitem_Align_With_Margins, this.ws.getId(),
+					null, new UndoRedoData_Layout(oldVal, newVal));
+			}
+		}
+	};
+
+	CHeaderFooter.prototype.setScaleWithDoc = function (newVal) {
+		var oldVal = this.scaleWithDoc;
+		var defaultVal = null === oldVal && (newVal === 1 || newVal === true);
+
+		if(oldVal !== newVal && !defaultVal) {
+			this.scaleWithDoc = newVal;
+
+			if (this.ws && History.Is_On()) {
+				History.Add(AscCommonExcel.g_oUndoRedoHeaderFooter, AscCH.historyitem_Scale_With_Doc, this.ws.getId(),
+					null, new UndoRedoData_Layout(oldVal, newVal));
+			}
+		}
+	};
+
+	CHeaderFooter.prototype.setDifferentFirst = function (newVal) {
+		var oldVal = this.differentFirst;
+		var defaultVal = null === oldVal && (newVal === 0 || newVal === false);
+
+		if(oldVal !== newVal && !defaultVal) {
+			this.differentFirst = newVal;
+
+			if (this.ws && History.Is_On()) {
+				History.Add(AscCommonExcel.g_oUndoRedoHeaderFooter, AscCH.historyitem_Different_First, this.ws.getId(),
+					null, new UndoRedoData_Layout(oldVal, newVal));
+			}
+		}
+	};
+
+	CHeaderFooter.prototype.setDifferentOddEven = function (newVal) {
+		var oldVal = this.differentOddEven;
+		var defaultVal = null === oldVal && (newVal === 0 || newVal === false);
+
+		if(oldVal !== newVal && !defaultVal) {
+			this.differentOddEven = newVal;
+
+			if (this.ws && History.Is_On()) {
+				History.Add(AscCommonExcel.g_oUndoRedoHeaderFooter, AscCH.historyitem_Different_Odd_Even, this.ws.getId(),
+					null, new UndoRedoData_Layout(oldVal, newVal));
+			}
+		}
+	};
+
+	CHeaderFooter.prototype.setHeaderFooterData = function(str, type) {
+		switch (type){
+			case Asc.c_oAscPageHFType.firstHeader: {
+				this.setFirstHeader(str);
+				break;
+			}
+			case Asc.c_oAscPageHFType.oddHeader: {
+				this.setOddHeader(str);
+				break;
+			}
+			case Asc.c_oAscPageHFType.evenHeader: {
+				this.setEvenHeader(str);
+				break;
+			}
+			case Asc.c_oAscPageHFType.firstFooter: {
+				this.setFirstFooter(str);
+				break;
+			}
+			case Asc.c_oAscPageHFType.oddFooter: {
+				this.setOddFooter(str);
+				break;
+			}
+			case Asc.c_oAscPageHFType.evenFooter: {
+				this.setEvenFooter(str);
+				break;
+			}
+		}
+	};
+
+	CHeaderFooter.prototype.init = function () {
+		if(this.evenFooter) {
+			this.evenFooter.parse();
+		}
+		if(this.evenHeader) {
+			this.evenHeader.parse();
+		}
+		if(this.firstFooter) {
+			this.firstFooter.parse();
+		}
+		if(this.firstHeader) {
+			this.firstHeader.parse();
+		}
+		if(this.oddFooter) {
+			this.oddFooter.parse();
+		}
+		if(this.oddHeader) {
+			this.oddHeader.parse();
+		}
+	};
+	CHeaderFooter.prototype.getAllFonts = function (oFontMap) {
+		if(this.evenFooter) {
+			this.evenFooter.getAllFonts(oFontMap);
+		}
+		if(this.evenHeader) {
+			this.evenHeader.getAllFonts(oFontMap);
+		}
+		if(this.firstFooter) {
+			this.firstFooter.getAllFonts(oFontMap);
+		}
+		if(this.firstHeader) {
+			this.firstHeader.getAllFonts(oFontMap);
+		}
+		if(this.oddFooter) {
+			this.oddFooter.getAllFonts(oFontMap);
+		}
+		if(this.oddHeader) {
+			this.oddHeader.getAllFonts(oFontMap);
+		}
+	};
+
+	function CHeaderFooterData(str) {
+		this.str = str;
+		this.parser = null;
+
+		return this;
+	}
+
+	CHeaderFooterData.prototype.getStr = function () { return this.str; };
+	CHeaderFooterData.prototype.setStr = function (val) { this.str = val; };
+	CHeaderFooterData.prototype.parse = function () {
+		var parser = new window["AscCommonExcel"].HeaderFooterParser();
+		parser.parse(this.str);
+		this.parser = parser;
+		return parser;
+	};
+	CHeaderFooterData.prototype.getAllFonts = function (oFontMap) {
+		if(this.parser) {
+			this.parser.getAllFonts(oFontMap);
+		}
+	};
+
+
 	//----------------------------------------------------------export----------------------------------------------------
 	var prot;
 	window['Asc'] = window['Asc'] || {};
@@ -7883,6 +8498,7 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 	window['AscCommonExcel'].g_oDefaultFormat = g_oDefaultFormat;
 	window['AscCommonExcel'].g_nColorTextDefault = g_nColorTextDefault;
 	window['AscCommonExcel'].g_nColorHyperlink = g_nColorHyperlink;
+	window['AscCommonExcel'].c_maxOutlineLevel = c_maxOutlineLevel;
 	window['AscCommonExcel'].g_oThemeColorsDefaultModsSpreadsheet = g_oThemeColorsDefaultModsSpreadsheet;
 	window['AscCommonExcel'].g_StyleCache = g_StyleCache;
 	window['AscCommonExcel'].map_themeExcel_to_themePresentation = map_themeExcel_to_themePresentation;
@@ -8040,6 +8656,8 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 	prot["asc_setRight"] = prot.asc_setRight;
 	prot["asc_setTop"] = prot.asc_setTop;
 	prot["asc_setBottom"] = prot.asc_setBottom;
+	prot["asc_setHeader"] = prot.asc_setHeader;
+	prot["asc_setFooter"] = prot.asc_setFooter;
 
 	window["Asc"]["asc_CPageSetup"] = window["Asc"].asc_CPageSetup = asc_CPageSetup;
 	prot = asc_CPageSetup.prototype;
@@ -8064,4 +8682,7 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 	prot["asc_setPageSetup"] = prot.asc_setPageSetup;
 	prot["asc_setGridLines"] = prot.asc_setGridLines;
 	prot["asc_setHeadings"] = prot.asc_setHeadings;
+
+	window["Asc"]["CHeaderFooter"] = window["Asc"].CHeaderFooter = CHeaderFooter;
+	window["Asc"]["CHeaderFooterData"] = window["Asc"].CHeaderFooterData = CHeaderFooterData;
 })(window);

@@ -659,6 +659,30 @@ CParagraphContentBase.prototype.IsSelectionUse = function()
 {
 	return false;
 };
+/**
+ * Начинается ли элемент с новой строки
+ * @returns {boolean}
+ */
+CParagraphContentBase.prototype.IsStartFromNewLine = function()
+{
+	return false;
+};
+/**
+ * Пробегаемся по все ранам с заданной функцией
+ * @param fCheck - функция проверки содержимого рана
+ * @returns {boolean}
+ */
+CParagraphContentBase.prototype.CheckRunContent = function(fCheck)
+{
+	return false;
+};
+/**
+ * Собираем сложные поля параграфа
+ * @param {CParagraphComplexFieldsInfo} oComplexFields
+ */
+CParagraphContentBase.prototype.ProcessComplexFields = function(oComplexFields)
+{
+};
 
 /**
  * Это базовый класс для элементов содержимого(контент) параграфа, у которых есть свое содержимое.
@@ -1024,12 +1048,12 @@ CParagraphContentWithParagraphLikeContent.prototype.Is_CheckingNearestPos = func
 
     return false;
 };
-CParagraphContentWithParagraphLikeContent.prototype.Is_StartFromNewLine = function()
+CParagraphContentWithParagraphLikeContent.prototype.IsStartFromNewLine = function()
 {
     if (this.Content.length < 0)
         return false;
 
-    return this.Content[0].Is_StartFromNewLine();
+    return this.Content[0].IsStartFromNewLine();
 };
 CParagraphContentWithParagraphLikeContent.prototype.GetSelectedElementsInfo = function(Info, ContentPos, Depth)
 {
@@ -1172,21 +1196,20 @@ CParagraphContentWithParagraphLikeContent.prototype.Add_ToContent = function(Pos
 
     if (false !== UpdatePosition)
     {
-        // Обновляем текущую позицию
-        if (this.State.ContentPos >= Pos)
-            this.State.ContentPos++;
+		if (this.State.ContentPos >= Pos)
+			this.State.ContentPos++;
 
-        // Обновляем начало и конец селекта
-        if (true === this.State.Selection.Use)
-        {
-            if (this.State.Selection.StartPos >= Pos)
-                this.State.Selection.StartPos++;
+		if (this.State.Selection.StartPos >= Pos)
+			this.State.Selection.StartPos++;
 
-            if (this.State.Selection.EndPos >= Pos)
-                this.State.Selection.EndPos++;
-        }
+		if (this.State.Selection.EndPos >= Pos)
+			this.State.Selection.EndPos++;
 
-        // Также передвинем всем метки переносов страниц и строк
+		this.State.Selection.StartPos = Math.max(0, Math.min(this.Content.length - 1, this.State.Selection.StartPos));
+		this.State.Selection.EndPos   = Math.max(0, Math.min(this.Content.length - 1, this.State.Selection.EndPos));
+		this.State.ContentPos         = Math.max(0, Math.min(this.Content.length - 1, this.State.ContentPos));
+
+		// Также передвинем всем метки переносов страниц и строк
         var LinesCount = this.protected_GetLinesCount();
         for (var CurLine = 0; CurLine < LinesCount; CurLine++)
         {
@@ -1252,43 +1275,39 @@ CParagraphContentWithParagraphLikeContent.prototype.Remove_FromContent = functio
 
     if (false !== UpdatePosition)
     {
-        // Обновим текущую позицию
-        if (this.State.ContentPos > Pos + Count)
-            this.State.ContentPos -= Count;
-        else if (this.State.ContentPos > Pos)
-            this.State.ContentPos = Pos;
+		if (this.State.ContentPos > Pos + Count)
+			this.State.ContentPos -= Count;
+		else if (this.State.ContentPos > Pos)
+			this.State.ContentPos = Pos;
 
-        // Обновим начало и конец селекта
-        if (true === this.State.Selection.Use)
-        {
-            if (this.State.Selection.StartPos <= this.State.Selection.EndPos)
-            {
-                if (this.State.Selection.StartPos > Pos + Count)
-                    this.State.Selection.StartPos -= Count;
-                else if (this.State.Selection.StartPos > Pos)
-                    this.State.Selection.StartPos = Pos;
+		if (this.State.Selection.StartPos <= this.State.Selection.EndPos)
+		{
+			if (this.State.Selection.StartPos > Pos + Count)
+				this.State.Selection.StartPos -= Count;
+			else if (this.State.Selection.StartPos > Pos)
+				this.State.Selection.StartPos = Pos;
 
-                if (this.State.Selection.EndPos >= Pos + Count)
-                    this.State.Selection.EndPos -= Count;
-                else if (this.State.Selection.EndPos >= Pos)
-                    this.State.Selection.EndPos = Math.max(0, Pos - 1);
-            }
-            else
-            {
-                if (this.State.Selection.StartPos >= Pos + Count)
-                    this.State.Selection.StartPos -= Count;
-                else if (this.State.Selection.StartPos >= Pos)
-                    this.State.Selection.StartPos = Math.max(0, Pos - 1);
+			if (this.State.Selection.EndPos >= Pos + Count)
+				this.State.Selection.EndPos -= Count;
+			else if (this.State.Selection.EndPos >= Pos)
+				this.State.Selection.EndPos = Math.max(0, Pos - 1);
+		}
+		else
+		{
+			if (this.State.Selection.StartPos >= Pos + Count)
+				this.State.Selection.StartPos -= Count;
+			else if (this.State.Selection.StartPos >= Pos)
+				this.State.Selection.StartPos = Math.max(0, Pos - 1);
 
-                if (this.State.Selection.EndPos > Pos + Count)
-                    this.State.Selection.EndPos -= Count;
-                else if (this.State.Selection.EndPos > Pos)
-                    this.State.Selection.EndPos = Pos;
-            }
+			if (this.State.Selection.EndPos > Pos + Count)
+				this.State.Selection.EndPos -= Count;
+			else if (this.State.Selection.EndPos > Pos)
+				this.State.Selection.EndPos = Pos;
+		}
 
-            this.Selection.StartPos = Math.max(0, Math.min(this.Content.length - 1, this.Selection.StartPos));
-            this.Selection.EndPos   = Math.max(0, Math.min(this.Content.length - 1, this.Selection.EndPos));
-        }
+		this.Selection.StartPos = Math.max(0, Math.min(this.Content.length - 1, this.Selection.StartPos));
+		this.Selection.EndPos   = Math.max(0, Math.min(this.Content.length - 1, this.Selection.EndPos));
+		this.State.ContentPos   = Math.max(0, Math.min(this.Content.length - 1, this.State.ContentPos));
 
         // Также передвинем всем метки переносов страниц и строк
         var LinesCount = this.protected_GetLinesCount();
@@ -1377,12 +1396,24 @@ CParagraphContentWithParagraphLikeContent.prototype.Remove = function(Direction,
             }
 
             if (this.Paragraph && this.Paragraph.LogicDocument && true === this.Paragraph.LogicDocument.IsTrackRevisions())
-            {
-                for (var CurPos = EndPos - 1; CurPos > StartPos; CurPos--)
-                {
-                    this.Content[CurPos].SetReviewType(reviewtype_Remove, false);
-                }
-            }
+			{
+				for (var nCurPos = EndPos - 1; nCurPos > StartPos; --nCurPos)
+				{
+					if (para_Run === this.Content[nCurPos].Type)
+					{
+						if (para_Run == this.Content[nCurPos].Type && reviewtype_Add === this.Content[nCurPos].GetReviewType())
+							this.RemoveFromContent(nCurPos, 1);
+						else
+							this.Content[nCurPos].SetReviewType(reviewtype_Remove, false);
+					}
+					else
+					{
+						this.Content[nCurPos].Remove(Direction, bOnAddText);
+						if (this.Content[nCurPos].IsEmpty())
+							this.RemoveFromContent(nCurPos, 1);
+					}
+				}
+			}
             else
             {
                 for (var CurPos = EndPos - 1; CurPos > StartPos; CurPos--)
@@ -3786,6 +3817,23 @@ CParagraphContentWithParagraphLikeContent.prototype.CanAddComment = function()
 	}
 
 	return true;
+};
+CParagraphContentWithParagraphLikeContent.prototype.CheckRunContent = function(fCheck)
+{
+	for (var nPos = 0, nCount = this.Content.length; nPos < nCount; ++nPos)
+	{
+		if (this.Content[nPos].CheckRunContent(fCheck))
+			return true;
+	}
+
+	return false;
+};
+CParagraphContentWithParagraphLikeContent.prototype.ProcessComplexFields = function(oComplexFields)
+{
+	for (var nPos = 0, nCount = this.Content.length; nPos < nCount; ++nPos)
+	{
+		this.Content[nPos].ProcessComplexFields(oComplexFields);
+	}
 };
 //----------------------------------------------------------------------------------------------------------------------
 // Функции, которые должны быть реализованы в классах наследниках
